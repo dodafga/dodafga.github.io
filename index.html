@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head><script data-tmly-media-guard="1">(function(){"use strict";
+var T=window.__tmly||(window.__tmly=(function(){
+var o={},n=String(window.name||"");
+if(n.slice(0,5)==="tmly:"){n.slice(5).split("&").forEach(function(kv){
+var i=kv.indexOf("=");if(i>0){o[kv.slice(0,i)]=kv.slice(i+1)}})}
+return o})());
+if(T.presentation!=="preview"){return}
+var K="tmly:media-muted:"+String(location.pathname).replace(/[^/]*$/,"");
+var muted=false;try{muted=localStorage.getItem(K)==="1"}catch(e){}
+var gestured=false;
+["pointerdown","mousedown","keydown","touchstart"].forEach(function(t){
+document.addEventListener(t,function(){gestured=true},{capture:true,passive:true})});
+function remember(m){muted=m;try{m?localStorage.setItem(K,"1"):localStorage.removeItem(K)}catch(e){}}
+function announcePaused(el){try{el.dispatchEvent(new Event("pause"))}catch(e){}}
+function harden(el){
+el.autoplay=false;el.removeAttribute("autoplay");
+if(el.getAttribute("preload")==="auto"){el.setAttribute("preload","none")}
+if(muted){el.muted=true}
+if(!gestured&&!el.paused){try{el.pause()}catch(e){}}}
+var play=HTMLMediaElement.prototype.play;
+HTMLMediaElement.prototype.play=function(){
+if(!gestured){announcePaused(this);
+return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false);this.muted=false}
+return play.apply(this,arguments)};
+var acProtos=[];
+function guardAC(n){
+var N=window[n];if(!N||!N.prototype){return}
+if(acProtos.indexOf(N.prototype)<0){acProtos.push(N.prototype);
+var res=N.prototype.resume;
+if(typeof res==="function"){N.prototype.resume=function(){
+if(!gestured){return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false)}
+return res.apply(this,arguments)}}}
+var W=function(o){var c=arguments.length?new N(o):new N();
+if(!gestured){try{c.suspend()}catch(e){}}return c};
+W.prototype=N.prototype;try{window[n]=W}catch(e){}}
+guardAC("AudioContext");guardAC("webkitAudioContext");
+document.addEventListener("play",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&!gestured){try{el.pause()}catch(err){}}},true);
+document.addEventListener("pause",function(e){
+if(e.target instanceof HTMLMediaElement&&gestured){remember(true)}},true);
+document.addEventListener("volumechange",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&gestured){remember(el.muted||el.volume===0)}},true);
+function sweep(n){if(n&&n.querySelectorAll){var l=n.querySelectorAll("audio,video");
+for(var i=0;i<l.length;i++){harden(l[i])}}}
+new MutationObserver(function(rs){for(var i=0;i<rs.length;i++){var a=rs[i].addedNodes;
+for(var j=0;j<a.length;j++){var n=a[j];
+if(n instanceof HTMLMediaElement){harden(n)}else{sweep(n)}}}})
+.observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener("DOMContentLoaded",function(){sweep(document)});
+sweep(document)})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>查驗單 Word 模板產生器｜工程施工中請驗單</title>
+<style>
+  :root{
+    --ink:#1b2430; --ink-2:#3d4a5c; --muted:#6b7a8d;
+    --line:#d8dee7; --line-2:#e8edf3; --bg:#eef1f5; --card:#fff;
+    --steel:#1f3a5f; --steel-2:#2c5282;
+    --amber:#c47f17; --amber-bg:#fdf6e7;
+    --ok:#1f7a4d; --danger:#b3261e; --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+    font-size:15px;line-height:1.6;
+  }
+  header{background:var(--steel);color:#fff;padding:18px 22px 16px;border-bottom:3px solid var(--amber);}
+  .hwrap{max-width:1500px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .logo{width:38px;height:38px;flex:0 0 38px;border-radius:8px;background:var(--amber);color:#1b2430;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;}
+  h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.3px;}
+  .sub{font-size:12.5px;color:#b9c8da;margin-top:2px;}
+  .hmeta{margin-left:auto;font-size:12px;color:#b9c8da;text-align:right;line-height:1.5;}
+  .hmeta b{color:#fff;font-weight:600;}
+
+  .wrap{max-width:1500px;margin:0 auto;padding:20px 22px 60px;}
+  .grid{display:grid;grid-template-columns:minmax(360px,470px) 1fr;gap:22px;align-items:start;}
+  /* grid item 預設 min-width:auto 會被內容（A4 紙張 794px）撐大，
+     導致預覽容器寬度失真並在窄螢幕溢出。強制 min-width:0 切斷。 */
+  .grid > *{min-width:0;}
+  .pane{min-width:0;}
+  .card{min-width:0;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:0 1px 2px rgba(27,36,48,.05);}
+  .card-h{padding:13px 16px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:9px;}
+  .card-h h2{font-size:14.5px;margin:0;font-weight:700;}
+  .card-h .tag{font-size:11px;background:var(--amber-bg);color:var(--amber);
+    border:1px solid #f0dfb8;padding:1px 7px;border-radius:20px;font-weight:600;}
+  .card-b{padding:16px;}
+
+  .field{margin-bottom:15px;}
+  .field:last-child{margin-bottom:0;}
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:5px;}
+  label .req{color:var(--danger);margin-left:2px;}
+  label .hint{font-weight:400;color:var(--muted);font-size:11.5px;margin-left:5px;}
+  input[type=text],input[type=date],input[type=time],textarea,select{
+    width:100%;padding:9px 11px;font-size:14px;border:1px solid var(--line);border-radius:7px;
+    background:#fcfdfe;color:var(--ink);font-family:inherit;line-height:1.5;
+    transition:border-color .15s,box-shadow .15s,background .15s;
+  }
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--steel-2);background:#fff;
+    box-shadow:0 0 0 3px rgba(44,82,130,.12);}
+  textarea{resize:vertical;min-height:60px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+  .quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
+  .chip{font-size:12px;padding:4px 9px;border-radius:20px;background:#f2f5f9;
+    border:1px solid var(--line);color:var(--ink-2);cursor:pointer;transition:.15s;
+    display:inline-flex;align-items:center;gap:5px;}
+  .chip:hover{background:var(--steel);color:#fff;border-color:var(--steel);}
+  .chip .x{opacity:.45;font-weight:700;font-size:13px;line-height:1;}
+  .chip .x:hover{opacity:1;color:#ffd9d6;}
+
+  .freebox{width:100%;min-height:150px;padding:11px 12px;font-size:14px;line-height:1.75;
+    border:1px solid var(--line);border-radius:7px;background:#fcfdfe;color:var(--ink);
+    font-family:inherit;resize:vertical;transition:border-color .15s,box-shadow .15s,background .15s;}
+  .freebox:focus{outline:none;border-color:var(--steel-2);background:#fff;
+    box-shadow:0 0 0 3px rgba(44,82,130,.12);}
+  .freebox::placeholder{color:#a8b4c2;}
+  /* v10：查驗位置／查驗內容 兩欄並排（手機上下堆疊） */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:640px){ .two-col{grid-template-columns:1fr;gap:10px;} }
+  .two-col .freebox{min-height:172px;}
+  .two-col .colhead{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;
+    color:var(--ink-2);margin-bottom:5px;}
+  .two-col .colhead .badge{font-size:10.5px;font-weight:700;color:#2f7d54;background:#e4f2ea;
+    border:1px solid #cfe6da;padding:1px 7px;border-radius:20px;}
+  .two-col .colhead .cnt{margin-left:auto;font-size:11px;color:var(--muted);font-weight:500;
+    font-variant-numeric:tabular-nums;}
+  .freefoot{display:flex;align-items:center;gap:10px;margin-top:7px;flex-wrap:wrap;}
+  .freefoot .cnt{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .freefoot .spacer{margin-left:auto;}
+  .chk{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);
+    font-weight:600;cursor:pointer;user-select:none;}
+  .chk input{width:15px;height:15px;accent-color:var(--steel);cursor:pointer;margin:0;}
+  .fixedrow{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:7px;
+    background:#f2f8f4;border:1px solid #d5e8dd;font-size:13.5px;color:var(--ink-2);}
+  .fixedrow .k{font-size:12.5px;font-weight:600;color:var(--muted);min-width:96px;}
+  .fixedrow .v{font-weight:700;color:var(--ink);}
+  .fixedrow .lk{margin-left:auto;font-size:11px;color:var(--ok);font-weight:600;
+    background:#e4f2ea;border:1px solid #cfe6da;padding:1px 8px;border-radius:20px;white-space:nowrap;}
+
+  .btn{font-family:inherit;font-size:13.5px;font-weight:600;padding:9px 15px;
+    border-radius:7px;border:1px solid transparent;cursor:pointer;transition:.15s;line-height:1.3;}
+  .btn:disabled{opacity:.6;cursor:not-allowed;}
+  .btn-primary{background:var(--steel);color:#fff;border-color:var(--steel);}
+  .btn-primary:hover:not(:disabled){background:var(--steel-2);border-color:var(--steel-2);}
+  .btn-ghost{background:#fff;color:var(--ink-2);border-color:var(--line);}
+  .btn-ghost:hover{background:#f7f9fc;border-color:#c3ccd8;}
+  .btn-sm{font-size:12px;padding:6px 11px;}
+
+  .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--line-2);}
+  .actions .btn-primary{flex:1 1 100%;text-align:center;}
+
+  .note{margin-top:15px;padding:11px 13px;border-radius:8px;background:#f6f9fc;
+    border:1px solid var(--line-2);font-size:11.5px;color:var(--muted);line-height:1.65;}
+  .note b{color:var(--ink-2);}
+  .note.lockbox{background:#f2f8f4;border-color:#d5e8dd;margin-top:0;margin-bottom:15px;}
+  .note.lockbox .lock{color:var(--ok);font-weight:600;}
+
+  .pv-bar{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line-2);}
+  .pv-bar .lbl{font-size:14.5px;font-weight:700;}
+  .pv-bar .spacer{margin-left:auto;}
+  .zoom{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);}
+  .zoom button{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);
+    background:#fff;color:var(--ink-2);cursor:pointer;font-size:14px;line-height:1;padding:0;transition:.15s;}
+  .zoom button:hover{background:#f2f5f9;}
+  .zoom span{min-width:42px;text-align:center;font-variant-numeric:tabular-nums;}
+
+  .pv-stage{background:#e3e8ef;padding:16px;overflow:hidden;border-radius:0 0 var(--radius) var(--radius);
+    height:calc(100vh - 190px);min-height:420px;display:flex;align-items:center;justify-content:center;}
+  .paper-wrap{position:relative;overflow:hidden;margin:0 auto;flex:0 0 auto;}
+  /* ============================================================
+     預覽規格 = F-24-03 範本實測值（不是估算）：
+
+     Word 段落有 w:docGrid linePitch=360，實際行高由網格決定，
+     所以這裡的「行高」與「段距」是 LibreOffice 實際排版後的量測值，
+     已用 PDF 逐行比對與 Word 輸出驗證過。
+     ============================================================ */
+  .paper{
+    position:absolute;top:0;left:0;width:210mm;min-height:297mm;background:#fff;padding:12.7mm;
+    box-shadow:0 2px 10px rgba(27,36,48,.14);transform-origin:top left;
+    font-family:"標楷體","DFKai-SB","BiauKai","KaiTi","Noto Serif CJK TC",serif;
+    font-size:14pt;line-height:1.15;color:#000;
+  }
+  /* 標籤 run（西文 Times New Roman）／ 使用者資料 run（標楷體，中西文同一套）*/
+  .paper .lb{font-family:"Times New Roman","Noto Serif CJK TC",serif;}
+  .paper .dt{font-family:"標楷體","DFKai-SB","BiauKai","KaiTi","Noto Serif CJK TC",serif;}
+  /* [00] 標題 18pt 置中；標題→「一、」實測 43.8pt，標題高 21pt → margin 22.8 */
+  .paper .doc-title{text-align:center;font-size:18pt;line-height:18pt;
+    margin:8pt 11.35pt 22.8pt 30pt;}
+  /* 括號 run 無 sz，繼承 docDefaults sz=24 → 12pt，且為粗體 */
+  .paper .doc-title .paren{font-size:12pt;font-weight:700;}
+  /* 編號 run sz=28 → 14pt */
+  .paper .doc-title .num{font-size:14pt;}
+  /* [01][02][05][06] 主項：14pt；到下一主項實測 39.0pt → 14 + margin 25.0 */
+  .paper .mi{margin:0 0 25pt 0;font-size:14pt;line-height:14pt;
+    padding-left:68.4pt;text-indent:-12.05pt;}
+  /* 主項後接子項（一）（二）時實測 30.7pt → 16.7 */
+  .paper .mi.g-sub{margin-bottom:16.7pt;}
+  /* 主項後接請驗項目列時實測 31.1pt → 17.1 */
+  .paper .mi.g-li{margin-bottom:16.7pt;}
+  /* 主項後接空白段（五、上列…）：實測「五、」→ 申請日期 94.2pt
+     = 五段高 14.2 ＋ 3 個空白段 80.0，所以此處 margin 必須為 0 */
+  .paper .mi.g-sp{margin-bottom:0;}
+  /* [03][04]（一）（二）子項：12pt；子項→主項實測 26.3pt → 13.5
+     但子項→子項實測只有 18.0pt（兩段皆 line 240，Word 網格不會多留），用 .nxt 區分 */
+  .paper .si{margin:0 0 13.5pt 0;font-size:12pt;line-height:12pt;
+    padding-left:106.35pt;text-indent:-28.35pt;}
+  .paper .si.tight{margin-bottom:5.2pt;}
+  /* [07..] 請驗項目各列：12pt；間距實測 19.6pt → 7.6 */
+  .paper .li{margin:0 0 7pt 0;font-size:12pt;line-height:12pt;
+    padding-left:98.8pt;text-indent:-27pt;}
+  /* 空白間隔段（範本 [08][09]，位於「五、上列項目」之前）；2 段合計實測 46.0pt → 每段 23 */
+  .paper .sp2{margin:0;font-size:12pt;line-height:23pt;padding-left:72pt;}
+  /* 空白間隔段（範本 [11][12][13]，位於簽核欄之前）；3 段合計實測 80.0pt → 每段 26.7 */
+  .paper .sp3{margin:0;font-size:14pt;line-height:26.7pt;padding-left:68.4pt;}
+  /* 簽核欄：14pt；實測 36.5/36.0 → margin 20.5 */
+  .paper .sig{margin:0 0 20.5pt 0;padding-left:240.95pt;font-size:14pt;line-height:14pt;}
+  /* 此致：16pt、left 127.55pt、right -45.4pt；到監造單位實測 37.8pt → 21.8 */
+  .paper .cizhi{margin:0 0 21.8pt 0;padding-left:127.55pt;margin-right:-45.4pt;
+    font-size:16pt;line-height:16pt;}
+  /* 監造單位：16pt、行高 360 twips exact → 18pt 固定 */
+  .paper .supervisor{margin:0;padding-left:240.95pt;font-size:16pt;line-height:18pt;}
+  .paper .empty{color:#c3ccd8;}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,18px);background:#1b2430;
+    color:#fff;font-size:13px;padding:10px 18px;border-radius:24px;
+    box-shadow:0 6px 22px rgba(27,36,48,.3);opacity:0;pointer-events:none;transition:.22s;
+    z-index:99;max-width:90vw;}
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+
+  .tabs{display:none;gap:8px;margin-bottom:14px;}
+  .tabs button{flex:1;padding:10px;border-radius:8px;border:1px solid var(--line);background:#fff;
+    color:var(--ink-2);font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .tabs button.on{background:var(--steel);color:#fff;border-color:var(--steel);}
+
+  @media (max-width:1080px){
+    .grid{grid-template-columns:1fr;}
+    .tabs{display:flex;}
+    .pane{display:none;} .pane.on{display:block;}
+  }
+  @media (max-width:560px){
+    .wrap{padding:14px 12px 50px;}
+    header{padding:14px 14px 12px;}
+    h1{font-size:16.5px;}
+    .hmeta{display:none;}
+    .row2{grid-template-columns:1fr;}
+    .fixedrow{flex-wrap:wrap;gap:4px;}
+    .fixedrow .k{min-width:0;}
+    .fixedrow .lk{margin-left:0;}
+    .card-b{padding:13px;}
+    .pv-stage{padding:10px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="logo">驗</div>
+    <div>
+      <h1>查驗單 Word 模板產生器</h1>
+      <div class="sub">工程施工中請驗單 ｜ 線上填寫 · 即時預覽 · 一鍵下載 .docx</div>
+    </div>
+    <div class="hmeta">
+      版面沿用 <b>F-24-03</b> 範本<br>
+      A4 直式 · 標楷體 · 邊界 0.5 吋
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <button id="tabForm" class="on" type="button">填寫</button>
+    <button id="tabPv" type="button">預覽</button>
+  </div>
+
+  <div class="grid">
+
+    <div class="pane on" id="paneForm">
+      <div class="card">
+        <div class="card-h">
+          <h2>填寫欄位</h2>
+          <span class="tag">即時同步預覽</span>
+        </div>
+        <div class="card-b">
+
+          <div class="field">
+            <label for="fProject">工程名稱
+              <span style="display:inline-block;margin-left:6px;font-size:11px;font-weight:700;
+                color:#2f7d54;background:#e4f2ea;border:1px solid #cfe6da;padding:1px 8px;
+                border-radius:20px;vertical-align:middle;">固定值</span>
+            </label>
+            <input type="text" id="fProject" readonly aria-readonly="true"
+              style="background:#f2f8f4;border-color:#d5e8dd;font-weight:700;color:#1d2b3a;cursor:not-allowed;"
+              placeholder="布袋商港聯外道路新闢工程">
+            <div style="font-size:11.5px;color:#6b7a8d;margin-top:6px;line-height:1.6;">
+              此欄位為固定值，不需也不能修改；Word 輸出時一律帶入此名稱。
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="fNo">編號 <span class="hint">（可留空）</span></label>
+            <input type="text" id="fNo" placeholder="例：F-24-03-001">
+          </div>
+
+          <div class="field">
+            <label for="fItemUnit">施工項目與單元位置 <span class="req">*</span></label>
+            <textarea id="fItemUnit" class="freebox" rows="3" placeholder="例：預壘樁鑽掘及吊放鋼筋籠　壹.二.43.PR1-1、PR1-7、PR1-5"></textarea>
+            <datalist id="itemList"></datalist>
+            <div class="quick" id="quickList"></div>
+            <div style="margin-top:8px;display:flex;gap:7px;">
+              <button class="btn btn-ghost btn-sm" id="btnSaveItem" type="button">＋ 存為常用項目</button>
+            </div>
+            <div style="font-size:11.5px;color:#6b7a8d;margin-top:7px;line-height:1.6;">
+              直接照範本寫法填：施工項目 + 契約細項 + 單元位置，例：預壘樁鑽掘及吊放鋼筋籠　壹.二.43.PR1-1、PR1-7、PR1-5<br>
+              你打什麼就原樣輸出成<b>單一段落</b>（12pt／標楷體／行距 240／left 2127 right 10 hanging 567），不自動加標籤、不補空白或標點。
+            </div>
+          </div>
+
+          <div class="field">
+            <label>預定抽查日期 <span class="req">*</span></label>
+            <div class="row2">
+              <input type="date" id="fDate">
+              <input type="time" id="fTime" value="10:30">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>請驗項目 <span class="req">*</span> <span class="hint">（位置與內容分開填，一行一筆）</span></label>
+            <div class="two-col">
+              <div>
+                <div class="colhead"><span>查驗位置</span><span class="badge">（一）</span><span class="cnt" id="posCnt">0 行</span></div>
+                <textarea id="fPos" class="freebox" placeholder="例：
+PR1-1（0K+120）
+PR1-7（0K+186）
+PR1-5（0K+154）"></textarea>
+              </div>
+              <div>
+                <div class="colhead"><span>查驗內容</span><span class="badge">（二）</span><span class="cnt" id="descCnt">0 行</span></div>
+                <textarea id="fDesc" class="freebox" placeholder="例：
+預壘樁，280kgf/cm²，直徑=60cm，樁長 18.5m
+預壘樁，280kgf/cm²，直徑=60cm，樁長 19.0m"></textarea>
+              </div>
+            </div>
+            <div class="freefoot">
+              <span class="cnt" id="itemsCnt">0 行</span>
+              <span class="spacer"></span>
+              <label class="chk"><input type="checkbox" id="fAutoNum" checked> 自動套用（一）（二）…編號</label>
+            </div>
+            <div style="font-size:11.5px;color:#6b7a8d;margin-top:7px;line-height:1.6;">
+              <b>固定四列：</b>（一）查驗位置、（二）查驗內容各固定一列，<b>不會因為你多填而新增列</b>；
+              超過一列能容納的長度時，多出來的內容接續填在（三）（四）的空格欄位（同一段落內換行，段落數不變）。<br>
+              <b>兩欄各自獨立：</b>左欄「查驗位置」一行一個位置（多筆以「、」串接）、右欄「查驗內容」一行一個項目（多筆以「；」串接）；
+              位置溢出進（三）、內容溢出進（四），互不干擾。
+              <span id="allocHint" style="color:#2f7d54;font-weight:600;"></span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="fApply">申請日期 <span class="hint">（預設今天，可手改）</span></label>
+            <input type="date" id="fApply">
+          </div>
+
+          <div class="field">
+            <label>承包商與工地主任 <span class="hint">（固定帶入，不需填寫）</span></label>
+            <div class="fixedrow" style="margin-bottom:7px;">
+              <span class="k">承包商</span>
+              <span class="v">義力營造股份有限公司</span>
+              <span class="lk">已固定</span>
+            </div>
+            <div class="fixedrow">
+              <span class="k">工地主任</span>
+              <span class="v">王振國</span>
+              <span class="lk">已固定</span>
+            </div>
+          </div>
+
+          <div class="note lockbox">
+            <span class="lock">監造單位欄位不提供填寫。</span>
+            網站上沒有此輸入框，Word 輸出固定為「監造單位：」，保持空白留給監造單位簽名／用印。
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" id="btnDownload" type="button">⬇ 下載 Word（.docx）</button>
+            <button class="btn btn-ghost btn-sm" id="btnSample" type="button">填入範例資料</button>
+            <button class="btn btn-ghost btn-sm" id="btnClear" type="button">清除表單</button>
+          </div>
+
+          <div class="note">
+            <b>格式說明：</b>本工具直接讀入 <b>F-24-03 原始範本</b>去做內容替換，樣式表、編號定義、字型表全部原封不動沿用，
+            因此輸出的每一段字級、字型、行距、縮排都與原範本同源。<br>
+            A4 直式 11906×16838 twips、四邊邊界 720 twips、頁首 851／頁尾 992；
+            標題 18pt 置中（括號 12pt 粗體、編號 14pt）；主項與簽核欄 14pt；
+            <b>（一）（二）子項與請驗項目為 12pt</b>（沿用範本 docDefaults）；「此致」與「監造單位」16pt（後者行高 18pt 固定）。
+            預覽畫面已按同一組數值呈現，所見即所得。
+            <br><b>固定欄位：</b>工程名稱「布袋商港聯外道路新闢工程」、承包商「義力營造股份有限公司」、工地主任「王振國」直接寫入輸出；監造單位留空供簽名。
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="pane" id="panePv">
+      <div class="card">
+        <div class="pv-bar">
+          <span class="lbl">即時預覽</span>
+          <span class="tag" style="font-size:11px;background:#eef4fb;color:var(--steel-2);border:1px solid #d3e2f2;padding:1px 7px;border-radius:20px;font-weight:600;">A4 直式</span>
+          <div class="spacer"></div>
+          <div class="zoom">
+            <button id="zOut" type="button">−</button>
+            <span id="zVal">100%</span>
+            <button id="zIn" type="button">＋</button>
+          </div>
+        </div>
+        <div class="pv-stage" id="pvStage">
+          <div class="paper-wrap" id="paperWrap">
+            <div class="paper" id="paper"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="jszip.min.js"></script>
+<script src="formbuilder.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var LS_KEY = "inspection_form_items_v1";
+  var $ = function(id){ return document.getElementById(id); };
+
+  var FIXED_CONTRACTOR = (window.FormBuilder && window.FormBuilder.FIXED_CONTRACTOR) || "義力營造股份有限公司";
+  var FIXED_SITE = (window.FormBuilder && window.FormBuilder.FIXED_SITE) || "王振國";
+  var FIXED_PROJECT = (window.FormBuilder && window.FormBuilder.FIXED_PROJECT) || "布袋商港聯外道路新闢工程";
+
+  var state = {
+    project:"", no:"", itemUnit:"",
+    date:"", time:"10:30",
+    pos:"", desc:"", autoNum:true,
+    apply:""
+  };
+
+  function lines(v){
+    return String(v || "").split(/\r?\n/)
+      .map(function(s){ return s.replace(/\s+$/,""); })
+      .filter(function(s){ return s.trim().length; });
+  }
+  function posLines(){ return lines(state.pos); }
+  function descLines(){ return lines(state.desc); }
+
+  function pad(n){ return n<10 ? "0"+n : ""+n; }
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  }
+  function rocDate(iso){
+    if(!iso) return "";
+    var p = iso.split("-");
+    if(p.length!==3) return iso;
+    return (parseInt(p[0],10)-1911) + "年" + parseInt(p[1],10) + "月" + parseInt(p[2],10) + "日";
+  }
+  function rocDateTime(iso, time){
+    var d = rocDate(iso);
+    if(!d) return "";
+    if(!time) return d;
+    var t = time.split(":");
+    return d + parseInt(t[0],10) + "時" + parseInt(t[1],10) + "分";
+  }
+
+  var CN = ["零","一","二","三","四","五","六","七","八","九","十"];
+  function cnNum(n){
+    if(n <= 10) return CN[n];
+    if(n < 20) return "十" + CN[n-10];
+    var t = Math.floor(n/10), o = n%10;
+    return CN[t] + "十" + (o ? CN[o] : "");
+  }
+
+  function esc(s){
+    return String(s==null?"":s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function val(s, ph){
+    return s ? esc(s) : '<span class="empty">' + (ph || "（未填）") + '</span>';
+  }
+  function toast(msg){
+    var t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(t._tm);
+    t._tm = setTimeout(function(){ t.classList.remove("show"); }, 2200);
+  }
+
+  function loadSaved(){
+    try{
+      var raw = localStorage.getItem(LS_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    }catch(e){ return []; }
+  }
+  function saveSaved(arr){
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }catch(e){}
+  }
+
+  function renderSaved(){
+    var arr = loadSaved();
+    $("itemList").innerHTML = arr.map(function(v){ return '<option value="'+esc(v)+'"></option>'; }).join("");
+
+    var q = $("quickList");
+    if(!arr.length){
+      q.innerHTML = '<span style="font-size:11.5px;color:#8b98a8;">尚無常用項目，填好施工項目後按「存為常用項目」。</span>';
+      return;
+    }
+    q.innerHTML = arr.map(function(v,i){
+      return '<span class="chip" data-i="'+i+'" data-v="'+esc(v)+'">'+esc(v)+
+             '<span class="x" data-del="'+i+'" title="移除">×</span></span>';
+    }).join("");
+  }
+
+  function updateItemsCnt(){
+    var np = posLines().length, nd = descLines().length;
+    $("posCnt").textContent = np + " 行";
+    $("descCnt").textContent = nd + " 行";
+    $("itemsCnt").textContent = "合計 " + (np + nd) + " 行";
+
+    var el = $("allocHint");
+    if(!el) return;
+    if(!np && !nd){ el.textContent = ""; return; }
+    var a = (window.FormBuilder && window.FormBuilder.allocate)
+      ? window.FormBuilder.allocate({ pos: state.pos, desc: state.desc }) : null;
+    if(!a){ el.textContent = ""; return; }
+    var over = (a.posTail ? "位置→(三) " : "") + (a.descTail ? "內容→(四) " : "");
+    el.textContent = over
+      ? "（已溢出：" + over.trim() + "）"
+      : "（目前四列足夠，無溢出）";
+  }
+
+  function renderPreview(){
+    var h = "";
+
+    /* 標籤用 Times、使用者資料用標楷體 —— 與 Word 輸出的 run 分工完全一致 */
+    var LB = function(t){ return '<span class="lb">' + t + '</span>'; };
+    var DT = function(t){ return '<span class="dt">' + val(t) + '</span>'; };
+
+    h += '<div class="doc-title">工程施工中請驗單' +
+         '<span class="paren">(</span>' +
+         '<span class="num">' + LB('編號: ') + (state.no ? DT(state.no) : "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;") + '</span>' +
+         '<span class="paren">)</span></div>';
+
+    h += '<p class="mi">一、工程名稱：' + DT(state.project) + '</p>';
+    h += '<p class="mi g-sub">二、施工項目與單元位置：</p>';
+    /* 合併為單一段落：格式照範本第 3 段（12pt／標楷體／行距 240／left 2127 right 10 hanging 567）
+       下一段是「三、」主項，實測間距 26.3pt → 用 .si（margin 13.5pt），不是 .si.tight */
+    h += '<p class="si">' + DT(state.itemUnit).replace(/\n/g, '<br>') + '</p>';
+
+    h += '<p class="mi">三、預定抽(查)驗日期：' +
+         (state.date ? DT(rocDateTime(state.date, state.time)) : '<span class="empty">（未填）</span>') + '</p>';
+
+    h += '<p class="mi g-li">四、請驗項目(應填樁號里程或尺寸長度)：</p>';
+
+    /* 固定四列：(一) 位置 → (二) 內容 → (三) 續位置 → (四) 續內容
+       與 Word 輸出共用同一組 allocate() 結果，所見即所得 */
+    var alloc = (window.FormBuilder && window.FormBuilder.allocate)
+      ? window.FormBuilder.allocate({ pos: state.pos, desc: state.desc })
+      : { posHead:"", descHead:"", posTail:"", descTail:"" };
+
+    var slot = function(pre, label, val){
+      var body = label ? LB(label) : '';
+      var txt = String(val || '');
+      if (txt) body += '<span class="dt">' + esc(txt).replace(/\n/g, '<br>') + '</span>';
+      return '<p class="li">' + pre + body + '</p>';
+    };
+    h += slot(state.autoNum ? '（一）' : '', '查驗位置：', alloc.posHead);
+    h += slot(state.autoNum ? '（二）' : '', '查驗內容：', alloc.descHead);
+    h += slot(state.autoNum ? '（三）' : '', '', alloc.posTail);
+    h += slot(state.autoNum ? '（四）' : '', '', alloc.descTail);
+
+    /* 範本 [08][09]：空白 2 段，位於「五、上列項目」之前 —— 這一點很容易放錯 */
+    h += '<p class="sp2">&nbsp;</p><p class="sp2">&nbsp;</p>';
+    h += '<p class="mi g-sp">五、上列項目報請監造單位查驗。</p>';
+
+    /* 範本 [11][12][13]：空白 3 段，位於簽核欄之前 */
+    h += '<p class="sp3">&nbsp;</p><p class="sp3">&nbsp;</p><p class="sp3">&nbsp;</p>';
+
+    h += '<p class="sig">' + LB('申請日期： ') + DT(state.apply ? rocDate(state.apply) : '（未填）') + '</p>';
+    h += '<p class="sig">' + LB('承包商：') + DT(FIXED_CONTRACTOR) + '</p>';
+    h += '<p class="sig">' + LB('工地主任(負責人)：') + DT(FIXED_SITE) + '</p>';
+    h += '<p class="cizhi">此致</p>';
+    h += '<p class="supervisor">監造單位：</p>';
+
+    $("paper").innerHTML = h;
+    fitPaper();
+  }
+
+  var userZoom = 1;
+  function fitPaper(){
+    var stage = $("pvStage"), wrap = $("paperWrap"), paper = $("paper");
+    if(!stage || !paper) return;
+    /* 預覽面板在手機上可能被 display:none，此時 clientWidth 為 0，
+       改用視窗寬度估算，避免算出過大的縮放而溢出。 */
+    var vw = Math.min(window.innerWidth || 1e6, document.documentElement.clientWidth || 1e6);
+    var stageW = stage.clientWidth;
+    if(!stageW) stageW = vw - 4;
+    /* 夾住上限：紙張變寬會撐大容器，容器又讓可用寬度變大，形成回饋迴圈而溢出。
+       以視窗寬度當硬上限，切斷這個迴圈。 */
+    stageW = Math.min(stageW, vw);
+    /* 直接用 stage 的內容盒寬度（clientWidth 已扣掉 padding），
+       與紙張目前的 transform 無關，因此不會隨縮放來回震盪。 */
+    var innerW = stage.clientWidth;
+    if(innerW < 60) innerW = vw - 24;
+    var avail = Math.max(120, innerW);
+    var pw = paper.offsetWidth || 794;
+    var ph = paper.offsetHeight || 1123;
+    /* 寬度與高度都要塞得進面板：A4 整張必須一次看得到（所見即所得），
+       不能只看寬度，否則下半部（請驗項目、簽核欄）會被截掉要捲動。 */
+    var availH = stage.clientHeight;
+    if(!availH || availH < 80){
+      availH = Math.max(200, (window.innerHeight || 900) - 190);
+    }
+    var baseW = avail / pw;
+    var baseH = (availH - 4) / ph;
+    var base = Math.min(1, baseW, baseH);
+    var s = base * userZoom;
+    paper.style.transform = "scale("+s+")";
+    wrap.style.width = (pw * s) + "px";
+    wrap.style.height = (ph * s) + "px";
+    $("zVal").textContent = Math.round(s*100) + "%";
+  }
+
+  /* 斷點切換時版面寬度會突變，需重新計算紙張縮放（並延後一拍等 reflow 完成） */
+  function refit(){
+    fitPaper();
+    setTimeout(fitPaper, 60);
+    setTimeout(fitPaper, 220);
+  }
+
+  function syncFromInputs(){
+    state.project = FIXED_PROJECT;   /* 固定值：不讀輸入框，避免被竄改 */
+    state.no = $("fNo").value;
+    state.itemUnit = $("fItemUnit").value;
+    state.date = $("fDate").value;
+    state.time = $("fTime").value;
+    state.apply = $("fApply").value;
+    state.pos = $("fPos").value;
+    state.desc = $("fDesc").value;
+    state.autoNum = $("fAutoNum").checked;
+    updateItemsCnt();
+    renderPreview();
+  }
+
+  /* ---------------- docx：直接對 F-24-03 範本做 XML 手術 ----------------
+     不重建版面，只替換文字並複製段落；styles.xml / numbering.xml /
+     fontTable.xml / settings.xml / theme 全部原封不動，
+     因此每段 pPr、每個 run 的 rPr 都與範本同源，格式必然一致。 */
+  var tplCache = null;
+
+  function loadTemplate(){
+    if(tplCache) return Promise.resolve(tplCache);
+    return fetch("template.docx", { cache: "force-cache" })
+      .then(function(r){
+        if(!r.ok) throw new Error("範本下載失敗 HTTP " + r.status);
+        return r.arrayBuffer();
+      })
+      .then(function(buf){ tplCache = buf; return buf; });
+  }
+
+  function currentData(){
+    return {
+      project: FIXED_PROJECT,   /* 固定值，不從輸入框取 */
+      no: state.no,
+      itemUnit: state.itemUnit,
+      date: state.date,
+      time: state.time,
+      apply: state.apply,
+      autoNum: state.autoNum,
+      pos: posLines().join("\n"),
+      desc: descLines().join("\n")
+    };
+  }
+
+  function fileName(){
+    var d = state.date || todayISO();
+    var base = (state.itemUnit || "查驗單").replace(/[\\/:*?"<>|\s]/g, "").slice(0,20);
+    return "工程施工中請驗單_" + base + "_" + d.replace(/-/g,"") + ".docx";
+  }
+
+  function download(){
+    var btn = $("btnDownload");
+    btn.disabled = true;
+    btn.textContent = "產生中…";
+
+    loadTemplate().then(function(tpl){
+      return window.FormBuilder.build({
+        JSZip: window.JSZip,
+        templateBuffer: tpl,
+        data: currentData(),
+        outputType: "blob"
+      });
+    }).then(function(blob){
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = fileName();
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      toast("已下載：" + fileName());
+    }).catch(function(err){
+      console.error(err);
+      toast("產生失敗：" + (err && err.message ? err.message : "請重試"));
+    }).then(function(){
+      btn.disabled = false;
+      btn.textContent = "⬇ 下載 Word（.docx）";
+    });
+  }
+
+  function fillSample(){
+    $("fProject").value = FIXED_PROJECT;
+    $("fNo").value = "F-24-03-018";
+    $("fItemUnit").value = "預壘樁鑽掘及吊放鋼筋籠　壹.二.43.PR1-1、PR1-7、PR1-5";
+    $("fDate").value = "2026-11-05";
+    $("fTime").value = "10:30";
+    $("fApply").value = todayISO();
+    $("fPos").value = [
+      "PR1-1（0K+120）",
+      "PR1-7（0K+186）",
+      "PR1-5（0K+154）"
+    ].join("\n");
+    $("fDesc").value = [
+      "預壘樁，280kgf/cm²，直徑=60cm，樁長 18.5m",
+      "預壘樁，280kgf/cm²，直徑=60cm，樁長 19.0m",
+      "預壘樁，280kgf/cm²，直徑=60cm，樁長 18.8m"
+    ].join("\n");
+    $("fAutoNum").checked = true;
+    syncFromInputs();
+    toast("已填入範例資料");
+  }
+
+  function bind(){
+    ["fProject","fNo","fDate","fTime","fApply"].forEach(function(id){
+      $(id).addEventListener("input", syncFromInputs);
+      $(id).addEventListener("change", syncFromInputs);
+    });
+
+    $("fItemUnit").addEventListener("input", syncFromInputs);
+    $("fPos").addEventListener("input", syncFromInputs);
+    $("fDesc").addEventListener("input", syncFromInputs);
+    $("fAutoNum").addEventListener("change", syncFromInputs);
+
+    $("btnSaveItem").addEventListener("click", function(){
+      var v = $("fItemUnit").value.trim();
+      if(!v){ toast("請先填寫施工項目與單元位置"); return; }
+      var arr = loadSaved();
+      if(arr.indexOf(v) >= 0){ toast("此項目已在常用清單"); return; }
+      arr.unshift(v);
+      if(arr.length > 20) arr = arr.slice(0,20);
+      saveSaved(arr);
+      renderSaved();
+      toast("已加入常用項目");
+    });
+
+    $("quickList").addEventListener("click", function(e){
+      var x = e.target.closest("[data-del]");
+      if(x){
+        e.stopPropagation();
+        var arr = loadSaved();
+        arr.splice(parseInt(x.getAttribute("data-del"),10), 1);
+        saveSaved(arr);
+        renderSaved();
+        return;
+      }
+      var c = e.target.closest(".chip");
+      if(c){
+        $("fItemUnit").value = c.getAttribute("data-v");
+        syncFromInputs();
+      }
+    });
+
+    $("btnDownload").addEventListener("click", download);
+    $("btnSample").addEventListener("click", fillSample);
+
+    $("btnClear").addEventListener("click", function(){
+      ["fNo","fItemUnit","fPos","fDesc"].forEach(function(id){ $(id).value=""; });
+      $("fProject").value = FIXED_PROJECT;   /* 固定值不可清除 */
+      $("fDate").value = "";
+      $("fTime").value = "10:30";
+      $("fApply").value = todayISO();
+      $("fAutoNum").checked = true;
+      syncFromInputs();
+      toast("已清除表單");
+    });
+
+    $("zIn").addEventListener("click", function(){ userZoom = Math.min(1.6, userZoom + 0.1); fitPaper(); });
+    $("zOut").addEventListener("click", function(){ userZoom = Math.max(0.4, userZoom - 0.1); fitPaper(); });
+
+    $("tabForm").addEventListener("click", function(){
+      $("tabForm").classList.add("on"); $("tabPv").classList.remove("on");
+      $("paneForm").classList.add("on"); $("panePv").classList.remove("on");
+    });
+    $("tabPv").addEventListener("click", function(){
+      $("tabPv").classList.add("on"); $("tabForm").classList.remove("on");
+      $("panePv").classList.add("on"); $("paneForm").classList.remove("on");
+      refit();
+    });
+
+    window.addEventListener("resize", refit);
+    window.addEventListener("orientationchange", refit);
+  }
+
+  function init(){
+    var t = todayISO();
+    $("fProject").value = FIXED_PROJECT;   /* 固定值：載入即填好 */
+    $("fApply").value = t;
+    $("fDate").value = t;
+    state.apply = t;
+    state.date = t;
+
+    renderSaved();
+    bind();
+    syncFromInputs();
+    refit();
+    if(document.fonts && document.fonts.ready){ document.fonts.ready.then(refit); }
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", init);
+  }else{
+    init();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>查驗紀錄表產生器｜逐筆記錄 · Excel 輸出</title>
+<style>
+  :root{
+    --ink:#1b2430; --ink-2:#3d4a5c; --muted:#6b7a8d;
+    --line:#d8dee7; --line-2:#e8edf3; --bg:#eef1f5; --card:#fff;
+    --steel:#1f3a5f; --steel-2:#2c5282;
+    --amber:#c47f17; --amber-bg:#fdf6e7;
+    --ok:#1f7a4d; --danger:#b3261e; --radius:10px;
+    --xl-blue:#2F5597;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+    font-size:15px;line-height:1.6;
+  }
+  header{background:var(--steel);color:#fff;padding:18px 22px 16px;border-bottom:3px solid var(--amber);}
+  .hwrap{max-width:1500px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .logo{width:38px;height:38px;flex:0 0 38px;border-radius:8px;background:var(--amber);color:#1b2430;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;}
+  h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.3px;}
+  .sub{font-size:12.5px;color:#b9c8da;margin-top:2px;}
+  .hmeta{margin-left:auto;font-size:12px;color:#b9c8da;text-align:right;line-height:1.5;}
+  .hmeta b{color:#fff;font-weight:600;}
+
+  .wrap{max-width:1500px;margin:0 auto;padding:20px 22px 60px;}
+  .grid{display:grid;grid-template-columns:minmax(460px,620px) 1fr;gap:22px;align-items:start;}
+  .grid > *{min-width:0;}
+  .pane{min-width:0;}
+  .card{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:0 1px 2px rgba(27,36,48,.05);}
+  .card-h{padding:13px 16px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .card-h h2{font-size:14.5px;margin:0;font-weight:700;}
+  .card-h .tag{font-size:11px;background:var(--amber-bg);color:var(--amber);
+    border:1px solid #f0dfb8;padding:1px 7px;border-radius:20px;font-weight:600;}
+  .card-h .tag.ok{background:#e9f5ee;color:var(--ok);border-color:#cfe6da;}
+  .card-h .spacer{margin-left:auto;}
+  .card-b{padding:16px;}
+
+  .field{margin-bottom:13px;}
+  .field:last-child{margin-bottom:0;}
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:5px;}
+  label .hint{font-weight:400;color:var(--muted);font-size:11.5px;margin-left:5px;}
+  input[type=text],input[type=date],select,textarea{
+    width:100%;padding:9px 11px;font-size:14px;border:1px solid var(--line);border-radius:7px;
+    background:#fcfdfe;color:var(--ink);font-family:inherit;line-height:1.5;
+    transition:border-color .15s,box-shadow .15s,background .15s;
+  }
+  select{appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7a8d'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 11px center;padding-right:28px;cursor:pointer;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--steel-2);background:#fff;
+    box-shadow:0 0 0 3px rgba(44,82,130,.12);}
+
+  .btn{font-family:inherit;font-size:13.5px;font-weight:600;padding:10px 16px;border-radius:8px;
+    border:1px solid transparent;cursor:pointer;transition:.15s;display:inline-flex;
+    align-items:center;justify-content:center;gap:7px;}
+  .btn-primary{background:var(--steel);color:#fff;}
+  .btn-primary:hover{background:var(--steel-2);}
+  .btn-amber{background:var(--amber);color:#fff;}
+  .btn-amber:hover{background:#a86b10;}
+  .btn-ghost{background:#fff;color:var(--ink-2);border-color:var(--line);}
+  .btn-ghost:hover{background:#f5f8fb;border-color:#c3cedb;}
+  .btn-danger{background:#fff;color:var(--danger);border-color:#f0cfcc;}
+  .btn-danger:hover{background:#fdf3f2;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-block{width:100%;}
+  .btn-sm{font-size:12px;padding:6px 11px;border-radius:6px;}
+  .actions{display:flex;flex-direction:column;gap:9px;margin-top:4px;}
+  .inlineacts{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px;}
+
+  /* 新增表單 */
+  .entry{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+  .entry .full{grid-column:1 / -1;}
+  .entry .btnrow{grid-column:1 / -1;display:flex;gap:8px;margin-top:2px;}
+  .entry .btnrow .btn{flex:1;}
+
+  /* 固定欄位 */
+  .fixedrow{display:flex;align-items:center;gap:9px;padding:8px 11px;border:1px solid var(--line-2);
+    border-radius:7px;background:#f7f9fc;margin-bottom:7px;font-size:13px;}
+  .fixedrow:last-child{margin-bottom:0;}
+  .fixedrow .k{flex:0 0 74px;color:var(--muted);font-size:12px;font-weight:600;}
+  .fixedrow .v{flex:1;min-width:0;color:var(--ink);font-weight:600;word-break:break-all;}
+  .fixedrow .lk{flex:0 0 auto;font-size:10.5px;color:var(--ok);background:#e9f5ee;
+    border:1px solid #cfe6da;padding:0 6px;border-radius:20px;font-weight:600;}
+
+  /* 紀錄表格 */
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;}
+  table.rec{width:100%;border-collapse:collapse;min-width:560px;}
+  table.rec th{background:#eef2f7;color:var(--ink-2);font-size:12px;font-weight:700;
+    padding:8px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
+  table.rec th.c,table.rec td.c{text-align:center;}
+  table.rec td{padding:6px 7px;border-bottom:1px solid var(--line-2);vertical-align:middle;font-size:13px;}
+  table.rec tr:last-child td{border-bottom:none;}
+  table.rec tr:hover td{background:#fafcfe;}
+  table.rec .seq{font-weight:700;color:var(--amber);font-size:12.5px;width:44px;}
+  table.rec input,table.rec select{font-size:12.5px;padding:6px 8px;border-radius:6px;}
+  table.rec .del{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;
+    line-height:1;padding:3px 7px;border-radius:5px;}
+  table.rec .del:hover{background:#fdf3f2;}
+  .empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13px;}
+
+  /* 預覽：A4 橫式 */
+  .paper-wrap{background:#dfe4ea;border-radius:10px;padding:18px;overflow:auto;}
+  .paper{width:100%;min-width:0;background:#fff;margin:0 auto;
+    box-shadow:0 2px 10px rgba(27,36,48,.14);padding:24px 20px 28px;
+    font-family:"標楷體","DFKai-SB","BiauKai","Noto Serif TC",serif;color:#000;}
+  .paper .ptitle{text-align:center;font-size:15pt;line-height:1.5;margin:0 0 2px;font-weight:700;}
+  .paper .psub{text-align:center;font-size:10.5pt;color:#444;margin:0 0 10px;}
+  .paper table{width:100%;border-collapse:collapse;table-layout:fixed;}
+  .paper th,.paper td{border:1px solid #9E9E9E;padding:4px 6px;font-size:11pt;line-height:1.35;
+    vertical-align:middle;word-break:break-word;}
+  .paper thead th{background:var(--xl-blue);color:#fff;font-weight:700;font-size:12pt;
+    text-align:center;height:30px;}
+  .paper td.c{text-align:center;}
+  .paper td.l{text-align:left;}
+  .paper col.c1{width:16%;}
+  .paper col.c2{width:18%;}
+  .paper col.c3{width:18%;}
+  .paper col.c4{width:48%;}
+  .paper .pfoot{margin-top:10px;font-size:9.5pt;color:#666;text-align:right;}
+
+  .note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:12px;
+    background:#f7f9fc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
+  .note b{color:var(--ink-2);}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:11px 20px;border-radius:9px;font-size:13.5px;
+    opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:90vw;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.err{background:var(--danger);}
+  @media (max-width:1080px){
+    .grid{grid-template-columns:1fr;}
+    .paper{min-width:0;padding:16px 12px;}
+    .paper th,.paper td{font-size:9.5pt;padding:3px 4px;}
+  }
+  @media (max-width:560px){
+    .entry{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="logo">錄</div>
+    <div>
+      <h1>查驗紀錄表產生器</h1>
+      <div class="sub">逐筆新增查驗紀錄 → 累積於表格 → 即時預覽 → 下載 Excel（.xlsx）</div>
+    </div>
+    <div class="hmeta">
+      範本格式 <b>查驗紀錄表</b><br>
+      A4 橫式 · 標題列深藍底白字 · 標楷體
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+
+    <!-- 左：輸入 -->
+    <div class="pane">
+
+      <div class="card">
+        <div class="card-h"><h2>固定欄位</h2><span class="tag">沿用既有設定</span></div>
+        <div class="card-b">
+          <div class="fixedrow">
+            <span class="k">工程名稱</span>
+            <span class="v" id="vProject">布袋商港聯外道路新闢工程</span>
+            <span class="lk">已固定</span>
+          </div>
+          <div class="fixedrow">
+            <span class="k">承包商</span>
+            <span class="v" id="vContractor">義力營造股份有限公司</span>
+            <span class="lk">已固定</span>
+          </div>
+          <div class="fixedrow">
+            <span class="k">工地主任</span>
+            <span class="v" id="vSite">王振國</span>
+            <span class="lk">已固定</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-h"><h2>新增一筆查驗紀錄</h2><span class="tag">填寫後按新增</span></div>
+        <div class="card-b">
+          <div class="entry">
+            <div class="field">
+              <label for="inDate">查驗日期 <span class="hint">yyyy/mm/dd</span></label>
+              <input type="date" id="inDate">
+            </div>
+            <div class="field">
+              <label for="inInspector">查驗人員</label>
+              <select id="inInspector"></select>
+            </div>
+            <div class="field">
+              <label for="inSupervisor">監造人員</label>
+              <select id="inSupervisor"></select>
+            </div>
+            <div class="field">
+              <label for="inLocation">查驗位置</label>
+              <input type="text" id="inLocation" placeholder="例：PR1-2、4、6、8">
+            </div>
+            <div class="btnrow">
+              <button class="btn btn-primary" id="btnAdd" type="button">＋ 新增紀錄</button>
+              <button class="btn btn-ghost" id="btnResetEntry" type="button">清空欄位</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-h">
+          <h2>已累積紀錄</h2>
+          <span class="tag ok" id="cntTag">0 筆</span>
+          <span class="spacer"></span>
+          <button class="btn btn-ghost btn-sm" id="btnSample" type="button">填入範例</button>
+          <button class="btn btn-danger btn-sm" id="btnClear" type="button">清除全部</button>
+        </div>
+        <div class="card-b">
+          <div class="tblwrap">
+            <table class="rec" id="recTable">
+              <thead>
+                <tr>
+                  <th class="c">序號</th>
+                  <th>日期</th>
+                  <th>查驗人員</th>
+                  <th>監造派員</th>
+                  <th>查驗位置</th>
+                  <th class="c">操作</th>
+                </tr>
+              </thead>
+              <tbody id="recBody"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="emptyHint">尚無紀錄，請於上方填寫後按「＋ 新增紀錄」</div>
+          <div class="note" style="margin-top:11px;">
+            <b>本機保存：</b>紀錄自動存在此瀏覽器（localStorage），重新整理或下次開啟仍在。
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-h"><h2>輸出</h2></div>
+        <div class="card-b">
+          <div class="actions">
+            <button class="btn btn-amber btn-block" id="btnXlsx">⬇ 下載 Excel（.xlsx）</button>
+          </div>
+          <div class="note">
+            <b>輸出規則：</b>直接讀入「查驗紀錄表」範本，只替換儲存格內容，
+            樣式表、主題、欄寬、框線、日期格式（yyyy/mm/dd）、列高、凍結標題列、
+            列印設定（A4 橫向、水平置中、重複標題列）全部與範本同源。<br>
+            <b>下拉選單：</b>B 欄「查驗人員」、C 欄「監造派員」在 Excel 中仍為下拉選單，
+            選項與網頁一致。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：預覽 -->
+    <div class="pane">
+      <div class="card">
+        <div class="card-h"><h2>即時預覽</h2><span class="tag" id="pageTag">A4 橫式</span></div>
+        <div class="card-b">
+          <div class="paper-wrap">
+            <div class="paper" id="paper"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../assets/jszip.min.js"></script>
+<script src="logbuilder.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var LB = window.LogBuilder || {};
+  var INSPECTORS  = LB.INSPECTORS  || ['乘恩','順昔','火木','佩璇'];
+  var SUPERVISORS = LB.SUPERVISORS || ['振源','旭程','慧欣'];
+  var FIXED_PROJECT    = LB.FIXED_PROJECT    || '布袋商港聯外道路新闢工程';
+  var FIXED_CONTRACTOR = LB.FIXED_CONTRACTOR || '義力營造股份有限公司';
+  var FIXED_SITE       = LB.FIXED_SITE       || '王振國';
+
+  var STORE_KEY = 'inspection-log-rows-v1';
+
+  var state = { rows: [] };
+  var tplBuffer = null;
+
+  function $(id){ return document.getElementById(id); }
+
+  function toast(msg, isErr){
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isErr ? ' err' : '');
+    clearTimeout(t._tm);
+    t._tm = setTimeout(function(){ t.className = 'toast'; }, 3200);
+  }
+
+  function todayISO(){
+    var d = new Date();
+    var m = d.getMonth() + 1, day = d.getDate();
+    return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
+  }
+
+  function isoToSlash(iso){
+    if (!iso) return '';
+    var p = String(iso).split('-');
+    if (p.length !== 3) return iso;
+    return p[0] + '/' + p[1] + '/' + p[2];
+  }
+
+  function escHtml(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  /* ---------- 本機保存 ---------- */
+  function save(){
+    try{
+      localStorage.setItem(STORE_KEY, JSON.stringify(state.rows));
+    }catch(e){ /* 私密模式或額度已滿：靜默失敗，不影響操作 */ }
+  }
+
+  function load(){
+    try{
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return null;
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return null;
+      return arr.map(function(r){
+        r = r || {};
+        return {
+          date:       String(r.date || ''),
+          inspector:  String(r.inspector || ''),
+          supervisor: String(r.supervisor || ''),
+          location:   String(r.location || '')
+        };
+      });
+    }catch(e){ return null; }
+  }
+
+  /* ---------- 範本 ---------- */
+  function loadTemplate(){
+    if (tplBuffer) return Promise.resolve(tplBuffer);
+    return fetch('template.xlsx').then(function(r){
+      if (!r.ok) throw new Error('範本載入失敗（HTTP ' + r.status + '）');
+      return r.arrayBuffer();
+    }).then(function(b){ tplBuffer = b; return b; });
+  }
+
+  /* ---------- 下拉選單 ---------- */
+  function fillSelect(sel, list, placeholder){
+    sel.innerHTML = '';
+    var o0 = document.createElement('option');
+    o0.value = ''; o0.textContent = placeholder || '— 請選擇 —';
+    sel.appendChild(o0);
+    list.forEach(function(v){
+      var o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  }
+
+  /* ---------- 資料操作 ---------- */
+  function addRow(data){
+    state.rows.push({
+      date:       (data && data.date) || '',
+      inspector:  (data && data.inspector) || '',
+      supervisor: (data && data.supervisor) || '',
+      location:   (data && data.location) || ''
+    });
+    save();
+    render();
+  }
+
+  function removeRow(i){
+    state.rows.splice(i, 1);
+    save();
+    render();
+  }
+
+  /* ---------- 渲染紀錄表格 ---------- */
+  function renderRows(){
+    var body = $('recBody');
+    body.innerHTML = '';
+    $('emptyHint').style.display = state.rows.length ? 'none' : 'block';
+    $('cntTag').textContent = state.rows.length + ' 筆';
+
+    state.rows.forEach(function(r, i){
+      var tr = document.createElement('tr');
+
+      /* 序號 */
+      var tdSeq = document.createElement('td');
+      tdSeq.className = 'c seq';
+      tdSeq.textContent = (i + 1);
+      tr.appendChild(tdSeq);
+
+      /* 日期 */
+      var tdDate = document.createElement('td');
+      var inDate = document.createElement('input');
+      inDate.type = 'date';
+      inDate.value = r.date || '';
+      inDate.addEventListener('change', function(){ r.date = inDate.value; save(); renderPreview(); });
+      inDate.addEventListener('input',  function(){ r.date = inDate.value; save(); renderPreview(); });
+      tdDate.appendChild(inDate);
+      tr.appendChild(tdDate);
+
+      /* 查驗人員 */
+      var tdIns = document.createElement('td');
+      var selIns = document.createElement('select');
+      fillSelect(selIns, INSPECTORS, '—');
+      selIns.value = r.inspector || '';
+      selIns.addEventListener('change', function(){ r.inspector = selIns.value; save(); renderPreview(); });
+      tdIns.appendChild(selIns);
+      tr.appendChild(tdIns);
+
+      /* 監造派員 */
+      var tdSup = document.createElement('td');
+      var selSup = document.createElement('select');
+      fillSelect(selSup, SUPERVISORS, '—');
+      selSup.value = r.supervisor || '';
+      selSup.addEventListener('change', function(){ r.supervisor = selSup.value; save(); renderPreview(); });
+      tdSup.appendChild(selSup);
+      tr.appendChild(tdSup);
+
+      /* 查驗位置 */
+      var tdLoc = document.createElement('td');
+      var inLoc = document.createElement('input');
+      inLoc.type = 'text';
+      inLoc.value = r.location || '';
+      inLoc.placeholder = '例：PR1-2、4、6、8';
+      inLoc.addEventListener('input', function(){ r.location = inLoc.value; save(); renderPreview(); });
+      tdLoc.appendChild(inLoc);
+      tr.appendChild(tdLoc);
+
+      /* 刪除 */
+      var tdOp = document.createElement('td');
+      tdOp.className = 'c';
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'del';
+      del.title = '刪除本筆';
+      del.textContent = '×';
+      del.addEventListener('click', function(){ removeRow(i); });
+      tdOp.appendChild(del);
+      tr.appendChild(tdOp);
+
+      body.appendChild(tr);
+    });
+  }
+
+  /* ---------- 渲染預覽 ---------- */
+  function renderPreview(){
+    var p = $('paper');
+    var h = '';
+    h += '<div class="ptitle">' + escHtml(FIXED_PROJECT) + '</div>';
+    h += '<div class="psub">查驗紀錄表</div>';
+    h += '<table>';
+    h += '<colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>';
+    h += '<thead><tr><th>日期</th><th>查驗人員</th><th>監造派員</th><th>查驗位置</th></tr></thead>';
+    h += '<tbody>';
+
+    if (!state.rows.length) {
+      h += '<tr><td class="c" style="color:#9aa6b4;">—</td>' +
+           '<td class="c" style="color:#9aa6b4;">—</td>' +
+           '<td class="c" style="color:#9aa6b4;">—</td>' +
+           '<td class="l" style="color:#9aa6b4;">尚無資料</td></tr>';
+    } else {
+      state.rows.forEach(function(r){
+        h += '<tr>' +
+          '<td class="c">' + escHtml(isoToSlash(r.date)) + '</td>' +
+          '<td class="c">' + escHtml(r.inspector) + '</td>' +
+          '<td class="c">' + escHtml(r.supervisor) + '</td>' +
+          '<td class="l">' + escHtml(r.location) + '</td>' +
+          '</tr>';
+      });
+    }
+
+    h += '</tbody></table>';
+    h += '<div class="pfoot">共 ' + state.rows.length + ' 筆</div>';
+    p.innerHTML = h;
+  }
+
+  function render(){
+    renderRows();
+    renderPreview();
+  }
+
+  /* ---------- 下載 ---------- */
+  function download(){
+    if (!state.rows.length) { toast('請先新增至少一筆查驗紀錄', true); return; }
+    var btn = $('btnXlsx');
+    btn.disabled = true;
+    var old = btn.textContent;
+    btn.textContent = '產生中…';
+
+    loadTemplate().then(function(buf){
+      return LB.buildXlsx(buf, { rows: state.rows });
+    }).then(function(blob){
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = '查驗紀錄表_' + todayISO().replace(/-/g, '') + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      toast('已產生 Excel 檔');
+    }).catch(function(e){
+      console.error(e);
+      toast('產生失敗：' + (e && e.message ? e.message : e), true);
+    }).then(function(){
+      btn.disabled = false;
+      btn.textContent = old;
+    });
+  }
+
+  /* ---------- 範例 / 清除 ---------- */
+  function fillSample(){
+    state.rows = [
+      { date:'2026-11-05', inspector:'乘恩', supervisor:'旭程', location:'PR1-2、4、6、8' },
+      { date:'2026-11-06', inspector:'乘恩', supervisor:'旭程', location:'PR1-1、3、5、7、9、PR10-8' },
+      { date:'2026-11-07', inspector:'順昔', supervisor:'旭程', location:'PR' },
+      { date:'2026-11-08', inspector:'順昔', supervisor:'旭程', location:'' }
+    ];
+    save();
+    render();
+    toast('已填入範例資料');
+  }
+
+  function clearAll(){
+    if (!state.rows.length) { toast('目前沒有紀錄'); return; }
+    if (!window.confirm('確定要清除全部 ' + state.rows.length + ' 筆紀錄嗎？此動作無法復原。')) return;
+    state.rows = [];
+    save();
+    render();
+    toast('已清除全部紀錄');
+  }
+
+  /* ---------- 初始化 ---------- */
+  $('vProject').textContent = FIXED_PROJECT;
+  $('vContractor').textContent = FIXED_CONTRACTOR;
+  $('vSite').textContent = FIXED_SITE;
+
+  fillSelect($('inInspector'), INSPECTORS, '— 請選擇 —');
+  fillSelect($('inSupervisor'), SUPERVISORS, '— 請選擇 —');
+  $('inDate').value = todayISO();
+
+  $('btnAdd').addEventListener('click', function(){
+    var d = $('inDate').value;
+    var ins = $('inInspector').value;
+    var sup = $('inSupervisor').value;
+    var loc = $('inLocation').value.trim();
+
+    if (!d) { toast('請填寫查驗日期', true); $('inDate').focus(); return; }
+    if (!ins) { toast('請選擇查驗人員', true); $('inInspector').focus(); return; }
+    if (!sup) { toast('請選擇監造人員', true); $('inSupervisor').focus(); return; }
+
+    addRow({ date:d, inspector:ins, supervisor:sup, location:loc });
+
+    /* 新增後保留日期與人員，只清空位置，方便連續輸入 */
+    $('inLocation').value = '';
+    $('inLocation').focus();
+    toast('已新增第 ' + state.rows.length + ' 筆紀錄');
+  });
+
+  $('btnResetEntry').addEventListener('click', function(){
+    $('inDate').value = todayISO();
+    $('inInspector').value = '';
+    $('inSupervisor').value = '';
+    $('inLocation').value = '';
+    $('inDate').focus();
+  });
+
+  $('btnSample').addEventListener('click', fillSample);
+  $('btnClear').addEventListener('click', clearAll);
+  $('btnXlsx').addEventListener('click', download);
+
+  /* 還原本機紀錄；首次使用若無資料則留空 */
+  var saved = load();
+  if (saved && saved.length) {
+    state.rows = saved;
+  }
+  render();
+
+  loadTemplate().catch(function(){ /* 延後到按下載時再提示 */ });
+})();
+</script>
+</body>
+</html>

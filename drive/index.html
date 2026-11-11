@@ -55,7 +55,7 @@
   .btn-danger{background:#fff;color:var(--danger);border-color:#f0cfcc;}
   .btn-danger:hover{background:var(--danger-bg);}
   .btn-sm{font-size:12px;padding:6px 11px;border-radius:6px;}
-  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
 
   /* 連線狀態 */
   .conn{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
@@ -115,6 +115,9 @@
   .item .acts a{font-size:12px;font-weight:600;color:var(--blue);text-decoration:none;
     border:1px solid #c9d9f0;background:#eef4fb;padding:5px 9px;border-radius:6px;white-space:nowrap;}
   .item .acts a:hover{background:#e2ecfa;}
+  .item .sel{display:flex;align-items:center;justify-content:center;flex:0 0 22px;}
+  .item .sel input{width:17px;height:17px;accent-color:#1f3a5f;cursor:pointer;}
+  .item.sel-on{border-color:#b9cdea;background:#f7fbff;}
 
   .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
     white-space:nowrap;line-height:1.5;}
@@ -123,7 +126,32 @@
   .pill.done{background:var(--ok-bg);color:var(--ok);border:1px solid #cfe6da;}
   .pill.fail{background:var(--danger-bg);color:var(--danger);border:1px solid #f0cfcc;}
 
-  .empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13px;}
+  /* 日期篩選 */
+  .filterbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+    border:1px solid var(--line-2);border-radius:9px;background:#f8fafc;padding:11px 13px;margin-bottom:11px;}
+  .filterbar .fb-lbl{font-size:12.5px;font-weight:700;color:var(--ink-2);}
+  .seg{display:inline-flex;background:#e8edf3;border-radius:7px;padding:2px;}
+  .seg button{font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink-2);background:transparent;
+    border:none;border-radius:5px;padding:5px 12px;cursor:pointer;transition:.15s;line-height:1.4;}
+  .seg button.on{background:#fff;color:var(--steel);box-shadow:0 1px 2px rgba(27,36,48,.14);}
+  .filterbar input[type=date]{width:auto;padding:6px 9px;font-size:12.5px;background:#fff;}
+  .filterbar .sep{color:var(--muted);font-size:12.5px;font-weight:700;}
+  .fb-count{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--steel-2);
+    background:#eef4fb;border:1px solid #d3e2f2;border-radius:20px;padding:3px 11px;white-space:nowrap;}
+
+  /* 批次下載 */
+  .batchbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;
+    border:1px solid var(--line-2);border-radius:9px;background:#fbfcfe;padding:10px 13px;margin-bottom:12px;}
+  .batchbar .spacer{margin-left:auto;}
+  .chkbox{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;
+    color:var(--ink-2);cursor:pointer;user-select:none;}
+  .chkbox input{width:16px;height:16px;accent-color:#1f3a5f;cursor:pointer;}
+  .selcount{font-size:12.5px;font-weight:700;color:var(--ok);white-space:nowrap;}
+  .selcount.zero{color:var(--muted);}
+  .batchprog{margin-top:2px;margin-bottom:12px;display:none;}
+  .batchprog.on{display:block;}
+
+  .empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13px;line-height:1.8;}
 
   .note{font-size:12px;color:var(--muted);line-height:1.75;margin-top:12px;
     background:#f7f9fc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
@@ -141,6 +169,8 @@
     .grid2{grid-template-columns:1fr;}
     .item .thumb{width:52px;height:52px;flex:0 0 52px;}
     .conn .sp{margin-left:0;width:100%;}
+    .fb-count{margin-left:0;}
+    .batchbar .spacer{display:none;}
   }
 </style>
 </head>
@@ -256,11 +286,45 @@
       <button class="btn btn-danger btn-sm" id="btnClearHist" type="button">清除紀錄</button>
     </div>
     <div class="card-b">
+
+      <!-- 日期篩選 -->
+      <div class="filterbar">
+        <span class="fb-lbl">日期篩選</span>
+        <div class="seg" id="segMode" role="group" aria-label="篩選模式">
+          <button type="button" data-mode="" class="on">全部</button>
+          <button type="button" data-mode="single">單日</button>
+          <button type="button" data-mode="range">區間</button>
+        </div>
+        <input type="date" id="fFrom" title="起日" style="display:none;">
+        <span class="sep" id="fbSep" style="display:none;">～</span>
+        <input type="date" id="fTo" title="迄日" style="display:none;">
+        <button class="btn btn-ghost btn-sm" id="btnClearFilter" type="button" disabled>清除篩選／顯示全部</button>
+        <span class="fb-count" id="histCount">符合 0 筆 / 共 0 筆</span>
+      </div>
+
+      <!-- 批次下載 -->
+      <div class="batchbar">
+        <label class="chkbox"><input type="checkbox" id="chkAll"> 全選目前篩選結果</label>
+        <span class="selcount zero" id="selCount">已選 0 筆</span>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost btn-sm" id="btnCopyLinks" type="button" disabled>📋 複製連結清單</button>
+        <button class="btn btn-ghost btn-sm" id="btnLinkTxt" type="button" disabled>⬇ 連結清單（TXT）</button>
+        <button class="btn btn-ghost btn-sm" id="btnLinkCsv" type="button" disabled>⬇ 連結清單（CSV）</button>
+        <button class="btn btn-amber btn-sm" id="btnZip" type="button" disabled>⬇ 打包下載（ZIP）</button>
+      </div>
+      <div class="batchprog" id="batchProg">
+        <div class="progbar"><i id="batchBar"></i></div>
+        <div class="progtxt" id="batchTxt">—</div>
+      </div>
+
       <div class="list" id="histList"></div>
       <div class="empty" id="histEmpty">尚無上傳紀錄</div>
       <div class="note">
         <b>紀錄存放：</b>上傳紀錄（Drive 檔案 ID、連結、日期、檔名）存在這台裝置的瀏覽器 <code>localStorage</code>，
         重新整理或下次開啟仍會保留。清除瀏覽器資料會一併清除紀錄，但 Drive 上的相片不受影響。<br>
+        <b>日期篩選：</b>依相片的<b>歸檔日期</b>比對，可選單日或起日～迄日區間；篩選狀態記在本機，重新整理後仍保留。<br>
+        <b>批次下載：</b>勾選紀錄後可產生連結清單（TXT／CSV／複製）或打包成 ZIP；檔案一律取用已記錄的 Drive 檔案 ID，
+        <b>不會重新上傳</b>。若瀏覽器或 Drive 限制無法打包，會改為逐張依序觸發下載並顯示進度。<br>
         <b>檔名規則：</b><code>日期_工項或墩號樁號_序號.jpg</code>；未填工項時為 <code>日期_時間_序號.jpg</code>。
       </div>
     </div>
@@ -270,6 +334,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="../assets/jszip.min.js"></script>
 <script src="../assets/gdrive.js"></script>
 <script src="../assets/gdrive-photo.js"></script>
 <script>
@@ -278,10 +343,17 @@
 
   var $ = function(id){ return document.getElementById(id); };
   var HIST_KEY = 'inspection-drive-photo-history';
+  var FILTER_KEY = 'inspection-drive-photo-filter';
 
   var queue = [];      /* { key, file, url, status, msg, result } */
   var history = [];
   var uploading = false;
+
+  /* 日期篩選狀態：mode = '' | 'single' | 'range' */
+  var histFilter = { mode: '', from: '', to: '' };
+  /* 批次勾選：{ driveFileId: true } */
+  var selected = {};
+  var batchBusy = false;
 
   function toast(msg, isErr){
     var t = $('toast');
@@ -299,6 +371,11 @@
   function hhmmss(){
     var d = new Date();
     return pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  }
+  function stamp(){
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' +
+           pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
   function fmtSize(b){
     if (!b) return '—';
@@ -323,6 +400,24 @@
   function saveHist(){
     try { localStorage.setItem(HIST_KEY, JSON.stringify(history)); }
     catch (e) { toast('紀錄儲存失敗（瀏覽器空間已滿）', true); }
+  }
+
+  /* ---------------- 篩選狀態持久化 ---------------- */
+  function saveFilter(){
+    try { localStorage.setItem(FILTER_KEY, JSON.stringify(histFilter)); } catch (e) {}
+  }
+  function loadFilter(){
+    try {
+      var raw = localStorage.getItem(FILTER_KEY);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      if (!o || typeof o !== 'object') return;
+      histFilter.mode = (o.mode === 'single' || o.mode === 'range') ? o.mode : '';
+      histFilter.from = (typeof o.from === 'string') ? o.from : '';
+      histFilter.to   = (typeof o.to === 'string') ? o.to : '';
+      /* 相容：單日模式只留 from */
+      if (histFilter.mode === 'single') histFilter.to = '';
+    } catch (e) {}
   }
 
   /* ---------------- 連線狀態 ---------------- */
@@ -362,6 +457,7 @@
       $('connErr').style.display = 'none';
     }
     updateUploadBtn();
+    renderSelState();
   }
 
   GDrive.onStatus(renderConn);
@@ -657,17 +753,93 @@
     next();
   });
 
-  /* ---------------- 歷史 UI ---------------- */
+  /* ================= 歷史紀錄：日期篩選 ================= */
+
+  function filterLabel(){
+    if (!histFilter.mode) return '全部日期';
+    if (histFilter.mode === 'single') return histFilter.from || '未選日期';
+    return (histFilter.from || '不限') + ' ～ ' + (histFilter.to || '不限');
+  }
+
+  function matchHist(h){
+    if (!histFilter.mode) return true;
+    var d = h.date || '';
+    if (!d) return false;
+    if (histFilter.mode === 'single') {
+      return histFilter.from ? (d === histFilter.from) : true;
+    }
+    if (histFilter.from && d < histFilter.from) return false;
+    if (histFilter.to   && d > histFilter.to)   return false;
+    return true;
+  }
+
+  function filteredHist(){ return history.filter(matchHist); }
+
+  function selList(){
+    return history.filter(function(h){ return h.id && selected[h.id]; });
+  }
+
+  function applyFilterUI(){
+    Array.prototype.forEach.call($('segMode').querySelectorAll('button'), function(b){
+      b.classList.toggle('on', (b.getAttribute('data-mode') || '') === histFilter.mode);
+    });
+    $('fFrom').value = histFilter.from || '';
+    $('fTo').value   = histFilter.to || '';
+    $('fFrom').style.display = histFilter.mode ? '' : 'none';
+    $('fTo').style.display   = (histFilter.mode === 'range') ? '' : 'none';
+    $('fbSep').style.display = (histFilter.mode === 'range') ? '' : 'none';
+    $('btnClearFilter').disabled = !histFilter.mode;
+  }
+
+  function renderSelState(shown){
+    shown = shown || filteredHist();
+    var n = selList().length;
+    var sc = $('selCount');
+    sc.textContent = '已選 ' + n + ' 筆';
+    sc.className = 'selcount' + (n ? '' : ' zero');
+
+    var ids = shown.filter(function(h){ return !!h.id; });
+    var allSel = ids.length > 0 && ids.every(function(h){ return !!selected[h.id]; });
+    $('chkAll').checked = allSel;
+    $('chkAll').disabled = ids.length === 0;
+
+    var lock = (n === 0) || batchBusy;
+    ['btnLinkTxt','btnLinkCsv','btnCopyLinks','btnZip'].forEach(function(id){
+      $(id).disabled = lock;
+    });
+  }
+
   function renderHist(){
     var box = $('histList');
     box.innerHTML = '';
-    $('histTag').textContent = history.length + ' 張';
-    $('histEmpty').style.display = history.length ? 'none' : 'block';
 
-    history.forEach(function(h){
+    var shown = filteredHist();
+    $('histTag').textContent = history.length + ' 張';
+    $('histCount').textContent = '符合 ' + shown.length + ' 筆 / 共 ' + history.length + ' 筆';
+
+    if (!history.length) {
+      $('histEmpty').innerHTML = '尚無上傳紀錄';
+      $('histEmpty').style.display = 'block';
+    } else if (!shown.length) {
+      $('histEmpty').innerHTML =
+        '此日期條件下沒有符合的紀錄<br>' +
+        '<span style="font-size:12px;">目前篩選：<b>' + esc(filterLabel()) + '</b>' +
+        '　·　共有 ' + history.length + ' 筆紀錄　→　按「清除篩選／顯示全部」即可看到全部</span>';
+      $('histEmpty').style.display = 'block';
+    } else {
+      $('histEmpty').style.display = 'none';
+    }
+
+    shown.forEach(function(h){
       var el = document.createElement('div');
-      el.className = 'item';
+      el.className = 'item' + (selected[h.id] ? ' sel-on' : '');
+
+      var cbChecked = selected[h.id] ? ' checked' : '';
+      var cbDisabled = h.id ? '' : ' disabled';
+
       el.innerHTML =
+        '<div class="sel"><input type="checkbox"' + cbChecked + cbDisabled +
+          ' aria-label="勾選此筆"' + (h.id ? '' : ' title="此筆缺少 Drive 檔案 ID，無法批次下載"') + '></div>' +
         '<div class="thumb">🖼</div>' +
         '<div class="meta">' +
           '<div class="nm">' + esc(h.name) + '</div>' +
@@ -677,14 +849,283 @@
             '　<span class="pill done">已上傳</span></div>' +
         '</div>' +
         '<div class="acts"><a href="' + esc(h.link) + '" target="_blank" rel="noopener">在 Google Drive 開啟</a></div>';
+
+      var cb = el.querySelector('input[type=checkbox]');
+      cb.addEventListener('change', function(){
+        if (cb.checked) selected[h.id] = true; else delete selected[h.id];
+        el.classList.toggle('sel-on', cb.checked);
+        renderSelState(shown);
+      });
+
       box.appendChild(el);
     });
+
+    renderSelState(shown);
   }
 
+  /* ---------------- 篩選事件 ---------------- */
+  Array.prototype.forEach.call($('segMode').querySelectorAll('button'), function(b){
+    b.addEventListener('click', function(){
+      histFilter.mode = b.getAttribute('data-mode') || '';
+      if (histFilter.mode === 'single') {
+        if (!histFilter.from) histFilter.from = todayISO();
+        histFilter.to = '';
+      } else if (histFilter.mode === 'range') {
+        if (!histFilter.from) histFilter.from = todayISO();
+        if (!histFilter.to) histFilter.to = histFilter.from;
+      }
+      saveFilter(); applyFilterUI(); renderHist();
+    });
+  });
+
+  $('fFrom').addEventListener('change', function(){
+    histFilter.from = this.value || '';
+    if (histFilter.mode === 'range' && histFilter.to && histFilter.from > histFilter.to) {
+      histFilter.to = histFilter.from;
+      toast('迄日早於起日，已自動調整為同一天');
+    }
+    saveFilter(); applyFilterUI(); renderHist();
+  });
+
+  $('fTo').addEventListener('change', function(){
+    histFilter.to = this.value || '';
+    if (histFilter.mode === 'range' && histFilter.from && histFilter.to && histFilter.to < histFilter.from) {
+      histFilter.from = histFilter.to;
+      toast('起日晚於迄日，已自動調整為同一天');
+    }
+    saveFilter(); applyFilterUI(); renderHist();
+  });
+
+  $('btnClearFilter').addEventListener('click', function(){
+    histFilter = { mode: '', from: '', to: '' };
+    saveFilter(); applyFilterUI(); renderHist();
+    toast('已清除日期篩選，顯示全部 ' + history.length + ' 筆');
+  });
+
+  /* ---------------- 批次勾選 ---------------- */
+  $('chkAll').addEventListener('change', function(){
+    var on = this.checked;
+    filteredHist().forEach(function(h){
+      if (!h.id) return;
+      if (on) selected[h.id] = true; else delete selected[h.id];
+    });
+    renderHist();
+    toast(on ? ('已全選目前篩選結果 ' + selList().length + ' 筆') : '已取消勾選');
+  });
+
+  /* ---------------- 下載工具 ---------------- */
+  function downloadBlob(blob, filename){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }
+
+  function rangeOf(list){
+    var ds = list.map(function(h){ return h.date; }).filter(Boolean).sort();
+    if (!ds.length) return '—';
+    return ds[0] === ds[ds.length - 1] ? ds[0] : (ds[0] + ' ～ ' + ds[ds.length - 1]);
+  }
+
+  function linkText(list){
+    var out = [];
+    out.push('相片歸檔連結清單');
+    out.push('產生時間：' + stamp());
+    out.push('筆數：' + list.length + ' 筆');
+    out.push('歸檔日期：' + rangeOf(list));
+    out.push('根資料夾：' + (GDrive.PHOTO_ROOT || '營建相片'));
+    out.push('');
+    list.forEach(function(h, i){
+      out.push((i + 1) + '. ' + (h.name || '（未命名）'));
+      out.push('   日期：' + (h.date || '—') +
+               (h.item ? '　工項／墩號樁號：' + h.item : '') +
+               (h.note ? '　說明：' + h.note : '') +
+               (h.size ? '　大小：' + fmtSize(h.size) : ''));
+      out.push('   Drive：' + (h.link || '—'));
+      out.push('');
+    });
+    return out.join('\r\n');
+  }
+
+  function csvCell(v){
+    v = String(v == null ? '' : v);
+    return '"' + v.replace(/"/g, '""') + '"';
+  }
+
+  function linkCsv(list){
+    var rows = [['序號','檔名','歸檔日期','工項／墩號樁號','說明','檔案大小','Google Drive 連結']];
+    list.forEach(function(h, i){
+      rows.push([
+        i + 1,
+        h.name || '',
+        h.date || '',
+        h.item || '',
+        h.note || '',
+        h.size ? fmtSize(h.size) : '',
+        h.link || ''
+      ]);
+    });
+    return '\uFEFF' + rows.map(function(r){
+      return r.map(csvCell).join(',');
+    }).join('\r\n');
+  }
+
+  function fallbackCopy(txt, onOk){
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.left = '-1000px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    var done = false;
+    try { done = document.execCommand('copy'); } catch (e) { done = false; }
+    document.body.removeChild(ta);
+    if (done) onOk();
+    else toast('複製失敗，請改用「⬇ 連結清單（TXT）」下載', true);
+  }
+
+  function needSel(){
+    var list = selList();
+    if (!list.length) { toast('請先勾選至少一筆紀錄', true); return null; }
+    return list;
+  }
+
+  $('btnCopyLinks').addEventListener('click', function(){
+    var list = needSel(); if (!list) return;
+    var txt = linkText(list);
+    function ok(){ toast('已複製 ' + list.length + ' 筆連結清單，可直接貼到 LINE 或報告'); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(ok).catch(function(){ fallbackCopy(txt, ok); });
+    } else {
+      fallbackCopy(txt, ok);
+    }
+  });
+
+  $('btnLinkTxt').addEventListener('click', function(){
+    var list = needSel(); if (!list) return;
+    downloadBlob(new Blob([linkText(list)], { type: 'text/plain;charset=utf-8' }),
+      '相片連結清單_' + todayISO().replace(/-/g,'') + '.txt');
+    toast('已下載連結清單（' + list.length + ' 筆，.txt）');
+  });
+
+  $('btnLinkCsv').addEventListener('click', function(){
+    var list = needSel(); if (!list) return;
+    downloadBlob(new Blob([linkCsv(list)], { type: 'text/csv;charset=utf-8' }),
+      '相片連結清單_' + todayISO().replace(/-/g,'') + '.csv');
+    toast('已下載連結清單（' + list.length + ' 筆，.csv）');
+  });
+
+  /* ---------------- 打包下載 ---------------- */
+  function setBatch(msg, pct){
+    $('batchProg').classList.add('on');
+    $('batchBar').style.width = (pct || 0) + '%';
+    $('batchTxt').textContent = msg;
+  }
+
+  /* 備援：以瀏覽器既有 Google 登入逐張觸發下載（不離開本頁） */
+  function fallbackOne(h){
+    if (!h.id) return;
+    var fr = document.createElement('iframe');
+    fr.style.display = 'none';
+    fr.src = 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(h.id);
+    document.body.appendChild(fr);
+    setTimeout(function(){ try { document.body.removeChild(fr); } catch (e) {} }, 15000);
+  }
+
+  $('btnZip').addEventListener('click', function(){
+    var list = needSel(); if (!list) return;
+
+    if (!GDrive.hasToken()) {
+      toast('尚未連線 Google Drive，請先按「🔗 連線 Google Drive」', true);
+      return;
+    }
+    if (typeof JSZip === 'undefined') {
+      toast('打包元件載入失敗，請重新整理後再試', true);
+      return;
+    }
+
+    batchBusy = true;
+    renderSelState();
+
+    var zip = new JSZip();
+    var okN = 0;
+    var seqQueue = [];
+    var i = 0;
+
+    var btn = $('btnZip');
+    btn.textContent = '打包中…';
+    $('batchProg').classList.add('on');
+
+    function afterZip(){
+      if (!seqQueue.length) {
+        setBatch('已完成：打包 ' + okN + ' 張', 100);
+        toast('已打包下載 ' + okN + ' 張');
+        return;
+      }
+      var j = 0, trig = 0;
+      (function step(){
+        if (j >= seqQueue.length) {
+          setBatch('已完成：打包 ' + okN + ' 張，改為逐張下載 ' + trig + ' 張' +
+                   (okN ? '' : '（' + seqQueue.length + ' 張需逐張開啟）'), 100);
+          toast('已打包 ' + okN + ' 張' + (seqQueue.length ? '；' + seqQueue.length + ' 張改為逐張下載' : ''), okN === 0);
+          return;
+        }
+        var h = seqQueue[j++];
+        setBatch('逐張下載 ' + j + ' / ' + seqQueue.length + '：' + (h.name || ''), 100);
+        try { fallbackOne(h); trig++; } catch (e) {}
+        setTimeout(step, 900);
+      })();
+    }
+
+    function finish(){
+      batchBusy = false;
+      btn.textContent = '⬇ 打包下載（ZIP）';
+      renderSelState();
+
+      if (okN > 0) {
+        zip.file('連結清單.txt', linkText(list));
+        zip.file('連結清單.csv', linkCsv(list));
+        setBatch('正在產生 ZIP（' + okN + ' 張）…', 100);
+        zip.generateAsync({ type: 'blob', compression: 'STORE' }).then(function(blob){
+          downloadBlob(blob, '相片打包_' + todayISO().replace(/-/g,'') + '.zip');
+          if (seqQueue.length) setBatch('已產生 ZIP（' + okN + ' 張）；' + seqQueue.length + ' 張改為逐張下載…', 100);
+          afterZip();
+        }).catch(function(e){
+          toast('ZIP 產生失敗：' + (e && e.message ? e.message : e), true);
+          afterZip();
+        });
+      } else {
+        afterZip();
+      }
+    }
+
+    function next(){
+      if (i >= list.length) { finish(); return; }
+      var h = list[i++];
+      setBatch('下載 ' + i + ' / ' + list.length + '：' + (h.name || ''),
+               Math.round((i - 1) / list.length * 100));
+      GDrive.fetchFile(h.id).then(function(blob){
+        okN++;
+        zip.file(h.name || ('photo_' + i + '.jpg'), blob);
+        next();
+      }).catch(function(){
+        seqQueue.push(h);
+        next();
+      });
+    }
+
+    next();
+  });
+
+  /* ---------------- 清除／匯出 ---------------- */
   $('btnClearHist').addEventListener('click', function(){
     if (!history.length) { toast('沒有紀錄'); return; }
     if (!confirm('確定要清除本機的上傳紀錄嗎？\n（Google Drive 上的相片不會被刪除）')) return;
     history = [];
+    selected = {};
     saveHist();
     renderHist();
     toast('已清除本機紀錄');
@@ -699,19 +1140,16 @@
       count: history.length,
       photos: history
     };
-    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = '相片歸檔紀錄_' + todayISO().replace(/-/g,'') + '.json';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' }),
+      '相片歸檔紀錄_' + todayISO().replace(/-/g,'') + '.json');
     toast('已匯出 JSON（含 Drive 檔案 ID 與連結）');
   });
 
   /* ---------------- 初始化 ---------------- */
   $('fDate').value = todayISO();
   loadHist();
+  loadFilter();
+  applyFilterUI();
   renderHist();
   renderQueue();
   renderConn(GDrive.getStatus());

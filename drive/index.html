@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>相片上傳歸檔｜Google Drive 依日期歸檔</title>
+<style>
+  :root{
+    --ink:#1b2430; --ink-2:#3d4a5c; --muted:#6b7a8d;
+    --line:#d8dee7; --line-2:#e8edf3; --bg:#eef1f5; --card:#fff;
+    --steel:#1f3a5f; --steel-2:#2c5282;
+    --amber:#c47f17; --amber-bg:#fdf6e7;
+    --ok:#1f7a4d; --ok-bg:#e9f5ee; --danger:#b3261e; --danger-bg:#fdf3f2;
+    --blue:#2F5597; --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+    font-size:15px;line-height:1.6;
+  }
+  header{background:var(--steel);color:#fff;padding:18px 22px 16px;border-bottom:3px solid var(--amber);}
+  .hwrap{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .logo{width:38px;height:38px;flex:0 0 38px;border-radius:8px;background:var(--amber);color:#1b2430;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;}
+  h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.3px;}
+  .sub{font-size:12.5px;color:#b9c8da;margin-top:2px;}
+  .hmeta{margin-left:auto;font-size:12px;color:#b9c8da;text-align:right;line-height:1.5;}
+  .hmeta a{color:#fff;text-decoration:none;font-weight:600;}
+  .hmeta a:hover{text-decoration:underline;}
+
+  .wrap{max-width:1400px;margin:0 auto;padding:20px 22px 70px;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:0 1px 2px rgba(27,36,48,.05);margin-bottom:16px;}
+  .card-h{padding:13px 16px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .card-h h2{font-size:14.5px;margin:0;font-weight:700;}
+  .card-h .tag{font-size:11px;background:var(--amber-bg);color:var(--amber);
+    border:1px solid #f0dfb8;padding:1px 7px;border-radius:20px;font-weight:600;}
+  .card-h .tag.ok{background:var(--ok-bg);color:var(--ok);border-color:#cfe6da;}
+  .card-h .tag.bad{background:var(--danger-bg);color:var(--danger);border-color:#f0cfcc;}
+  .card-h .spacer{margin-left:auto;}
+  .card-b{padding:16px;}
+
+  .btn{font-family:inherit;font-size:13.5px;font-weight:600;padding:9px 15px;border-radius:8px;
+    border:1px solid transparent;cursor:pointer;transition:.15s;display:inline-flex;
+    align-items:center;justify-content:center;gap:7px;white-space:nowrap;}
+  .btn-primary{background:var(--steel);color:#fff;}
+  .btn-primary:hover{background:var(--steel-2);}
+  .btn-amber{background:var(--amber);color:#fff;}
+  .btn-amber:hover{background:#a86b10;}
+  .btn-ghost{background:#fff;color:var(--ink-2);border-color:var(--line);}
+  .btn-ghost:hover{background:#f5f8fb;border-color:#c3cedb;}
+  .btn-danger{background:#fff;color:var(--danger);border-color:#f0cfcc;}
+  .btn-danger:hover{background:var(--danger-bg);}
+  .btn-sm{font-size:12px;padding:6px 11px;border-radius:6px;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+
+  /* 連線狀態 */
+  .conn{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    border:1px solid var(--line-2);border-radius:9px;padding:13px 15px;background:#f8fafc;}
+  .conn .dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:0 0 10px;}
+  .conn .txt{font-weight:700;font-size:14px;}
+  .conn .mail{font-size:12.5px;color:var(--muted);}
+  .conn .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
+
+  .warnbox{background:var(--amber-bg);border:1px solid #f0dfb8;color:#8a5a0c;border-radius:8px;
+    padding:11px 14px;font-size:12.5px;line-height:1.7;margin-top:12px;}
+  .warnbox b{color:#6d4708;}
+  .errbox{background:var(--danger-bg);border:1px solid #f0cfcc;color:var(--danger);border-radius:8px;
+    padding:11px 14px;font-size:12.5px;line-height:1.7;margin-top:12px;display:none;}
+
+  /* 表單 */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:5px;}
+  .field label .hint{font-weight:500;color:var(--muted);font-size:11.5px;margin-left:5px;}
+  input[type=text],input[type=date],textarea{
+    width:100%;padding:9px 11px;font-size:13.5px;border:1px solid var(--line);border-radius:7px;
+    background:#fcfdfe;color:var(--ink);font-family:inherit;line-height:1.5;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  textarea{resize:vertical;min-height:60px;}
+  input:focus,textarea:focus{outline:none;border-color:var(--steel-2);background:#fff;
+    box-shadow:0 0 0 3px rgba(44,82,130,.12);}
+
+  /* 選檔區 */
+  .drop{border:2px dashed #c3cedb;border-radius:10px;background:#fbfcfe;padding:26px 18px;
+    text-align:center;cursor:pointer;transition:.18s;}
+  .drop:hover,.drop.over{border-color:var(--steel-2);background:#f2f7fd;}
+  .drop .ic{font-size:30px;line-height:1;}
+  .drop .t{font-weight:700;font-size:14px;margin-top:8px;}
+  .drop .s{font-size:12px;color:var(--muted);margin-top:3px;}
+
+  /* 進度 */
+  .progwrap{margin-top:14px;display:none;}
+  .progwrap.on{display:block;}
+  .progbar{height:9px;background:#e6ecf3;border-radius:20px;overflow:hidden;}
+  .progbar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2c5282,#1f7a4d);
+    border-radius:20px;transition:width .25s;}
+  .progtxt{font-size:12.5px;color:var(--ink-2);margin-top:6px;font-weight:600;}
+
+  /* 清單 */
+  .list{display:flex;flex-direction:column;gap:9px;}
+  .item{display:flex;gap:12px;align-items:center;border:1px solid var(--line-2);border-radius:9px;
+    padding:9px 11px;background:#fff;}
+  .item .thumb{width:62px;height:62px;flex:0 0 62px;border-radius:7px;overflow:hidden;background:#eef1f5;
+    display:flex;align-items:center;justify-content:center;font-size:20px;color:#9aa6b4;}
+  .item .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .item .meta{min-width:0;flex:1 1 auto;}
+  .item .nm{font-size:13px;font-weight:700;word-break:break-all;line-height:1.4;}
+  .item .dt{font-size:11.5px;color:var(--muted);margin-top:2px;word-break:break-all;}
+  .item .acts{display:flex;gap:6px;flex-wrap:wrap;flex:0 0 auto;align-items:center;}
+  .item .acts a{font-size:12px;font-weight:600;color:var(--blue);text-decoration:none;
+    border:1px solid #c9d9f0;background:#eef4fb;padding:5px 9px;border-radius:6px;white-space:nowrap;}
+  .item .acts a:hover{background:#e2ecfa;}
+
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
+    white-space:nowrap;line-height:1.5;}
+  .pill.wait{background:#eef1f5;color:var(--muted);border:1px solid var(--line);}
+  .pill.up{background:#eef4fb;color:var(--steel-2);border:1px solid #d3e2f2;}
+  .pill.done{background:var(--ok-bg);color:var(--ok);border:1px solid #cfe6da;}
+  .pill.fail{background:var(--danger-bg);color:var(--danger);border:1px solid #f0cfcc;}
+
+  .empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13px;}
+
+  .note{font-size:12px;color:var(--muted);line-height:1.75;margin-top:12px;
+    background:#f7f9fc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
+  .note b{color:var(--ink-2);}
+  .note code{background:#eef1f5;padding:1px 5px;border-radius:4px;font-size:11.5px;}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:11px 20px;border-radius:9px;font-size:13.5px;
+    opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.err{background:var(--danger);}
+
+  @media (max-width:760px){
+    .wrap{padding:14px 12px 60px;}
+    .grid2{grid-template-columns:1fr;}
+    .item .thumb{width:52px;height:52px;flex:0 0 52px;}
+    .conn .sp{margin-left:0;width:100%;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="logo">☁</div>
+    <div>
+      <h1>相片上傳歸檔</h1>
+      <div class="sub">選取或拍攝相片 → 上傳 Google Drive → 依日期資料夾歸檔</div>
+    </div>
+    <div class="hmeta">
+      根資料夾 <b>營建相片</b> ／ 子資料夾 <b>YYYY-MM-DD</b><br>
+      <a href="../index.html">← 回查驗表單產生器</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- 連線狀態 -->
+  <div class="card">
+    <div class="card-h">
+      <h2>Google Drive 連線</h2>
+      <span class="tag" id="connTag">檢查中</span>
+      <span class="spacer"></span>
+      <a class="btn btn-ghost btn-sm" href="../settings/index.html" target="_blank" rel="noopener">⚙ 設定</a>
+    </div>
+    <div class="card-b">
+      <div class="conn">
+        <span class="dot" id="connDot"></span>
+        <div>
+          <div class="txt" id="connTxt">—</div>
+          <div class="mail" id="connMail"></div>
+        </div>
+        <div class="sp">
+          <button class="btn btn-primary btn-sm" id="btnConnect" type="button">🔗 連線 Google Drive</button>
+          <button class="btn btn-ghost btn-sm" id="btnSwitch" type="button" style="display:none;">切換帳號</button>
+          <button class="btn btn-danger btn-sm" id="btnLogout" type="button" style="display:none;">登出</button>
+        </div>
+      </div>
+      <div class="errbox" id="connErr"></div>
+      <div class="warnbox" id="connWarn" style="display:none;">
+        <b>尚未連線。</b>請按「🔗 連線 Google Drive」並用你的 Google 帳號授權一次，之後就能把相片直接歸檔到自己的雲端硬碟。
+        授權只要求 <code>drive.file</code> 權限，只能存取本程式建立的檔案。
+      </div>
+    </div>
+  </div>
+
+  <!-- 上傳設定 -->
+  <div class="card">
+    <div class="card-h">
+      <h2>上傳設定</h2>
+      <span class="tag">歸檔日期可自選</span>
+    </div>
+    <div class="card-b">
+      <div class="grid2">
+        <div class="field">
+          <label for="fDate">歸檔日期<span class="hint">預設今天，可補上傳過去日期</span></label>
+          <input type="date" id="fDate">
+        </div>
+        <div class="field">
+          <label for="fItem">工項／墩號樁號<span class="hint">選填，會寫進檔名</span></label>
+          <input type="text" id="fItem" placeholder="例：PR4-1 或 洗車台沉砂池底板">
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label for="fNote">說明<span class="hint">選填，寫入 Drive 檔案描述</span></label>
+        <input type="text" id="fNote" placeholder="例：鋼筋模板查驗完成">
+      </div>
+
+      <div class="drop" id="drop" style="margin-top:14px;">
+        <div class="ic">📷</div>
+        <div class="t">點這裡選取相片，或直接拖曳進來</div>
+        <div class="s">支援多選 · 手機可直接拍攝 · JPG／PNG／HEIC 皆可</div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+      <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
+
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px;">
+        <button class="btn btn-ghost" id="btnPick" type="button">🖼 選取相片</button>
+        <button class="btn btn-ghost" id="btnCam" type="button">📷 直接拍攝</button>
+        <button class="btn btn-amber" id="btnUpload" type="button" disabled>☁ 開始上傳（0）</button>
+        <button class="btn btn-ghost" id="btnClear" type="button">清空待上傳</button>
+      </div>
+
+      <div class="progwrap" id="progWrap">
+        <div class="progbar"><i id="progBar"></i></div>
+        <div class="progtxt" id="progTxt">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 待上傳清單 -->
+  <div class="card">
+    <div class="card-h">
+      <h2>待上傳</h2>
+      <span class="tag" id="queueTag">0 張</span>
+    </div>
+    <div class="card-b">
+      <div class="list" id="queueList"></div>
+      <div class="empty" id="queueEmpty">尚未選取相片</div>
+    </div>
+  </div>
+
+  <!-- 歷史紀錄 -->
+  <div class="card">
+    <div class="card-h">
+      <h2>已上傳紀錄</h2>
+      <span class="tag ok" id="histTag">0 張</span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" id="btnExportJson" type="button">⬇ 匯出 JSON</button>
+      <button class="btn btn-danger btn-sm" id="btnClearHist" type="button">清除紀錄</button>
+    </div>
+    <div class="card-b">
+      <div class="list" id="histList"></div>
+      <div class="empty" id="histEmpty">尚無上傳紀錄</div>
+      <div class="note">
+        <b>紀錄存放：</b>上傳紀錄（Drive 檔案 ID、連結、日期、檔名）存在這台裝置的瀏覽器 <code>localStorage</code>，
+        重新整理或下次開啟仍會保留。清除瀏覽器資料會一併清除紀錄，但 Drive 上的相片不受影響。<br>
+        <b>檔名規則：</b><code>日期_工項或墩號樁號_序號.jpg</code>；未填工項時為 <code>日期_時間_序號.jpg</code>。
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../assets/gdrive.js"></script>
+<script src="../assets/gdrive-photo.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var $ = function(id){ return document.getElementById(id); };
+  var HIST_KEY = 'inspection-drive-photo-history';
+
+  var queue = [];      /* { key, file, url, status, msg, result } */
+  var history = [];
+  var uploading = false;
+
+  function toast(msg, isErr){
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isErr ? ' err' : '');
+    clearTimeout(t._tm);
+    t._tm = setTimeout(function(){ t.className = 'toast'; }, 3600);
+  }
+
+  function pad(n){ return n < 10 ? '0' + n : '' + n; }
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  }
+  function hhmmss(){
+    var d = new Date();
+    return pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  }
+  function fmtSize(b){
+    if (!b) return '—';
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b/1024).toFixed(0) + ' KB';
+    return (b/1048576).toFixed(1) + ' MB';
+  }
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  /* ---------------- 歷史紀錄 ---------------- */
+  function loadHist(){
+    try {
+      var raw = localStorage.getItem(HIST_KEY);
+      history = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(history)) history = [];
+    } catch (e) { history = []; }
+  }
+  function saveHist(){
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(history)); }
+    catch (e) { toast('紀錄儲存失敗（瀏覽器空間已滿）', true); }
+  }
+
+  /* ---------------- 連線狀態 ---------------- */
+  var LABELS = {
+    idle:         { t:'未授權',   c:'#6b7a8d' },
+    unauthorized: { t:'未授權',   c:'#c47f17' },
+    connecting:   { t:'連線中…', c:'#2c5282' },
+    syncing:      { t:'同步中…', c:'#2c5282' },
+    connected:    { t:'已連線',   c:'#1f7a4d' },
+    error:        { t:'連線失敗', c:'#b3261e' }
+  };
+
+  function renderConn(s){
+    var L = LABELS[s.state] || LABELS.idle;
+    var connected = (s.state === 'connected');
+
+    $('connDot').style.background = L.c;
+    $('connTxt').textContent = L.t;
+    $('connTxt').style.color = L.c;
+    $('connTag').textContent = L.t;
+    $('connTag').className = 'tag' + (connected ? ' ok' : (s.state === 'error' ? ' bad' : ''));
+
+    var mail = s.email || GDrive.getEmail() || '';
+    $('connMail').textContent = connected
+      ? (mail ? '已連線帳號：' + mail : '已連線（帳號資訊讀取中…）')
+      : '';
+
+    $('btnConnect').style.display = connected ? 'none' : '';
+    $('btnSwitch').style.display  = connected ? '' : 'none';
+    $('btnLogout').style.display  = connected ? '' : 'none';
+    $('connWarn').style.display   = connected ? 'none' : 'block';
+
+    if (s.state === 'error' && s.message) {
+      $('connErr').textContent = '⚠ ' + s.message;
+      $('connErr').style.display = 'block';
+    } else {
+      $('connErr').style.display = 'none';
+    }
+    updateUploadBtn();
+  }
+
+  GDrive.onStatus(renderConn);
+
+  $('btnConnect').addEventListener('click', function(){
+    GDrive.connect().then(function(){
+      toast('已連線 Google Drive');
+      GDrive.getUser().then(function(u){
+        if (u && u.emailAddress) { $('connMail').textContent = '已連線帳號：' + u.emailAddress; }
+      });
+    }).catch(function(e){
+      toast('連線失敗：' + GDrive.friendlyError(e), true);
+    });
+  });
+
+  $('btnSwitch').addEventListener('click', function(){
+    GDrive.disconnect();
+    setTimeout(function(){
+      GDrive.connect().then(function(){ toast('已切換帳號'); })
+        .catch(function(e){ toast('連線失敗：' + GDrive.friendlyError(e), true); });
+    }, 120);
+  });
+
+  $('btnLogout').addEventListener('click', function(){
+    GDrive.disconnect();
+    toast('已登出（紀錄與 Drive 相片都保留）');
+  });
+
+  /* ---------------- 選檔 ---------------- */
+  function addFiles(files){
+    if (!files || !files.length) return;
+    var added = 0;
+    Array.prototype.forEach.call(files, function(f){
+      if (!/^image\//.test(f.type) && !/\.(jpe?g|png|heic|heif|webp)$/i.test(f.name)) return;
+      queue.push({
+        key: 'q' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+        file: f,
+        url: URL.createObjectURL(f),
+        status: 'wait',
+        msg: '',
+        result: null
+      });
+      added++;
+    });
+    if (!added) { toast('沒有可用的圖片檔', true); return; }
+    renderQueue();
+    toast('已加入 ' + added + ' 張相片');
+  }
+
+  $('btnPick').addEventListener('click', function(){ $('fileInput').click(); });
+  $('btnCam').addEventListener('click', function(){ $('camInput').click(); });
+  $('drop').addEventListener('click', function(){ $('fileInput').click(); });
+
+  $('fileInput').addEventListener('change', function(){
+    addFiles(this.files); this.value = '';
+  });
+  $('camInput').addEventListener('change', function(){
+    addFiles(this.files); this.value = '';
+  });
+
+  ['dragenter','dragover'].forEach(function(ev){
+    $('drop').addEventListener(ev, function(e){
+      e.preventDefault(); e.stopPropagation();
+      $('drop').classList.add('over');
+    });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    $('drop').addEventListener(ev, function(e){
+      e.preventDefault(); e.stopPropagation();
+      $('drop').classList.remove('over');
+    });
+  });
+  $('drop').addEventListener('drop', function(e){
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+
+  $('btnClear').addEventListener('click', function(){
+    if (uploading) { toast('上傳中，請稍候', true); return; }
+    queue.forEach(function(q){ try { URL.revokeObjectURL(q.url); } catch(e){} });
+    queue = [];
+    renderQueue();
+    $('progWrap').classList.remove('on');
+  });
+
+  /* ---------------- 檔名 ---------------- */
+  function sanitize(s){
+    return String(s || '')
+      .replace(/[\\/:*?"<>|]/g, '')
+      .replace(/\s+/g, '')
+      .trim();
+  }
+
+  function buildFilename(dateISO, item, seq){
+    var d = dateISO.replace(/-/g, '');
+    var tag = sanitize(item);
+    if (tag) return d + '_' + tag + '_' + pad(seq) + '.jpg';
+    return d + '_' + hhmmss() + '_' + pad(seq) + '.jpg';
+  }
+
+  /* 縮圖壓縮：長邊最大 2000px，轉 JPG，降低上傳量 */
+  function prepareBlob(file){
+    return new Promise(function(resolve){
+      if (!/^image\//.test(file.type)) return resolve(file);
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function(){
+        try {
+          var MAX = 2000;
+          var w = img.naturalWidth, h = img.naturalHeight;
+          if (!w || !h) { URL.revokeObjectURL(url); return resolve(file); }
+          var scale = Math.min(1, MAX / Math.max(w, h));
+          var cw = Math.round(w * scale), ch = Math.round(h * scale);
+          var cv = document.createElement('canvas');
+          cv.width = cw; cv.height = ch;
+          var ctx = cv.getContext('2d');
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, cw, ch);
+          ctx.drawImage(img, 0, 0, cw, ch);
+          cv.toBlob(function(b){
+            URL.revokeObjectURL(url);
+            resolve(b || file);
+          }, 'image/jpeg', 0.88);
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          resolve(file);
+        }
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
+  /* ---------------- 佇列 UI ---------------- */
+  function statusPill(q){
+    if (q.status === 'done') return '<span class="pill done">已上傳</span>';
+    if (q.status === 'up')   return '<span class="pill up">上傳中…</span>';
+    if (q.status === 'fail') return '<span class="pill fail">失敗</span>';
+    return '<span class="pill wait">待上傳</span>';
+  }
+
+  function renderQueue(){
+    var box = $('queueList');
+    box.innerHTML = '';
+    $('queueTag').textContent = queue.length + ' 張';
+    $('queueEmpty').style.display = queue.length ? 'none' : 'block';
+
+    queue.forEach(function(q){
+      var el = document.createElement('div');
+      el.className = 'item';
+
+      var thumb = '<div class="thumb"><img src="' + q.url + '" alt=""></div>';
+
+      var acts = '';
+      if (q.status === 'done' && q.result) {
+        acts += '<a href="' + esc(q.result.webViewLink) + '" target="_blank" rel="noopener">在 Google Drive 開啟</a>';
+      }
+      if (q.status === 'fail') {
+        acts += '<button class="btn btn-ghost btn-sm" data-retry="' + q.key + '" type="button">重試</button>';
+      }
+      if (q.status === 'wait' || q.status === 'fail') {
+        acts += '<button class="btn btn-ghost btn-sm" data-remove="' + q.key + '" type="button">移除</button>';
+      }
+
+      el.innerHTML = thumb +
+        '<div class="meta">' +
+          '<div class="nm">' + esc(q.file.name) + '</div>' +
+          '<div class="dt">' + fmtSize(q.file.size) + '　' + statusPill(q) +
+            (q.msg ? '　<span style="color:#b3261e;">' + esc(q.msg) + '</span>' : '') +
+            (q.result ? '　<span style="color:#1f7a4d;">' + esc(q.result.name) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="acts">' + acts + '</div>';
+
+      box.appendChild(el);
+    });
+
+    box.querySelectorAll('[data-retry]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var k = b.getAttribute('data-retry');
+        var q = queue.filter(function(x){ return x.key === k; })[0];
+        if (q) { q.status = 'wait'; q.msg = ''; renderQueue(); uploadOne(q).then(afterOne); }
+      });
+    });
+    box.querySelectorAll('[data-remove]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var k = b.getAttribute('data-remove');
+        queue = queue.filter(function(x){
+          if (x.key === k) { try { URL.revokeObjectURL(x.url); } catch(e){} return false; }
+          return true;
+        });
+        renderQueue();
+      });
+    });
+
+    updateUploadBtn();
+  }
+
+  function updateUploadBtn(){
+    var pending = queue.filter(function(q){ return q.status === 'wait' || q.status === 'fail'; }).length;
+    var b = $('btnUpload');
+    b.textContent = '☁ 開始上傳（' + pending + '）';
+    b.disabled = uploading || pending === 0;
+  }
+
+  /* ---------------- 上傳 ---------------- */
+  function uploadOne(q){
+    var dateISO = $('fDate').value || todayISO();
+    var item = $('fItem').value.trim();
+    var note = $('fNote').value.trim();
+
+    q.status = 'up';
+    q.msg = '';
+    renderQueue();
+
+    var seq = history.filter(function(h){ return h.date === dateISO; }).length + 1;
+
+    return prepareBlob(q.file).then(function(blob){
+      var name = buildFilename(dateISO, item, seq);
+      var desc = [note, item ? ('工項：' + item) : '', '歸檔日期：' + dateISO].filter(Boolean).join('｜');
+      return GDrive.uploadPhoto({
+        blob: blob,
+        filename: name,
+        date: dateISO,
+        description: desc
+      });
+    }).then(function(res){
+      q.status = 'done';
+      q.result = res;
+      history.unshift({
+        id: res.id,
+        name: res.name,
+        link: res.webViewLink,
+        date: dateISO,
+        item: item,
+        note: note,
+        size: res.size,
+        uploadedAt: new Date().toISOString()
+      });
+      saveHist();
+      renderQueue();
+      renderHist();
+      return true;
+    }).catch(function(e){
+      q.status = 'fail';
+      q.msg = GDrive.friendlyError(e);
+      renderQueue();
+      return false;
+    });
+  }
+
+  function afterOne(){
+    var total = queue.length;
+    var done = queue.filter(function(q){ return q.status === 'done'; }).length;
+    var fail = queue.filter(function(q){ return q.status === 'fail'; }).length;
+    var pct = total ? Math.round((done + fail) / total * 100) : 0;
+    $('progBar').style.width = pct + '%';
+    $('progTxt').textContent = '已完成 ' + done + ' / ' + total + ' 張' +
+      (fail ? '（失敗 ' + fail + ' 張，可單張重試）' : '');
+  }
+
+  $('btnUpload').addEventListener('click', function(){
+    if (uploading) return;
+    var pending = queue.filter(function(q){ return q.status === 'wait' || q.status === 'fail'; });
+    if (!pending.length) { toast('沒有待上傳的相片'); return; }
+    if (!GDrive.hasToken()) {
+      toast('尚未連線 Google Drive，請先按「🔗 連線 Google Drive」', true);
+      return;
+    }
+
+    uploading = true;
+    $('progWrap').classList.add('on');
+    $('progBar').style.width = '0%';
+    $('progTxt').textContent = '準備上傳…';
+    updateUploadBtn();
+
+    var i = 0;
+    function next(){
+      if (i >= pending.length) {
+        uploading = false;
+        updateUploadBtn();
+        var fail = queue.filter(function(q){ return q.status === 'fail'; }).length;
+        var done = queue.filter(function(q){ return q.status === 'done'; }).length;
+        toast(fail ? ('上傳完成：成功 ' + done + ' 張、失敗 ' + fail + ' 張') : ('已上傳 ' + done + ' 張到 Google Drive'),
+              !!fail);
+        return;
+      }
+      var q = pending[i++];
+      uploadOne(q).then(function(){
+        afterOne();
+        next();
+      });
+    }
+    next();
+  });
+
+  /* ---------------- 歷史 UI ---------------- */
+  function renderHist(){
+    var box = $('histList');
+    box.innerHTML = '';
+    $('histTag').textContent = history.length + ' 張';
+    $('histEmpty').style.display = history.length ? 'none' : 'block';
+
+    history.forEach(function(h){
+      var el = document.createElement('div');
+      el.className = 'item';
+      el.innerHTML =
+        '<div class="thumb">🖼</div>' +
+        '<div class="meta">' +
+          '<div class="nm">' + esc(h.name) + '</div>' +
+          '<div class="dt">' + esc(h.date) + '　' + fmtSize(h.size) +
+            (h.item ? '　' + esc(h.item) : '') +
+            (h.note ? '　' + esc(h.note) : '') +
+            '　<span class="pill done">已上傳</span></div>' +
+        '</div>' +
+        '<div class="acts"><a href="' + esc(h.link) + '" target="_blank" rel="noopener">在 Google Drive 開啟</a></div>';
+      box.appendChild(el);
+    });
+  }
+
+  $('btnClearHist').addEventListener('click', function(){
+    if (!history.length) { toast('沒有紀錄'); return; }
+    if (!confirm('確定要清除本機的上傳紀錄嗎？\n（Google Drive 上的相片不會被刪除）')) return;
+    history = [];
+    saveHist();
+    renderHist();
+    toast('已清除本機紀錄');
+  });
+
+  $('btnExportJson').addEventListener('click', function(){
+    var payload = {
+      app: 'inspection-suite',
+      kind: 'drive-photo-archive',
+      exportedAt: new Date().toISOString(),
+      rootFolder: GDrive.PHOTO_ROOT,
+      count: history.length,
+      photos: history
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '相片歸檔紀錄_' + todayISO().replace(/-/g,'') + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    toast('已匯出 JSON（含 Drive 檔案 ID 與連結）');
+  });
+
+  /* ---------------- 初始化 ---------------- */
+  $('fDate').value = todayISO();
+  loadHist();
+  renderHist();
+  renderQueue();
+  renderConn(GDrive.getStatus());
+
+  /* 若已授權，補抓 Email */
+  if (GDrive.hasToken()) {
+    GDrive.getUser().then(function(u){
+      if (u && u.emailAddress) $('connMail').textContent = '已連線帳號：' + u.emailAddress;
+    });
+  }
+})();
+</script>
+</body>
+</html>

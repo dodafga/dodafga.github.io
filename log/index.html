@@ -2,7 +2,8 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
 <title>查驗紀錄表產生器｜逐筆記錄 · Excel 輸出</title>
 <style>
   :root{
@@ -15,6 +16,7 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
   body{
     font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Helvetica Neue",Arial,sans-serif;
     background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
@@ -100,7 +102,7 @@
     border:1px solid #cfe6da;padding:0 6px;border-radius:20px;font-weight:600;}
 
   /* 紀錄表格 */
-  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;}
+  .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;}
   table.rec{width:100%;border-collapse:collapse;min-width:620px;}
   table.rec th:nth-child(1){width:40px;}
   table.rec th:nth-child(2){width:118px;}
@@ -122,7 +124,7 @@
   .empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13px;}
 
   /* 預覽：A4 橫式 */
-  .paper-wrap{background:#dfe4ea;border-radius:10px;padding:18px;overflow:auto;}
+  .paper-wrap{background:#dfe4ea;border-radius:10px;padding:18px;overflow:auto;-webkit-overflow-scrolling:touch;}
   .paper{width:100%;min-width:0;background:#fff;margin:0 auto;
     box-shadow:0 2px 10px rgba(27,36,48,.14);padding:24px 20px 28px;
     font-family:"標楷體","DFKai-SB","BiauKai","Noto Serif TC",serif;color:#000;}
@@ -385,9 +387,19 @@
     return m ? m[1] : '';
   }
 
+  /* 一次快照：原本每個墩號都呼叫 S.load() 一次（19 墩 → 19 次完整
+     parse＋normalize＋recompute，iPhone 上約 570ms／次按鍵），
+     改成只取一次並沿用，refreshPileSelect 立即降為毫秒級。 */
+  var dataCache = null;
+  function snapshot(){
+    if (!dataCache) dataCache = S ? S.load() : null;
+    return dataCache;
+  }
+  function invalidateSnapshot(){ dataCache = null; }
+
   function pileNosOfPier(pier){
     if (!S) return [];
-    return S.pileNosOf(S.load(), pier);
+    return S.pileNosOf(snapshot(), pier);
   }
 
   /* ---------- 本機保存 ---------- */
@@ -408,6 +420,7 @@
       });
       S.recompute(d);
       S.save(d);
+      invalidateSnapshot();
       return;
     }
     try{
@@ -418,7 +431,7 @@
   function load(){
     if (S) {
       try{
-        var d = S.load();
+        var d = snapshot();
         return (d.logs || []).map(function(r){
           /* 舊資料相容：位置文字內若已含墩號／樁號，拆出後不再重複顯示 */
           var parsed = parseLocation(String(r.location || ''));
@@ -929,6 +942,28 @@
     state.rows = saved;
   }
   render();
+
+  /* 跨頁籤同步：進度表改了樁號／查驗狀態後，切回本頁要看到最新內容。
+     原本本頁沒有監聽，只能靠外殼強制 reload（iOS 上等於整頁重載）。
+     這裡改為自行監聽 storage 與 focus，外殼就不必再 reload。 */
+  function reloadFromStore(){
+    invalidateSnapshot();
+    if (S) S.invalidate();
+    var rows = load();
+    if (!rows) return;
+    state.rows = rows;
+    render();
+  }
+  window.addEventListener('storage', function(e){
+    if (e.key === STORE_KEY || (S && e.key === S.KEY)) reloadFromStore();
+  });
+  window.addEventListener('focus', function(){
+    /* 只在資料真的變動時才重繪，避免切換 App 就整表重建 */
+    var before = state.rows.length;
+    var d = S ? S.load() : null;
+    var after = d ? (d.logs || []).length : before;
+    if (after !== before) reloadFromStore();
+  });
 
   loadTemplate().catch(function(){ /* 延後到按下載時再提示 */ });
 })();

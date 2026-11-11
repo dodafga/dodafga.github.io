@@ -18,7 +18,11 @@
   body{
     font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Helvetica Neue",Arial,sans-serif;
     background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
-    font-size:15px;line-height:1.6;display:flex;flex-direction:column;height:100vh;overflow:hidden;
+    font-size:15px;line-height:1.6;display:flex;flex-direction:column;overflow:hidden;
+    /* iOS Safari 的 100vh 是「工具列收起時」的高度，載入當下比可視區高，搭配 overflow:hidden
+       會把 iframe 底部推到畫面外、內容看起來「出不來」。先給 100vh 後備，再用 dvh 覆蓋；
+       不支援 dvh 的舊機由 JS 以 --app-h 補上實際 innerHeight。 */
+    height:100vh;height:100dvh;height:var(--app-h,100vh);
   }
 
   /* ---------- header ---------- */
@@ -286,8 +290,18 @@
       frames[k].classList.toggle("on", k === key);
     });
     /* 進度表與紀錄表共用 localStorage：切回時重讀，確保聯動即時反映 */
+    /* 原本這裡直接 location.reload()，在 iPhone 上等於每次切頁都重新下載＋解析＋重繪
+       整個頁面（紀錄表 300 筆時約 1.5 秒白畫面）。兩個子頁本身都已監聽 storage 與 focus
+       會自行重讀，因此改為「只通知、不重載」；只有子頁尚未載入完成時才重載。 */
     if(prev && (key === "progress" || key === "log")){
-      try{ frames[key].contentWindow.location.reload(); }catch(e){}
+      try{
+        var w = frames[key].contentWindow;
+        if(w && typeof w.SuiteStore !== "undefined"){
+          try{ w.dispatchEvent(new Event("focus")); }catch(e2){}
+        }else{
+          frames[key].contentWindow.location.reload();
+        }
+      }catch(e){}
     }
     if(hint) hint.style.display = "none";
     if(sub) sub.textContent = MODES[key].sub;
@@ -314,6 +328,21 @@
     var k = (location.hash || "").replace("#","");
     if(MODES[k] && k !== current) show(k);
   });
+
+  /* 可視高度（iOS Safari 工具列）：100vh 在工具列顯示時比實際可視區高，會把 iframe
+     底部推出畫面。把實際 innerHeight 寫進 --app-h，轉向／工具列伸縮時更新；
+     只在高度真的變化時才寫入，避免 iOS 捲動時因網址列伸縮造成版面抖動。 */
+  var lastH = 0;
+  function syncAppHeight(){
+    var h = window.innerHeight || 0;
+    if (!h || Math.abs(h - lastH) < 2) return;
+    lastH = h;
+    document.documentElement.style.setProperty("--app-h", h + "px");
+  }
+  syncAppHeight();
+  window.addEventListener("resize", syncAppHeight);
+  window.addEventListener("orientationchange", function(){ setTimeout(syncAppHeight, 120); });
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", syncAppHeight);
 
   var initial = (location.hash || "").replace("#","");
   show(MODES[initial] ? initial : "form");

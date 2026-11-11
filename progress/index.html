@@ -2,7 +2,8 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
 <title>預壘樁進度管控表｜墩號 · 樁號 · 查驗聯動</title>
 <style>
   :root{
@@ -15,6 +16,7 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
   body{
     font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Helvetica Neue",Arial,sans-serif;
     background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
@@ -81,7 +83,7 @@
     background-repeat:no-repeat;background-position:right 10px center;padding-right:26px;cursor:pointer;}
 
   /* 表格 */
-  .tblwrap{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:70vh;}
+  .tblwrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;max-height:70vh;}
   table.prog{width:100%;border-collapse:separate;border-spacing:0;min-width:1300px;font-size:13px;}
   table.prog thead th{position:sticky;top:0;z-index:3;background:var(--blue);color:#fff;
     font-size:12px;font-weight:700;padding:9px 8px;text-align:center;white-space:nowrap;
@@ -129,7 +131,7 @@
   table.piers td.date.has{font-weight:700;color:var(--blue);}
   table.piers td.date.ongoing{color:var(--amber);font-weight:600;font-size:11.5px;}
   table.piers td.num{font-variant-numeric:tabular-nums;font-weight:600;}
-  .pierwrap{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:46vh;}
+  .pierwrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;max-height:46vh;}
 
   /* 墩號詳情面板 */
   .drawer-mask{position:fixed;inset:0;background:rgba(27,36,48,.42);opacity:0;pointer-events:none;
@@ -145,7 +147,7 @@
   .drawer-h .x{margin-left:auto;background:rgba(255,255,255,.14);border:none;color:#fff;
     width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:17px;line-height:1;}
   .drawer-h .x:hover{background:rgba(255,255,255,.26);}
-  .drawer-b{padding:16px 18px 30px;overflow:auto;flex:1 1 auto;}
+  .drawer-b{padding:16px 18px 30px;overflow:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto;}
   .dsec{margin-bottom:18px;}
   .dsec h4{font-size:12.5px;color:var(--muted);font-weight:700;margin:0 0 8px;
     letter-spacing:.4px;text-transform:uppercase;}
@@ -351,6 +353,18 @@
     if (!S.save(data)) toast('本機儲存失敗（可能為隱私模式或空間已滿）', true);
   }
 
+  /* 表格內每一格輸入都會呼叫 persist()，而 persist() 會 recompute 全部 121 支樁。
+     在 iPhone 上連續輸入時會累積成明顯卡頓，這裡把「重算＋寫入」合併到同一輪
+     事件迴圈只做一次（畫面仍即時更新，資料不會遺失）。 */
+  var persistQueued = false;
+  function persistSoon(){
+    if (persistQueued) return;
+    persistQueued = true;
+    var run = function(){ persistQueued = false; persist(); };
+    if (typeof Promise !== 'undefined') Promise.resolve().then(run);
+    else setTimeout(run, 0);
+  }
+
   /* ---------- 統計 ---------- */
   function renderStats(){
     var s = S.summary(data);
@@ -509,7 +523,7 @@
       inWD.title = '施作日期（有查驗紀錄時，進度以查驗日期為準）';
       inWD.addEventListener('change', function(){
         p.workDate = inWD.value;
-        persist(); renderStats(); renderPiers(); renderTable();
+        persistSoon(); renderStats(); renderPiers(); renderTable();
       });
       tdWD.appendChild(inWD);
       tr.appendChild(tdWD);
@@ -553,7 +567,7 @@
       inNote.placeholder = '備註';
       inNote.addEventListener('input', function(){
         p.note = inNote.value;
-        S.save(data);
+        persistSoon();
       });
       tdNote.appendChild(inNote);
       tr.appendChild(tdNote);
@@ -777,12 +791,22 @@
   });
 
   /* 跨頁籤同步：查驗紀錄表寫入後，切回本頁自動重讀 */
+  /* 原本每次 focus 都對整包資料做兩次 JSON.stringify（65KB 以上）再比對，
+     iOS 上切換 App／分頁時會反覆觸發。改成先比對便宜的簽章，只有真的
+     不同才重讀與重繪。 */
+  function sig(d){
+    return (d.piles ? d.piles.length : 0) + '|' + (d.logs ? d.logs.length : 0) + '|' +
+      (d.logs && d.logs.length ? String(d.logs[d.logs.length - 1].date || '') : '');
+  }
+  var lastSig = sig(data);
+
   window.addEventListener('storage', function(e){
-    if (e.key === S.KEY) { data = S.load(); render(); }
+    if (e.key === S.KEY) { S.invalidate(); data = S.load(); lastSig = sig(data); render(); }
   });
   window.addEventListener('focus', function(){
     var fresh = S.load();
-    if (JSON.stringify(fresh) !== JSON.stringify(data)) { data = fresh; render(); }
+    var s = sig(fresh);
+    if (s !== lastSig) { data = fresh; lastSig = s; render(); }
   });
 
   render();

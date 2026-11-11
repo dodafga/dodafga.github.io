@@ -205,11 +205,16 @@
   }
 
   function load() {
+    var raw = null;
+    try { raw = localStorage.getItem(KEY); } catch (e) { raw = null; }
+
+    /* 快取：load() 原本每次呼叫都 JSON.parse＋normalize＋recompute（iPhone 約 30ms／次）。
+       log 頁的 refreshPileSelect() 會為每個墩號各呼叫一次（19 墩 → 約 570ms／次按鍵），
+       打字時主執行緒被卡住，畫面因此「出不來」。以原始字串為鍵快取，內容沒變就不重算。 */
+    if (raw !== null && raw === cacheRaw && cacheData) return cacheData;
+
     var d = null;
-    try {
-      var raw = localStorage.getItem(KEY);
-      if (raw) d = JSON.parse(raw);
-    } catch (e) { d = null; }
+    if (raw) { try { d = JSON.parse(raw); } catch (e) { d = null; } }
 
     if (!d) {
       d = defaultData();
@@ -237,8 +242,14 @@
 
     d = normalize(d);
     recompute(d);
+
+    cacheRaw = raw;
+    cacheData = d;
     return d;
   }
+
+  /** 清掉 load() 快取（save() 之後呼叫） */
+  function invalidate() { cacheRaw = null; cacheData = null; }
 
   /**
    * 儲存。回傳 true／false。
@@ -247,8 +258,13 @@
    */
   var lastError = '';
 
+  /* load() 快取（見 load 內的說明） */
+  var cacheRaw = null;
+  var cacheData = null;
+
   function save(d) {
     lastError = '';
+    invalidate();
     try {
       localStorage.setItem(KEY, JSON.stringify(d));
       return true;
@@ -377,12 +393,15 @@
 
   /** 某墩相關的查驗紀錄（含 piles 交集者） */
   function logsOf(d, pier) {
+    /* 原本在迴圈裡對每個樁號再 filter 一次 d.piles（O(logs×piles×piles)），
+       121 支樁 × 300 筆紀錄在 iPhone 上約 10ms／次。先建 pileNo → pier 索引表即降為線性。 */
+    var byNo = {};
+    (d.piles || []).forEach(function (p) { byNo[p.pileNo] = p.pier; });
     return (d.logs || []).filter(function (l) {
       if (logPiers(d, l).indexOf(pier) >= 0) return true;
       var nos = logPileNos(d, l);
       for (var i = 0; i < nos.length; i++) {
-        var p = (d.piles || []).filter(function (x) { return x.pileNo === nos[i]; })[0];
-        if (p && p.pier === pier) return true;
+        if (byNo[nos[i]] === pier) return true;
       }
       return false;
     }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
@@ -799,6 +818,7 @@
     pierSummaryRows: pierSummaryRows,
     PIER_WIDTHS: PIER_WIDTHS,
     logRows: logRows,
-    LOG_WIDTHS: LOG_WIDTHS
+    LOG_WIDTHS: LOG_WIDTHS,
+    invalidate: invalidate
   };
 })(typeof window !== 'undefined' ? window : this);

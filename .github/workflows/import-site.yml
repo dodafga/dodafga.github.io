@@ -14,15 +14,15 @@ jobs:
       - name: Download bundle
         run: |
           set -e
-          curl -sSL -o /tmp/site.zip "https://store-na-phx-4.gofile.io/download/direct/55169107-83e8-47d8-8729-0f34acc4350f/site.zip" || true
-          ls -la /tmp/site.zip || true
-          head -c 4 /tmp/site.zip | xxd || true
+          curl -sSL -o /tmp/site.zip "https://x0.at/ic7h.zip"
+          ls -la /tmp/site.zip
+          md5sum /tmp/site.zip
       - name: Unpack
         run: |
           set -e
           mkdir -p /tmp/site
           unzip -o -q /tmp/site.zip -d /tmp/site
-          ls -la /tmp/site
+          find /tmp/site -type f | sort
       - name: Copy into repo
         run: |
           set -e

@@ -10,11 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply patches
+      - name: Apply patch
         run: |
           set -e
           git apply --verbose fix.patch
-          git apply --verbose fix2.patch
           node --check assets/watermark.js
           node --check form/formbuilder.js
           git config user.name 'dodafga'

@@ -1,0 +1,29 @@
+name: apply-core-dedupe
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-core-dedupe.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply
+        run: |
+          set -e
+          python3 scripts_apply.py
+          node --check assets/core.js
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add log/index.html progress/index.html
+          git diff --cached --stat
+          git commit -m "refactor(log,progress): 內嵌 pad2/esc/todayISO 改用 assets/core.js 的 Core 版本" || echo "nothing to commit"
+          git push
+      - name: Self delete workflow
+        run: |
+          git rm -f .github/workflows/apply-core-dedupe.yml scripts_apply.py
+          git commit -m "chore: remove one-off workflow"
+          git push

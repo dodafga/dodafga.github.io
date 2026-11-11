@@ -143,81 +143,57 @@
 
   <!-- Client ID -->
   <div class="card">
-    <div class="card-h"><h2>Google OAuth Client ID</h2><span class="tag" id="cidTag">未設定</span></div>
+    <div class="card-h"><h2>Google OAuth Client ID</h2><span class="tag ok" id="cidTag">已設定（內建）</span></div>
     <div class="card-b">
-      <label for="cid">Client ID <span class="hint">形如 1234567890-abc123.apps.googleusercontent.com</span></label>
-      <input type="text" id="cid" placeholder="貼上你的 OAuth 用戶端 ID" autocomplete="off" spellcheck="false">
+      <label for="cid">Client ID <span class="hint">已內建固定值，不需手動填寫</span></label>
+      <input type="text" id="cid" readonly autocomplete="off" spellcheck="false"
+        style="background:#f2f5f9;color:#3d4a5c;cursor:default;">
       <div class="row">
-        <button class="btn btn-primary" id="btnSaveCid" type="button">儲存 Client ID</button>
-        <button class="btn btn-ghost" id="btnClearCid" type="button">清除</button>
+        <button class="btn btn-ghost" id="btnCopyCid" type="button">複製 Client ID</button>
       </div>
       <div class="note">
-        Client ID 只存在這台裝置的瀏覽器（localStorage），不會上傳到任何伺服器。
-        換裝置或換瀏覽器時需要重新貼一次。
+        此 Client ID 已寫入程式（<code>assets/gdrive.js</code>），所有使用者共用同一個，不需自行申請。
+        若瀏覽器裡存有舊的、不同的 Client ID，載入時會自動覆寫成這個固定值。
       </div>
     </div>
   </div>
 
-  <!-- 逐步設定說明 -->
+  <!-- 使用說明 -->
   <div class="card">
-    <div class="card-h"><h2>逐步設定說明</h2><span class="tag">約 5 分鐘</span></div>
+    <div class="card-h"><h2>使用說明</h2><span class="tag ok">Client ID 已內建</span></div>
     <div class="card-b">
       <div class="warn">
-        <b>先講重點：</b>你需要一個 Google 帳號，並在 Google Cloud Console 建立一個「OAuth 用戶端 ID（網頁應用程式）」。
-        這個 ID 是公開資訊（會出現在網頁原始碼裡），不是密碼，可以安全貼在網站上。
+        <b>重點：</b>本網站已內建固定的 Google OAuth Client ID，<b>你不需要申請、也不需要貼上任何 ID</b>。
+        只要用你的 Google 帳號授權一次，就能把資料存到自己的雲端硬碟。
       </div>
 
       <ol class="steps" style="margin-top:18px;">
 
         <li>
-          <h3>建立 Google Cloud 專案</h3>
-          <p>開啟 <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud Console → 建立專案</a>。</p>
-          <p>專案名稱隨便取，例如 <code>inspection-suite</code>，按「建立」，等幾秒後在上方專案選擇器切換到剛建立的專案。</p>
+          <h3>按「🔗 連線 Google Drive」</h3>
+          <p>在上方「目前連線狀態」區塊按 <b>🔗 連線 Google Drive</b>，會跳出 Google 授權視窗。</p>
+          <p>選擇你要用來存資料的 Google 帳號。</p>
         </li>
 
         <li>
-          <h3>啟用 Google Drive API</h3>
-          <p>到 <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noopener">Drive API 頁面</a>，按「啟用（Enable）」。</p>
-          <p>沒有啟用這一步，之後存檔會出現 <code>Drive API 403</code> 錯誤。</p>
+          <h3>同意 <code>drive.file</code> 權限</h3>
+          <p>授權視窗會顯示本程式要求「查看、編輯、建立及刪除你使用這個應用程式開啟的特定 Google 雲端硬碟檔案」。</p>
+          <p>這個權限<b>只能存取本程式自己建立的檔案</b>，看不到你雲端硬碟裡的其他任何東西。</p>
+          <p style="color:#8a5a0c;">若出現「Google 尚未驗證這個應用程式」，按 <b>進階</b> → <b>前往（不安全）</b> 即可。
+            這是因為同意畫面仍在「測試中」狀態，屬正常現象。</p>
         </li>
 
         <li>
-          <h3>設定 OAuth 同意畫面</h3>
-          <p>到 <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noopener">OAuth 同意畫面</a>：</p>
-          <div class="kv">
-            <b>User Type</b>選「外部（External）」，按建立<br>
-            <b>應用程式名稱</b>填 <code>營建查驗資料</code>（或任何你認得的名稱）<br>
-            <b>使用者支援電子郵件</b>填你自己的 Gmail<br>
-            <b>開發人員聯絡資訊</b>填你自己的 Gmail<br>
-            <b>範圍（Scopes）</b>按「新增或移除範圍」，搜尋 <code>drive.file</code> 並勾選<br>
-            <b>測試使用者</b>把自己的 Gmail 加進去（未發布前只有測試使用者能授權）
-          </div>
-          <p style="margin-top:8px;">存檔後回到同意畫面總覽，狀態會是「測試中（Testing）」。這樣就夠用了，不需要送審發布。</p>
-        </li>
-
-        <li>
-          <h3>建立 OAuth 用戶端 ID</h3>
-          <p>到 <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">憑證頁面</a> → 「建立憑證」→「OAuth 用戶端 ID」。</p>
-          <div class="kv">
-            <b>應用程式類型</b>選「網頁應用程式（Web application）」<br>
-            <b>名稱</b>填 <code>inspection-suite-web</code><br>
-            <b>已授權的 JavaScript 來源</b>填 <code>https://dodafga.github.io</code>
-            <button class="copybtn" data-copy="https://dodafga.github.io" type="button">複製</button><br>
-            <b>已授權的重新導向 URI</b>留空（本程式用 token 模式，不需要）
-          </div>
-          <p style="margin-top:8px;">按「建立」，會跳出一個視窗顯示 Client ID，複製它。</p>
-        </li>
-
-        <li>
-          <h3>把 Client ID 貼回本頁</h3>
-          <p>回到上面「Google OAuth Client ID」區塊，貼上並按「儲存 Client ID」。</p>
-          <p>然後按「🔗 連線 Google Drive」，會跳出 Google 授權視窗，選擇你的帳號並同意 <code>drive.file</code> 權限。</p>
-        </li>
-
-        <li>
-          <h3>開始使用</h3>
+          <h3>開始存檔</h3>
           <p>回到 <a href="../log/index.html">查驗紀錄表</a> 或 <a href="../form/index.html">查驗單</a>，按「☁ 存到 Google Drive」。</p>
-          <p>第一次會自動在雲端硬碟建立 <code>營建查驗資料</code> 資料夾與 <code>inspection-data.json</code>；之後每次存檔都覆寫同一份。</p>
+          <p>第一次會自動在你的雲端硬碟建立 <code>營建查驗資料</code> 資料夾與 <code>inspection-data.json</code>；
+            之後每次存檔都覆寫同一份，不會愈存愈多檔案。</p>
+        </li>
+
+        <li>
+          <h3>換裝置或換瀏覽器</h3>
+          <p>Client ID 已內建，不需重貼。到新裝置開本頁按「🔗 連線 Google Drive」授權，
+            再到 <a href="../log/index.html">查驗紀錄表</a> 按「⬇ 從 Google Drive 載入」即可取回全部資料。</p>
         </li>
 
       </ol>
@@ -225,10 +201,11 @@
       <div class="note" style="margin-top:18px;">
         <b>常見問題</b><br>
         · <b>授權視窗沒跳出來</b>：可能是瀏覽器封鎖彈出視窗，或廣告封鎖器擋住 <code>accounts.google.com</code>。<br>
-        · <b>出現「存取遭拒 / access_denied」</b>：你的 Gmail 沒有被加進「測試使用者」，回步驟 3 補上。<br>
-        · <b>出現「origin 不符」</b>：步驟 4 的「已授權的 JavaScript 來源」要完全等於 <code>https://dodafga.github.io</code>（不要加斜線、不要加路徑）。<br>
-        · <b>本機測試</b>：若用 <code>http://localhost:8000</code> 測試，要把該網址也加進「已授權的 JavaScript 來源」。<br>
-        · <b>換裝置</b>：Client ID 要重新貼一次；資料則按「⬇ 從 Google Drive 載入」即可取回。
+        · <b>出現「存取遭拒 / access_denied」</b>：這個 Client ID 的「測試使用者」名單沒有你的 Gmail，請聯絡管理者加入。<br>
+        · <b>出現「origin 不符」</b>：這個 Client ID 的「已授權的 JavaScript 來源」沒有包含 <code>https://dodafga.github.io</code>，請聯絡管理者補上。<br>
+        · <b>出現「Drive API 403」</b>：該專案尚未啟用 Google Drive API，請聯絡管理者啟用。<br>
+        · <b>授權過期</b>：Google 的存取權杖約 1 小時失效，重新按一次「🔗 連線 Google Drive」即可。<br>
+        · <b>換裝置</b>：Client ID 已內建，不需重貼；資料按「⬇ 從 Google Drive 載入」即可取回。
       </div>
     </div>
   </div>
@@ -289,33 +266,24 @@
     $('stMsg').textContent = bits.join('　·　');
 
     var cid = GDrive.getClientId();
-    $('cidTag').textContent = cid ? '已設定' : '未設定';
-    $('cidTag').className = 'tag' + (cid ? ' ok' : '');
+    $('cidTag').textContent = '已設定（內建）';
+    $('cidTag').className = 'tag ok';
     if (document.activeElement !== $('cid')) $('cid').value = cid;
   }
 
   GDrive.onStatus(render);
 
-  $('btnSaveCid').addEventListener('click', function(){
-    var v = $('cid').value.trim();
-    if (!v) { toast('請先貼上 Client ID', true); return; }
-    if (!/\.apps\.googleusercontent\.com$/.test(v)) {
-      toast('格式看起來不對，結尾應為 .apps.googleusercontent.com', true);
-      return;
+  $('btnCopyCid').addEventListener('click', function(){
+    var v = GDrive.getClientId();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(v).then(function(){ toast('已複製 Client ID'); });
+    } else {
+      $('cid').select();
+      try { document.execCommand('copy'); toast('已複製 Client ID'); } catch (e) { toast('複製失敗，請手動選取', true); }
     }
-    GDrive.setClientId(v);
-    toast('已儲存 Client ID');
-  });
-
-  $('btnClearCid').addEventListener('click', function(){
-    if (!confirm('確定要清除 Client ID？清除後需重新貼上才能使用雲端儲存。')) return;
-    GDrive.setClientId('');
-    $('cid').value = '';
-    toast('已清除 Client ID');
   });
 
   $('btnConnect').addEventListener('click', function(){
-    if (!GDrive.isConfigured()) { toast('請先貼上並儲存 Client ID', true); $('cid').focus(); return; }
     GDrive.connect().then(function(){
       toast('已連線 Google Drive');
     }).catch(function(e){
@@ -335,7 +303,6 @@
   });
 
   $('btnTest').addEventListener('click', function(){
-    if (!GDrive.isConfigured()) { toast('請先貼上並儲存 Client ID', true); return; }
     var payload = {
       app: 'inspection-suite',
       kind: 'connection-test',

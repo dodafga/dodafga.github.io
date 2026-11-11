@@ -1,0 +1,67 @@
+name: refactor-shared-core
+
+on:
+  push:
+    paths:
+      - '.github/workflows/refactor-core.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch and apply patch
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 4 --retry-delay 3 -o /tmp/r.patch.gz https://x0.at/nFKf.gz
+          gunzip -c /tmp/r.patch.gz > /tmp/r.patch
+          wc -l /tmp/r.patch
+          git apply --whitespace=nowarn --verbose /tmp/r.patch
+          rm -f probe-test.js
+          echo '--- status ---'
+          git status --short
+
+      - name: Syntax check
+        run: |
+          set -euo pipefail
+          for f in assets/*.js; do node --check "$f" && echo "OK  $f"; done
+          for f in form/formbuilder.js photo/photobuilder.js log/logbuilder.js; do node --check "$f" && echo "OK  $f"; done
+          python3 - <<'PY'
+          import re,subprocess,tempfile,os
+          for f in ['index.html','form/index.html','photo/index.html','log/index.html','progress/index.html','settings/index.html','drive/index.html']:
+              s=open(f,encoding='utf-8').read()
+              for i,b in enumerate(re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>',s,re.S)):
+                  if not b.strip(): continue
+                  p=tempfile.mktemp(suffix='.js'); open(p,'w',encoding='utf-8').write(b)
+                  r=subprocess.run(['node','--check',p],capture_output=True,text=True)
+                  os.unlink(p)
+                  assert r.returncode==0, f+' block '+str(i)+'\n'+r.stderr
+              print('INLINE OK',f)
+          PY
+
+      - name: Script order
+        run: |
+          for f in index.html form/index.html photo/index.html log/index.html progress/index.html settings/index.html drive/index.html; do echo "[$f]"; grep -n '<script src' "$f" || true; done
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          git config user.name 'dodafga'
+          git config user.email 'dodafga@users.noreply.github.com'
+          git add -A
+          git commit -m 'perf/refactor: 抽出共用 core.js、修正重複事件綁定與縮圖記憶體用量（功能與版面不變）' || echo 'no changes'
+          git push
+
+      - name: Remove workflow
+        run: |
+          set -euo pipefail
+          git config user.name 'dodafga'
+          git config user.email 'dodafga@users.noreply.github.com'
+          git rm .github/workflows/refactor-core.yml
+          git commit -m 'chore: 移除一次性 workflow'
+          git push

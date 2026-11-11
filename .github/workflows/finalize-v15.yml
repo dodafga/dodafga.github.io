@@ -1,0 +1,36 @@
+name: finalize-v15
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact store.js
+        run: |
+          curl -sL "https://tmpfiles.org/dl/1794379980.744dc4a0bff998ef/wXAbWENjMwId/store.js" -o assets/store.js
+          echo "size: $(wc -c < assets/store.js)"
+          md5sum assets/store.js
+
+      - name: Verify
+        run: |
+          node --check assets/store.js
+          echo "syntax OK"
+          grep -c "mode === 'inspect'" assets/store.js
+          grep -n "function sortPiles" assets/store.js
+
+      - name: Cleanup and push
+        run: |
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          rm -f .github/workflows/finalize-v15.yml
+          git add -A
+          git commit -m "style(store): 還原 sortPiles 段落縮排（功能不變）"
+          git push

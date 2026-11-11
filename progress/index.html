@@ -82,7 +82,7 @@
 
   /* 表格 */
   .tblwrap{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:70vh;}
-  table.prog{width:100%;border-collapse:separate;border-spacing:0;min-width:1180px;font-size:13px;}
+  table.prog{width:100%;border-collapse:separate;border-spacing:0;min-width:1300px;font-size:13px;}
   table.prog thead th{position:sticky;top:0;z-index:3;background:var(--blue);color:#fff;
     font-size:12px;font-weight:700;padding:9px 8px;text-align:center;white-space:nowrap;
     border-right:1px solid rgba(255,255,255,.18);}
@@ -112,6 +112,24 @@
   .pill.late{background:var(--danger-bg);color:var(--danger);border:1px solid #f0cfcc;}
 
   .empty{text-align:center;padding:30px 12px;color:var(--muted);font-size:13px;}
+
+  /* 墩彙總表 */
+  table.piers{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:900px;}
+  table.piers thead th{position:sticky;top:0;z-index:3;background:var(--steel);color:#fff;
+    font-size:11.5px;font-weight:700;padding:8px 7px;text-align:center;white-space:nowrap;
+    border-right:1px solid rgba(255,255,255,.18);}
+  table.piers thead th:last-child{border-right:none;}
+  table.piers tbody td{padding:6px 7px;border-bottom:1px solid var(--line-2);
+    border-right:1px solid var(--line-2);vertical-align:middle;background:#fff;text-align:center;}
+  table.piers tbody td:last-child{border-right:none;}
+  table.piers tbody tr:hover td{background:#fafcfe;}
+  table.piers td.pier{font-weight:800;color:var(--blue);cursor:pointer;background:#f4f7fc;}
+  table.piers td.pier:hover{background:#e8effa;text-decoration:underline;}
+  table.piers td.date{font-variant-numeric:tabular-nums;font-size:12px;}
+  table.piers td.date.has{font-weight:700;color:var(--blue);}
+  table.piers td.date.ongoing{color:var(--amber);font-weight:600;font-size:11.5px;}
+  table.piers td.num{font-variant-numeric:tabular-nums;font-weight:600;}
+  .pierwrap{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:46vh;}
 
   /* 墩號詳情面板 */
   .drawer-mask{position:fixed;inset:0;background:rgba(27,36,48,.42);opacity:0;pointer-events:none;
@@ -166,7 +184,7 @@
     <div class="logo">樁</div>
     <div>
       <h1>預壘樁進度管控表</h1>
-      <div class="sub">布袋商港聯外道路新闢工程 · 墩號／樁號 · 施作與查驗狀態 · 與查驗紀錄表聯動</div>
+      <div class="sub">布袋商港聯外道路新闢工程 · 墩號／樁號 · 進度以查驗日期為基準 · 與查驗紀錄表聯動</div>
     </div>
     <div class="hmeta">
       全案 <b>121 支</b> · 19 個墩號<br>
@@ -215,6 +233,35 @@
 
   <div class="card">
     <div class="card-h">
+      <h2>墩號彙總</h2>
+      <span class="tag" id="pierTag">0 墩</span>
+      <span class="spacer"></span>
+      <span style="font-size:11.5px;color:var(--muted);">墩開始時間＝最早實際開始（無則最早查驗）　·　整墩結束時間＝全墩完成時最晚實際完成／查驗</span>
+    </div>
+    <div class="card-b" style="padding:0;">
+      <div class="pierwrap">
+        <table class="piers" id="pierTable">
+          <thead>
+            <tr>
+              <th style="width:74px;">墩號</th>
+              <th style="width:74px;">類型</th>
+              <th style="width:56px;">岸別</th>
+              <th style="width:56px;">樁數</th>
+              <th style="width:64px;">已完成</th>
+              <th style="width:64px;">已查驗</th>
+              <th style="width:118px;">墩開始時間</th>
+              <th style="width:190px;">整墩結束時間</th>
+              <th style="width:88px;">墩狀態</th>
+            </tr>
+          </thead>
+          <tbody id="pierBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
       <h2>樁位明細</h2>
       <span class="tag ok" id="rowTag">0 支</span>
       <span class="spacer"></span>
@@ -234,6 +281,7 @@
               <th style="width:126px;">預定完成</th>
               <th style="width:126px;">實際開始</th>
               <th style="width:126px;">實際完成</th>
+              <th style="width:112px;">進度日期</th>
               <th style="width:96px;">完成狀態</th>
               <th style="width:96px;">查驗狀態</th>
               <th style="width:126px;">查驗日期</th>
@@ -251,7 +299,7 @@
     <div class="card-h"><h2>資料備份與匯出</h2><span class="tag">本機儲存 · 可跨裝置</span></div>
     <div class="card-b">
       <div class="toolbar">
-        <button class="btn btn-amber" id="btnXlsx" type="button">⬇ 匯出 Excel（進度表）</button>
+        <button class="btn btn-amber" id="btnXlsx" type="button">⬇ 匯出 Excel（進度表＋墩號彙總）</button>
         <button class="btn btn-ghost" id="btnJson" type="button">⬇ 匯出 JSON（含查驗紀錄）</button>
         <button class="btn btn-ghost" id="btnImport" type="button">⬆ 匯入 JSON</button>
         <input type="file" id="fileImport" accept=".json,application/json" style="display:none;">
@@ -316,6 +364,7 @@
     html += '<div class="stat blue"><div class="k">已查驗</div><div class="v">' + s.inspected + '<span class="u">支</span></div></div>';
     html += '<div class="stat ' + diffCls + '"><div class="k">進度差異（實際－預定）</div><div class="v">' + diffTxt + '<span class="u">支</span></div></div>';
     $('stats').innerHTML = html;
+    $('stats').title = '實際完成 ' + s.progressed + ' 支（以查驗日期為基準）－ 已到預定完成日 ' + s.plannedToDate + ' 支';
   }
 
   /* ---------- 篩選 ---------- */
@@ -339,6 +388,66 @@
   function inspectPill(p){
     if (p.inspectStatus === '已查驗') return '<span class="pill i1">已查驗</span>';
     return '<span class="pill i0">未查驗</span>';
+  }
+
+  /* ---------- 墩彙總 ---------- */
+  function renderPiers(){
+    var body = $('pierBody');
+    body.innerHTML = '';
+    var list = S.pierSummary(data);
+    $('pierTag').textContent = list.length + ' 墩';
+
+    list.forEach(function(s){
+      var tr = document.createElement('tr');
+
+      var tdP = document.createElement('td');
+      tdP.className = 'pier';
+      tdP.textContent = s.pier;
+      tdP.title = '點擊查看 ' + s.pier + ' 的墩彙總與查驗紀錄';
+      tdP.addEventListener('click', function(){ openDrawer(s.pier); });
+      tr.appendChild(tdP);
+
+      var tdT = document.createElement('td');
+      tdT.textContent = s.type;
+      tr.appendChild(tdT);
+
+      var tdS = document.createElement('td');
+      tdS.textContent = s.side;
+      tr.appendChild(tdS);
+
+      var tdC = document.createElement('td');
+      tdC.className = 'num';
+      tdC.textContent = s.count;
+      tr.appendChild(tdC);
+
+      var tdD = document.createElement('td');
+      tdD.className = 'num';
+      tdD.textContent = s.done;
+      tdD.style.color = s.done === s.count ? 'var(--ok)' : '';
+      tr.appendChild(tdD);
+
+      var tdI = document.createElement('td');
+      tdI.className = 'num';
+      tdI.textContent = s.inspected;
+      tdI.style.color = s.inspected ? 'var(--blue)' : '';
+      tr.appendChild(tdI);
+
+      var tdSt = document.createElement('td');
+      tdSt.className = 'date' + (s.start ? ' has' : '');
+      tdSt.textContent = s.startText;
+      tr.appendChild(tdSt);
+
+      var tdEn = document.createElement('td');
+      tdEn.className = 'date' + (s.allDone ? ' has' : ' ongoing');
+      tdEn.textContent = s.endText;
+      tr.appendChild(tdEn);
+
+      var tdStat = document.createElement('td');
+      tdStat.innerHTML = statusPill(s.status);
+      tr.appendChild(tdStat);
+
+      body.appendChild(tr);
+    });
   }
 
   /* ---------- 表格 ---------- */
@@ -399,7 +508,7 @@
       inAS.value = p.actualStart || '';
       inAS.addEventListener('change', function(){
         p.actualStart = inAS.value;
-        persist(); renderStats(); renderTable();
+        persist(); renderStats(); renderPiers(); renderTable();
       });
       tdAS.appendChild(inAS);
       tr.appendChild(tdAS);
@@ -411,10 +520,20 @@
       inAE.value = p.actualEnd || '';
       inAE.addEventListener('change', function(){
         p.actualEnd = inAE.value;
-        persist(); renderStats(); renderTable();
+        persist(); renderStats(); renderPiers(); renderTable();
       });
       tdAE.appendChild(inAE);
       tr.appendChild(tdAE);
+
+      /* 進度日期（以查驗日期為基準，唯讀） */
+      var tdPD = document.createElement('td');
+      tdPD.className = 'c';
+      tdPD.textContent = S.isoToSlash(p.progressDate) || '—';
+      tdPD.style.fontSize = '12px';
+      tdPD.style.fontWeight = p.progressDate ? '700' : '400';
+      tdPD.style.color = p.progressDate ? (p.inspectDate ? '#2F5597' : '#1f7a4d') : '#9aa6b4';
+      tdPD.title = p.inspectDate ? '依查驗日期' : (p.progressDate ? '依實際日期' : '尚無進度');
+      tr.appendChild(tdPD);
 
       /* 完成狀態 */
       var tdSt = document.createElement('td');
@@ -456,6 +575,7 @@
 
   function render(){
     renderStats();
+    renderPiers();
     renderTable();
   }
 
@@ -470,6 +590,10 @@
       return (p.inspectDate && p.inspectDate > a) ? p.inspectDate : a;
     }, '');
 
+    /* 墩彙總（墩開始時間、整墩結束時間） */
+    var sum = null;
+    S.pierSummary(data).forEach(function(s){ if (s.pier === pier) sum = s; });
+
     $('dTitle').textContent = pier + '　墩號詳情';
 
     var h = '';
@@ -482,6 +606,22 @@
          (S.isoToSlash(def.start) || '—') + ' ～ ' + (S.isoToSlash(def.end) || '—') + '</div></div>';
     h += '<div class="ditem"><div class="k">完成 / 查驗</div><div class="v">' + done + ' / ' + inspected + ' 支</div></div>';
     h += '</div></div>';
+
+    /* 墩時間彙總 */
+    if (sum) {
+      h += '<div class="dsec"><h4>墩時間彙總</h4><div class="dgrid">';
+      h += '<div class="ditem" style="background:#eef4fb;border-color:#d3e2f2;">' +
+           '<div class="k">墩開始時間</div>' +
+           '<div class="v" style="color:#2F5597;">' + sum.startText + '</div></div>';
+      h += '<div class="ditem" style="background:' + (sum.allDone ? '#e9f5ee' : '#fdf6e7') +
+           ';border-color:' + (sum.allDone ? '#cfe6da' : '#f0dfb8') + ';">' +
+           '<div class="k">整墩結束時間</div>' +
+           '<div class="v" style="color:' + (sum.allDone ? '#1f7a4d' : '#c47f17') + ';font-size:12.5px;">' +
+           sum.endText + '</div></div>';
+      h += '<div class="ditem"><div class="k">墩狀態</div><div class="v">' + statusPill(sum.status) + '</div></div>';
+      h += '<div class="ditem"><div class="k">未完成支數</div><div class="v">' + sum.notDone + ' 支</div></div>';
+      h += '</div></div>';
+    }
 
     h += '<div class="dsec"><h4>查驗狀態</h4>';
     if (inspected > 0) {
@@ -524,7 +664,9 @@
 
     h += '<div class="dsec"><h4>樁位清單</h4><div class="dgrid">';
     piles.forEach(function(p){
-      h += '<div class="ditem"><div class="k">' + p.pileNo + '</div>' +
+      h += '<div class="ditem"><div class="k">' + p.pileNo +
+           (p.progressDate ? '　<span style="color:#2F5597;font-weight:700;">' + S.isoToSlash(p.progressDate) + '</span>' : '') +
+           '</div>' +
            '<div class="v" style="font-size:12.5px;">' + statusPill(p.status) + ' ' + inspectPill(p) + '</div></div>';
     });
     h += '</div></div>';
@@ -555,10 +697,13 @@
     btn.disabled = true;
     var old = btn.textContent;
     btn.textContent = '產生中…';
-    S.buildXlsx(S.progressRows(data), S.PROGRESS_WIDTHS, '進度管控表')
+    S.buildXlsxMulti([
+      { name: '進度管控表', rows: S.progressRows(data), widths: S.PROGRESS_WIDTHS },
+      { name: '墩號彙總', rows: S.pierSummaryRows(data), widths: S.PIER_WIDTHS }
+    ])
       .then(function(blob){
         downloadBlob(blob, '預壘樁進度管控表_' + S.todayISO().replace(/-/g,'') + '.xlsx');
-        toast('已匯出 Excel');
+        toast('已匯出 Excel（含墩號彙總）');
       })
       .catch(function(e){
         console.error(e);
@@ -571,7 +716,7 @@
     var txt = S.exportJSON(data);
     downloadBlob(new Blob([txt], { type:'application/json;charset=utf-8' }),
       '查驗整合資料_' + S.todayISO().replace(/-/g,'') + '.json');
-    toast('已匯出 JSON（含查驗紀錄）');
+    toast('已匯出 JSON（含查驗紀錄與墩號彙總）');
   }
 
   function importJson(file){

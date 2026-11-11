@@ -2,8 +2,9 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>查驗表單產生器｜查驗單 · 查驗相片表 · 查驗紀錄表 · 預壘樁進度</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1f3a5f">
+<title>查驗表單產生器｜查驗單 · 查驗相片表 · 查驗紀錄表 · 預壘樁進度 · 相片上傳歸檔</title>
 <style>
   :root{
     --ink:#1b2430; --ink-2:#3d4a5c; --muted:#6b7a8d;
@@ -19,29 +20,100 @@
     background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
     font-size:15px;line-height:1.6;display:flex;flex-direction:column;height:100vh;overflow:hidden;
   }
-  header{background:var(--steel);color:#fff;padding:13px 22px;border-bottom:3px solid var(--amber);
-    flex:0 0 auto;z-index:10;}
-  .hwrap{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-  .logo{width:40px;height:40px;flex:0 0 40px;border-radius:9px;background:var(--amber);color:#1b2430;
-    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;}
-  .brand h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.3px;}
-  .brand .sub{font-size:12px;color:#b9c8da;margin-top:2px;transition:opacity .2s;}
-  .switcher{margin-left:auto;display:flex;gap:6px;background:rgba(255,255,255,.10);
-    padding:5px;border-radius:12px;border:1px solid rgba(255,255,255,.14);}
-  .switcher button{
-    font-family:inherit;font-size:14px;font-weight:700;color:#cdd9e8;background:transparent;
-    border:none;border-radius:8px;padding:9px 20px;cursor:pointer;transition:.18s;
-    display:inline-flex;align-items:center;gap:8px;white-space:nowrap;
-  }
-  .switcher button .ic{font-size:16px;line-height:1;}
-  .switcher button:hover{color:#fff;background:rgba(255,255,255,.10);}
-  .switcher button.on{background:#fff;color:var(--steel);box-shadow:0 2px 8px rgba(0,0,0,.18);}
-  .switcher .setlink{font-family:inherit;font-size:13px;font-weight:700;color:#cdd9e8;
-    text-decoration:none;border-radius:8px;padding:9px 14px;display:inline-flex;
-    align-items:center;gap:6px;white-space:nowrap;transition:.18s;
-    border-left:1px solid rgba(255,255,255,.18);margin-left:2px;}
-  .switcher .setlink:hover{color:#fff;background:rgba(255,255,255,.10);}
 
+  /* ---------- header ---------- */
+  header{
+    background:var(--steel);color:#fff;padding:10px 16px;
+    border-bottom:3px solid var(--amber);
+    flex:0 0 auto;z-index:40;position:relative;
+    padding-top:calc(10px + env(safe-area-inset-top,0px));
+  }
+  .hwrap{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:12px;}
+
+  .logo{width:38px;height:38px;flex:0 0 38px;border-radius:9px;background:var(--amber);color:#1b2430;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;}
+
+  .brand{min-width:0;flex:1 1 auto;}
+  .brand h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .brand .sub{font-size:12px;color:#b9c8da;margin-top:1px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  .hactions{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+
+  /* 齒輪：獨立、不與分頁排在一起 */
+  .iconbtn{
+    width:44px;height:44px;flex:0 0 44px;border-radius:11px;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:20px;line-height:1;color:#dbe6f2;text-decoration:none;
+    background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+    cursor:pointer;transition:background .18s,color .18s,transform .18s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .iconbtn:hover{background:rgba(255,255,255,.20);color:#fff;}
+  .iconbtn:active{transform:scale(.95);}
+  .iconbtn:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+
+  /* 漢堡選單按鈕 */
+  .menubtn{
+    display:inline-flex;align-items:center;gap:9px;
+    height:44px;padding:0 14px;border-radius:11px;
+    font-family:inherit;font-size:14px;font-weight:700;color:#fff;
+    background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+    cursor:pointer;transition:background .18s;white-space:nowrap;
+    -webkit-tap-highlight-color:transparent;max-width:52vw;
+  }
+  .menubtn:hover{background:rgba(255,255,255,.20);}
+  .menubtn:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+  .menubtn .burger{font-size:18px;line-height:1;flex:0 0 auto;}
+  .menubtn .cur{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .menubtn .caret{font-size:10px;opacity:.75;transition:transform .2s;flex:0 0 auto;}
+  .menubtn[aria-expanded="true"]{background:rgba(255,255,255,.24);}
+  .menubtn[aria-expanded="true"] .caret{transform:rotate(180deg);}
+
+  /* ---------- dropdown ---------- */
+  .menu{
+    position:absolute;top:calc(100% + 8px);right:16px;width:290px;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 20px 48px rgba(15,25,40,.30),0 2px 8px rgba(15,25,40,.10);
+    padding:8px;z-index:60;display:none;
+    max-height:calc(100vh - 90px);overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .menu.open{display:block;animation:menuPop .16s ease-out;}
+  @keyframes menuPop{from{opacity:0;transform:translateY(-6px) scale(.98);}to{opacity:1;transform:none;}}
+
+  .menu .mhead{
+    font-size:11px;font-weight:800;letter-spacing:.10em;color:var(--muted);
+    padding:8px 12px 6px;
+  }
+  .menu button{
+    width:100%;display:flex;align-items:center;gap:12px;
+    padding:0 12px;min-height:50px;
+    border:none;background:transparent;border-radius:10px;
+    font-family:inherit;font-size:15px;font-weight:700;color:var(--ink-2);
+    cursor:pointer;text-align:left;transition:background .15s,color .15s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .menu button:hover{background:#f2f5f9;color:var(--ink);}
+  .menu button:focus-visible{outline:2px solid var(--steel-2);outline-offset:-2px;}
+  .menu button .ic{font-size:18px;line-height:1;width:22px;flex:0 0 22px;text-align:center;}
+  .menu button .lbl{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .menu button .tick{font-size:15px;font-weight:800;opacity:0;flex:0 0 auto;transition:opacity .15s;}
+  .menu button.on{background:var(--steel);color:#fff;}
+  .menu button.on:hover{background:var(--steel);}
+  .menu button.on .tick{opacity:1;}
+  .menu .msep{height:1px;background:var(--line-2);margin:6px 8px;}
+  .menu .mset{
+    display:flex;align-items:center;gap:12px;min-height:50px;padding:0 12px;
+    border-radius:10px;text-decoration:none;color:var(--ink-2);
+    font-size:15px;font-weight:700;transition:background .15s;
+  }
+  .menu .mset:hover{background:#f2f5f9;color:var(--ink);}
+  .menu .mset .ic{font-size:18px;width:22px;flex:0 0 22px;text-align:center;}
+  .menu .mset .hintx{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--muted);}
+
+  /* ---------- stage ---------- */
   .stage{flex:1 1 auto;position:relative;min-height:0;background:var(--bg);}
   .frame{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:var(--bg);}
   .frame.on{display:block;}
@@ -49,13 +121,24 @@
   .hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;
     color:var(--muted);font-size:14px;}
 
+  /* ---------- mobile ---------- */
   @media (max-width:720px){
-    header{padding:11px 14px;}
-    .brand h1{font-size:15.5px;}
+    header{padding:9px 12px;padding-top:calc(9px + env(safe-area-inset-top,0px));}
+    .hwrap{gap:9px;}
+    .logo{width:34px;height:34px;flex:0 0 34px;font-size:15px;border-radius:8px;}
+    .brand h1{font-size:15px;}
     .brand .sub{display:none;}
-    .switcher{margin-left:0;width:100%;}
-    .switcher button{flex:1;justify-content:center;padding:9px 6px;font-size:12px;}
-    .switcher button .ic{display:none;}
+    .hactions{gap:7px;}
+    .iconbtn{width:44px;height:44px;flex:0 0 44px;font-size:19px;}
+    .menubtn{height:44px;padding:0 12px;font-size:13.5px;gap:7px;max-width:46vw;}
+    .menubtn .burger{font-size:17px;}
+    .menu{left:10px;right:10px;width:auto;top:calc(100% + 6px);border-radius:13px;}
+    .menu button,.menu .mset{min-height:52px;font-size:15.5px;}
+  }
+  @media (max-width:380px){
+    .brand h1{font-size:14px;}
+    .menubtn .cur{display:none;}
+    .menubtn{padding:0 11px;}
   }
 </style>
 </head>
@@ -67,20 +150,41 @@
       <h1>查驗表單產生器</h1>
       <div class="sub" id="sub">工程查驗文件線上填寫 · 即時預覽 · 一鍵下載 .docx</div>
     </div>
-    <div class="switcher" role="tablist" aria-label="表單類型">
-      <button id="btnForm" class="on" type="button" role="tab" aria-selected="true">
-        <span class="ic">📋</span>查驗單</button>
-      <button id="btnPhoto" type="button" role="tab" aria-selected="false">
-        <span class="ic">📷</span>查驗相片表</button>
-      <button id="btnLog" type="button" role="tab" aria-selected="false">
-        <span class="ic">📊</span>查驗紀錄表</button>
-      <button id="btnProgress" type="button" role="tab" aria-selected="false">
-        <span class="ic">🏗️</span>預壘樁進度</button>
-      <button id="btnDrive" type="button" role="tab" aria-selected="false">
-        <span class="ic">☁</span>相片上傳歸檔</button>
-      <a id="btnSettings" class="setlink" href="settings/index.html" target="_blank" rel="noopener" title="Google Drive 設定">
-        <span class="ic">⚙</span>設定</a>
+    <div class="hactions">
+      <a id="btnSettings" class="iconbtn" href="settings/index.html" target="_blank" rel="noopener"
+         title="設定（Google Drive）" aria-label="設定">
+        <span aria-hidden="true">⚙</span>
+      </a>
+      <button id="menuBtn" class="menubtn" type="button"
+              aria-haspopup="true" aria-expanded="false" aria-controls="menu">
+        <span class="burger" aria-hidden="true">☰</span>
+        <span class="cur" id="menuCur">查驗單</span>
+        <span class="caret" aria-hidden="true">▼</span>
+      </button>
     </div>
+  </div>
+
+  <div class="menu" id="menu" role="menu" aria-label="功能選單">
+    <div class="mhead">功能</div>
+    <button type="button" role="menuitem" data-mode="form" class="on">
+      <span class="ic" aria-hidden="true">📋</span><span class="lbl">查驗單</span><span class="tick" aria-hidden="true">✓</span>
+    </button>
+    <button type="button" role="menuitem" data-mode="photo">
+      <span class="ic" aria-hidden="true">📷</span><span class="lbl">查驗相片表</span><span class="tick" aria-hidden="true">✓</span>
+    </button>
+    <button type="button" role="menuitem" data-mode="log">
+      <span class="ic" aria-hidden="true">📊</span><span class="lbl">查驗紀錄表</span><span class="tick" aria-hidden="true">✓</span>
+    </button>
+    <button type="button" role="menuitem" data-mode="progress">
+      <span class="ic" aria-hidden="true">🏗️</span><span class="lbl">預壘樁進度</span><span class="tick" aria-hidden="true">✓</span>
+    </button>
+    <button type="button" role="menuitem" data-mode="drive">
+      <span class="ic" aria-hidden="true">☁</span><span class="lbl">相片上傳歸檔</span><span class="tick" aria-hidden="true">✓</span>
+    </button>
+    <div class="msep" role="separator"></div>
+    <a class="mset" href="settings/index.html" target="_blank" rel="noopener" role="menuitem">
+      <span class="ic" aria-hidden="true">⚙</span><span class="lbl">設定</span><span class="hintx">新視窗</span>
+    </a>
   </div>
 </header>
 
@@ -92,29 +196,68 @@
 (function(){
   "use strict";
   var MODES = {
-    form:  { src:"form/index.html",  sub:"工程施工中請驗單 · 版面沿用 F-24-03 範本 · 附件共用欄位 · Google Drive 備份 · A4 直式" },
-    photo: { src:"photo/index.html", sub:"工程照片記錄表 · 每頁 3 張 · 照片尺寸與範本一致 · A4 直式" },
-    log:   { src:"log/index.html",   sub:"查驗紀錄表 · 樁號可多選 · 樁號依墩分組跨墩勾選 · 整墩全選 · 位置標籤 · 本機自動保存 · A4 橫式 · 下載 .xlsx" },
-    progress: { src:"progress/index.html", sub:"預壘樁進度管控表 · 進度以查驗日期為基準 · 墩號彙總（墩開始／整墩結束） · 排序：實際施作／查驗日期／墩號" },
-    drive:  { src:"drive/index.html",  sub:"相片上傳歸檔 · 選取或拍攝 → 上傳 Google Drive · 依日期資料夾（YYYY-MM-DD）歸檔 · 批次上傳與重試" }
+    form:  { src:"form/index.html",  name:"查驗單",       sub:"工程施工中請驗單 · 版面沿用 F-24-03 範本 · 附件共用欄位 · Google Drive 備份 · A4 直式" },
+    photo: { src:"photo/index.html", name:"查驗相片表",   sub:"工程照片記錄表 · 每頁 3 張 · 照片尺寸與範本一致 · A4 直式" },
+    log:   { src:"log/index.html",   name:"查驗紀錄表",   sub:"查驗紀錄表 · 樁號可多選 · 樁號依墩分組跨墩勾選 · 整墩全選 · 位置標籤 · 本機自動保存 · A4 橫式 · 下載 .xlsx" },
+    progress: { src:"progress/index.html", name:"預壘樁進度", sub:"預壘樁進度管控表 · 進度以查驗日期為基準 · 墩號彙總（墩開始／整墩結束） · 排序：實際施作／查驗日期／樁號" },
+    drive: { src:"drive/index.html",  name:"相片上傳歸檔", sub:"相片上傳歸檔 · 選取或拍攝 → 上傳 Google Drive · 依日期資料夾（YYYY-MM-DD）歸檔 · 批次上傳與重試" }
   };
+  var ORDER = ["form","photo","log","progress","drive"];
+
   var frames = {};
   var stage = document.getElementById("stage");
   var hint = document.getElementById("hint");
   var sub = document.getElementById("sub");
-  var btnForm = document.getElementById("btnForm");
-  var btnPhoto = document.getElementById("btnPhoto");
-  var btnLog = document.getElementById("btnLog");
-  var btnProgress = document.getElementById("btnProgress");
-  var btnDrive = document.getElementById("btnDrive");
+  var menu = document.getElementById("menu");
+  var menuBtn = document.getElementById("menuBtn");
+  var menuCur = document.getElementById("menuCur");
+  var items = Array.prototype.slice.call(menu.querySelectorAll("button[data-mode]"));
   var current = null;
-  var TITLES = { form:"查驗單", photo:"查驗相片表", log:"查驗紀錄表", progress:"預壘樁進度管控表", drive:"相片上傳歸檔" };
 
+  /* ---------- 選單開關 ---------- */
+  function openMenu(){
+    menu.classList.add("open");
+    menuBtn.setAttribute("aria-expanded","true");
+    var on = menu.querySelector("button.on") || items[0];
+    if(on) try{ on.focus({preventScroll:true}); }catch(e){}
+  }
+  function closeMenu(){
+    menu.classList.remove("open");
+    menuBtn.setAttribute("aria-expanded","false");
+  }
+  function toggleMenu(){
+    if(menu.classList.contains("open")) closeMenu(); else openMenu();
+  }
+
+  menuBtn.addEventListener("click", function(e){
+    e.stopPropagation();
+    toggleMenu();
+  });
+
+  document.addEventListener("click", function(e){
+    if(!menu.classList.contains("open")) return;
+    if(menu.contains(e.target) || menuBtn.contains(e.target)) return;
+    closeMenu();
+  });
+
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && menu.classList.contains("open")){
+      closeMenu();
+      try{ menuBtn.focus(); }catch(err){}
+    }
+  });
+
+  /* 視窗尺寸改變（例如手機轉橫）時關閉，避免面板位置錯亂 */
+  window.addEventListener("resize", function(){
+    if(menu.classList.contains("open")) closeMenu();
+  });
+
+  /* ---------- iframe ---------- */
   function ensureFrame(key){
     if(frames[key]) return frames[key];
     var f = document.createElement("iframe");
     f.className = "frame";
-    f.setAttribute("title", TITLES[key] || key);
+    f.setAttribute("title", MODES[key].name || key);
     f.src = MODES[key].src;
     f.addEventListener("load", function(){
       /* 同源：隱藏子頁自己的 header，讓外殼成為唯一標題列。
@@ -134,6 +277,7 @@
   }
 
   function show(key){
+    if(!MODES[key]) key = "form";
     if(current === key) return;
     var prev = current;
     current = key;
@@ -146,25 +290,30 @@
       try{ frames[key].contentWindow.location.reload(); }catch(e){}
     }
     if(hint) hint.style.display = "none";
-    sub.textContent = MODES[key].sub;
-    btnForm.classList.toggle("on", key === "form");
-    btnPhoto.classList.toggle("on", key === "photo");
-    btnLog.classList.toggle("on", key === "log");
-    btnProgress.classList.toggle("on", key === "progress");
-    btnDrive.classList.toggle("on", key === "drive");
-    btnForm.setAttribute("aria-selected", key === "form" ? "true" : "false");
-    btnPhoto.setAttribute("aria-selected", key === "photo" ? "true" : "false");
-    btnLog.setAttribute("aria-selected", key === "log" ? "true" : "false");
-    btnProgress.setAttribute("aria-selected", key === "progress" ? "true" : "false");
-    btnDrive.setAttribute("aria-selected", key === "drive" ? "true" : "false");
+    if(sub) sub.textContent = MODES[key].sub;
+    if(menuCur) menuCur.textContent = MODES[key].name;
+
+    items.forEach(function(b){
+      var on = b.getAttribute("data-mode") === key;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-current", on ? "page" : "false");
+    });
+
     try{ history.replaceState(null, "", "#" + key); }catch(e){}
   }
 
-  btnForm.addEventListener("click", function(){ show("form"); });
-  btnPhoto.addEventListener("click", function(){ show("photo"); });
-  btnLog.addEventListener("click", function(){ show("log"); });
-  btnProgress.addEventListener("click", function(){ show("progress"); });
-  btnDrive.addEventListener("click", function(){ show("drive"); });
+  items.forEach(function(b){
+    b.addEventListener("click", function(){
+      show(b.getAttribute("data-mode"));
+      closeMenu();
+    });
+  });
+
+  /* 直接改網址 hash（或上一頁／下一頁）也能切換 */
+  window.addEventListener("hashchange", function(){
+    var k = (location.hash || "").replace("#","");
+    if(MODES[k] && k !== current) show(k);
+  });
 
   var initial = (location.hash || "").replace("#","");
   show(MODES[initial] ? initial : "form");

@@ -36,6 +36,11 @@
   .switcher button .ic{font-size:16px;line-height:1;}
   .switcher button:hover{color:#fff;background:rgba(255,255,255,.10);}
   .switcher button.on{background:#fff;color:var(--steel);box-shadow:0 2px 8px rgba(0,0,0,.18);}
+  .switcher .setlink{font-family:inherit;font-size:13px;font-weight:700;color:#cdd9e8;
+    text-decoration:none;border-radius:8px;padding:9px 14px;display:inline-flex;
+    align-items:center;gap:6px;white-space:nowrap;transition:.18s;
+    border-left:1px solid rgba(255,255,255,.18);margin-left:2px;}
+  .switcher .setlink:hover{color:#fff;background:rgba(255,255,255,.10);}
 
   .stage{flex:1 1 auto;position:relative;min-height:0;background:var(--bg);}
   .frame{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:var(--bg);}
@@ -71,6 +76,8 @@
         <span class="ic">📊</span>查驗紀錄表</button>
       <button id="btnProgress" type="button" role="tab" aria-selected="false">
         <span class="ic">🏗️</span>預壘樁進度</button>
+      <a id="btnSettings" class="setlink" href="settings/index.html" target="_blank" rel="noopener" title="Google Drive 設定">
+        <span class="ic">⚙</span>設定</a>
     </div>
   </div>
 </header>
@@ -83,7 +90,7 @@
 (function(){
   "use strict";
   var MODES = {
-    form:  { src:"form/index.html",  sub:"工程施工中請驗單 · 版面沿用 F-24-03 範本 · A4 直式 · 標楷體" },
+    form:  { src:"form/index.html",  sub:"工程施工中請驗單 · 版面沿用 F-24-03 範本 · 附件共用欄位 · Google Drive 備份 · A4 直式" },
     photo: { src:"photo/index.html", sub:"工程照片記錄表 · 每頁 3 張 · 照片尺寸與範本一致 · A4 直式" },
     log:   { src:"log/index.html",   sub:"查驗紀錄表 · 墩號可多選 · 樁號依墩分組跨墩勾選 · 整墩全選 · 位置標籤 · 本機自動保存 · A4 橫式 · 下載 .xlsx" },
     progress: { src:"progress/index.html", sub:"預壘樁進度管控表 · 墩號／樁號 · 施作與查驗狀態 · 預設依實際施作日期排序 · 與查驗紀錄表聯動" }

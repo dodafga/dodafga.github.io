@@ -323,6 +323,21 @@
           </div>
         </div>
       </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-h">
+          <h2>Google Drive 雲端備份</h2>
+          <span class="tag">純前端 · 不需後端</span>
+        </div>
+        <div class="card-b">
+          <div id="gdMount"></div>
+          <div class="note" style="margin-top:11px;">
+            <b>運作方式：</b>資料仍以 localStorage 為主要儲存，雲端只是備份與跨裝置同步。
+            未授權或斷網時可照常填寫、匯出 Excel；恢復後再按「☁ 存到 Google Drive」即可。<br>
+            <b>雲端位置：</b>我的雲端硬碟 → <code>營建查驗資料</code> → <code>inspection-data.json</code>（每次覆寫同一份）。
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 右：預覽 -->
@@ -344,6 +359,7 @@
 
 <script src="../assets/jszip.min.js"></script>
 <script src="../assets/store.js"></script>
+<script src="../assets/gdrive.js"></script>
 <script src="logbuilder.js"></script>
 <script>
 (function(){
@@ -976,6 +992,54 @@
   $('btnSample').addEventListener('click', fillSample);
   $('btnClear').addEventListener('click', clearAll);
   $('btnXlsx').addEventListener('click', download);
+
+  /* ---------- Google Drive 雲端備份 ---------- */
+  function gdSave(){
+    if (!S) { toast('資料層未載入，無法同步', true); return; }
+    save();                       /* 先把目前畫面內容寫回 localStorage */
+    var d = S.load();
+    GDrive.save({
+      app: 'inspection-suite',
+      kind: 'progress+logs',
+      version: S.DATA_VERSION,
+      savedAt: new Date().toISOString(),
+      data: { version: S.DATA_VERSION, piles: d.piles, logs: d.logs }
+    }).then(function(){
+      toast('已存到 Google Drive（' + state.rows.length + ' 筆紀錄）');
+    }).catch(function(e){
+      toast('雲端存檔失敗：' + (e && e.message ? e.message : e), true);
+    });
+  }
+
+  function gdLoad(){
+    if (!S) { toast('資料層未載入，無法同步', true); return; }
+    GDrive.load().then(function(j){
+      var payload = (j && j.data) ? j.data : j;
+      if (!payload || (!Array.isArray(payload.piles) && !Array.isArray(payload.logs))) {
+        throw new Error('雲端檔案格式不符（找不到 piles 或 logs）');
+      }
+      var nLogs = (payload.logs || []).length;
+      if (!window.confirm('將以雲端資料覆蓋本機目前內容。\n雲端紀錄：' + nLogs + ' 筆\n本機紀錄：' + state.rows.length + ' 筆\n\n確定要載入嗎？')) {
+        return;
+      }
+      var d = S.normalize(payload);
+      S.recompute(d);
+      S.save(d);
+      state.rows = load() || [];
+      render();
+      toast('已從 Google Drive 載入 ' + state.rows.length + ' 筆紀錄');
+    }).catch(function(e){
+      toast('雲端載入失敗：' + (e && e.message ? e.message : e), true);
+    });
+  }
+
+  if (window.GDrive) {
+    GDrive.mountStatus($('gdMount'), {
+      onSave: gdSave,
+      onLoad: gdLoad,
+      settingsHref: '../settings/index.html'
+    });
+  }
 
   /* 還原本機紀錄；首次使用若無資料則留空 */
   var saved = load();

@@ -504,6 +504,88 @@
   }
 
   /**
+   * v16：附件表單的共用欄位表（唯讀，與查驗單同一份資料）
+   * @param {Document} doc
+   * @param {object} data 表單資料（含 inspector / supervisor / piers / piles / date / pos）
+   */
+  function buildSharedTable(doc, data) {
+    data = data || {};
+    var piers = Array.isArray(data.piers) ? data.piers.join('、') : String(data.piers || '');
+    var piles = Array.isArray(data.piles) ? data.piles.join('、') : String(data.piles || '');
+    var posTxt = String(data.pos || '').split(/\r?\n/).filter(function (s) { return s.trim(); }).join('、');
+
+    var tbl = doc.createElementNS(W_NS, 'w:tbl');
+    var tblPr = doc.createElementNS(W_NS, 'w:tblPr');
+
+    var tblW = doc.createElementNS(W_NS, 'w:tblW');
+    tblW.setAttributeNS(W_NS, 'w:w', String(ATT_TOTAL_W));
+    tblW.setAttributeNS(W_NS, 'w:type', 'dxa');
+    tblPr.appendChild(tblW);
+
+    var jc = doc.createElementNS(W_NS, 'w:jc');
+    jc.setAttributeNS(W_NS, 'w:val', 'center');
+    tblPr.appendChild(jc);
+
+    var borders = doc.createElementNS(W_NS, 'w:tblBorders');
+    ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].forEach(function (side) {
+      var b = doc.createElementNS(W_NS, 'w:' + side);
+      b.setAttributeNS(W_NS, 'w:val', 'single');
+      b.setAttributeNS(W_NS, 'w:sz', '4');
+      b.setAttributeNS(W_NS, 'w:space', '0');
+      b.setAttributeNS(W_NS, 'w:color', '000000');
+      borders.appendChild(b);
+    });
+    tblPr.appendChild(borders);
+
+    var layout = doc.createElementNS(W_NS, 'w:tblLayout');
+    layout.setAttributeNS(W_NS, 'w:type', 'fixed');
+    tblPr.appendChild(layout);
+
+    var mar = doc.createElementNS(W_NS, 'w:tblCellMar');
+    ['top', 'left', 'bottom', 'right'].forEach(function (side) {
+      var m = doc.createElementNS(W_NS, 'w:' + side);
+      m.setAttributeNS(W_NS, 'w:w', (side === 'left' || side === 'right') ? '85' : '0');
+      m.setAttributeNS(W_NS, 'w:type', 'dxa');
+      mar.appendChild(m);
+    });
+    tblPr.appendChild(mar);
+
+    tbl.appendChild(tblPr);
+
+    var half = Math.round(ATT_TOTAL_W / 2);
+    var grid = doc.createElementNS(W_NS, 'w:tblGrid');
+    [half, ATT_TOTAL_W - half].forEach(function (w) {
+      var gc = doc.createElementNS(W_NS, 'w:gridCol');
+      gc.setAttributeNS(W_NS, 'w:w', String(w));
+      grid.appendChild(gc);
+    });
+    tbl.appendChild(grid);
+
+    var dateTxt = data.date ? rocDate(data.date) : '';
+
+    tbl.appendChild(mkRow(doc, [
+      mkCell(doc, '工程名稱：' + FIXED_PROJECT, half, 'left', 24, false),
+      mkCell(doc, '查驗日期：' + dateTxt, ATT_TOTAL_W - half, 'left', 24, false)
+    ], 340));
+
+    tbl.appendChild(mkRow(doc, [
+      mkCell(doc, '查驗人員：' + (data.inspector || ''), half, 'left', 24, false),
+      mkCell(doc, '監造人員：' + (data.supervisor || ''), ATT_TOTAL_W - half, 'left', 24, false)
+    ], 340));
+
+    tbl.appendChild(mkRow(doc, [
+      mkCell(doc, '墩號：' + piers, half, 'left', 24, false),
+      mkCell(doc, '樁號：' + piles, ATT_TOTAL_W - half, 'left', 24, false)
+    ], 340));
+
+    tbl.appendChild(mkRow(doc, [
+      mkCell(doc, '查驗位置：' + posTxt, ATT_TOTAL_W, 'left', 24, false, 2)
+    ], 340));
+
+    return tbl;
+  }
+
+  /**
    * 建立附件表單的 w:tbl
    * @param {Document} doc
    * @param {object} att { title, rows:[{no,desc,unit,qty,check}], contractor, supervisor }
@@ -793,6 +875,7 @@
       out.push(tp);
 
       /* 附件表單表格 */
+      out.push(buildSharedTable(doc, data));
       out.push(buildAttachmentTable(doc, att));
     }
 
@@ -860,6 +943,7 @@
     allocate: allocate,
     composeItem: composeItem,
     buildAttachmentTable: buildAttachmentTable,
+    buildSharedTable: buildSharedTable,
     ATT_COLS: ATT_COLS,
     ATT_TOTAL_W: ATT_TOTAL_W,
     wrapWidth: wrapWidth,

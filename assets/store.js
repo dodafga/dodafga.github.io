@@ -113,11 +113,14 @@
   /** 把任意來源的 piles 陣列正規化為字串陣列（去重、去空白） */
   function normPileList(arr) {
     var out = [], seen = {};
-    (Array.isArray(arr) ? arr : []).forEach(function (v) {
-      var s = String(v == null ? '' : v).trim();
-      if (!s || seen[s]) return;
-      seen[s] = true;
-      out.push(s);
+    (Array.isArray(arr) ? arr : (arr == null ? [] : [arr])).forEach(function (v) {
+      /* 相容舊資料：單一字串內以「、」「，」「,」「;」「/」串接多筆 */
+      String(v == null ? '' : v).split(/[、，,;；\/]+/).forEach(function (raw) {
+        var s = String(raw == null ? '' : raw).trim();
+        if (!s || seen[s]) return;
+        seen[s] = true;
+        out.push(s);
+      });
     });
     return out;
   }
@@ -158,8 +161,8 @@
       var piers = normPileList(l.piers);
       var pier = String(l.pier || '');
 
-      /* 舊資料（單一墩號）→ 轉為 piers 陣列 */
-      if (!piers.length && pier) piers = [pier];
+      /* 舊資料（單一墩號字串，可能含「、」串接多墩）→ 轉為 piers 陣列 */
+      if (!piers.length && pier) piers = normPileList(pier);
 
       /* 只有樁號清單時，由樁號推導墩號 */
       if (!piers.length && list.length) {

@@ -1,4 +1,5 @@
 name: apply-core-dedupe
+# v2: scripts_apply.py 已存在，重新觸發
 on:
   push:
     paths:

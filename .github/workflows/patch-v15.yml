@@ -1,0 +1,160 @@
+name: patch-v15
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply patch
+        run: |
+          python3 - <<'PY'
+          import io, sys
+
+          def rd(p):
+              return io.open(p, encoding='utf-8').read()
+
+          def wr(p, s):
+              io.open(p, 'w', encoding='utf-8', newline='').write(s)
+
+          fails = []
+
+          # ---------- 1) assets/store.js : replace sortPiles block ----------
+          p = 'assets/store.js'
+          s = rd(p)
+          start = s.find("  /**\n   * 排序樁位：")
+          end = s.find("  /* ---------------- JSON 匯出／匯入 ---------------- */")
+          if start < 0 or end < 0 or end <= start:
+              fails.append('store.js: anchors not found (start=%d end=%d)' % (start, end))
+          else:
+              new_block = """  /**
+           * 排序樁位：
+           *   mode='actual'（預設）→ 有實際開始日期者依日期由早到晚排前面，沒有實際日期的排後面
+           *   mode='pier'          → 依墩號（原始順序）、樁號
+           *   mode='inspect'       → 已查驗者依查驗日期由新到舊排前面，未查驗者排後面
+           * 三種模式最後都以墩號、樁號作穩定次要排序。
+           */
+          function sortPiles(piles, mode) {
+            var pierOrder = {};
+            PIER_DEFS.forEach(function (d, i) { pierOrder[d.pier] = i; });
+
+            function pileSeq(no) {
+              var m = String(no).match(/-(\\d+)$/);
+              return m ? parseInt(m[1], 10) : 0;
+            }
+
+            /* 次要排序：墩號（原始順序）→ 樁號 */
+            function tieBreak(a, b) {
+              var pa = pierOrder[a.pier] == null ? 999 : pierOrder[a.pier];
+              var pb = pierOrder[b.pier] == null ? 999 : pierOrder[b.pier];
+              if (pa !== pb) return pa - pb;
+              return pileSeq(a.pileNo) - pileSeq(b.pileNo);
+            }
+
+            var arr = (piles || []).slice();
+
+            if (mode === 'pier') {
+              arr.sort(tieBreak);
+              return arr;
+            }
+
+            /* mode === 'inspect'：已查驗者依查驗日期新→舊排前，未查驗者排後 */
+            if (mode === 'inspect') {
+              arr.sort(function (a, b) {
+                var ia = a.inspectStatus === '已查驗';
+                var ib = b.inspectStatus === '已查驗';
+                if (ia !== ib) return ia ? -1 : 1;              /* 已查驗者優先 */
+                if (ia && ib) {
+                  var da = a.inspectDate || '';
+                  var db = b.inspectDate || '';
+                  if (da !== db) return da < db ? 1 : -1;       /* 查驗日期新→舊 */
+                }
+                return tieBreak(a, b);
+              });
+              return arr;
+            }
+
+            /* mode === 'actual' */
+            arr.sort(function (a, b) {
+              var sa = a.actualStart || '';
+              var sb = b.actualStart || '';
+              var ha = !!sa, hb = !!sb;
+              if (ha !== hb) return ha ? -1 : 1;          /* 有實際日期者優先 */
+              if (ha && hb && sa !== sb) return sa < sb ? -1 : 1;  /* 日期早的在前 */
+              return tieBreak(a, b);
+            });
+            return arr;
+          }
+
+          """
+              new_block = new_block.replace("\n          ", "\n  ").replace("  /**\n           *", "  /**\n   *", 1)
+              s = s[:start] + new_block + s[end:]
+              wr(p, s)
+              print('store.js: sortPiles replaced')
+
+          # ---------- 2) progress/index.html : add option ----------
+          p = 'progress/index.html'
+          s = rd(p)
+          old = '          <option value="actual">排序：實際施作（早→晚）</option>\n'
+          if s.count(old) != 1:
+              fails.append('progress: option anchor count=%d' % s.count(old))
+          else:
+              s = s.replace(old, old + '          <option value="inspect">排序：查驗日期（新→舊）</option>\n')
+              wr(p, s)
+              print('progress: option added')
+
+          # ---------- 3) index.html : sub text ----------
+          p = 'index.html'
+          s = rd(p)
+          if s.count('預設依實際施作日期排序') != 1:
+              fails.append('index.html: sub anchor count=%d' % s.count('預設依實際施作日期排序'))
+          else:
+              s = s.replace('預設依實際施作日期排序', '排序：實際施作／查驗日期／墩號')
+              wr(p, s)
+              print('index.html: sub updated')
+
+          # ---------- 4) README.md ----------
+          p = 'README.md'
+          s = rd(p)
+          if s.count('可切回墩號順序。') != 1:
+              fails.append('README: table anchor count=%d' % s.count('可切回墩號順序。'))
+          else:
+              s = s.replace('可切回墩號順序。', '可切換「查驗日期（新→舊）」或墩號順序。')
+          oldb = '   - **排序：墩號順序**'
+          if s.count(oldb) != 1:
+              fails.append('README: bullet anchor count=%d' % s.count(oldb))
+          else:
+              ins = ('   - **排序：查驗日期（新→舊）** — 已查驗的樁依查驗日期由新到舊排在最前面；'
+                     '未查驗的樁排在後面，再依墩號、樁號排序。查驗日期相同時以墩號、樁號為次要排序。\n')
+              s = s.replace(oldb, ins + oldb)
+          wr(p, s)
+          print('README.md: updated')
+
+          if fails:
+              sys.stderr.write('PATCH FAILED: ' + '; '.join(fails) + '\n')
+              sys.exit(1)
+          print('all patches applied')
+          PY
+
+      - name: Verify
+        run: |
+          node --check assets/store.js && echo "store.js syntax OK"
+          grep -c 'value="inspect"' progress/index.html
+
+      - name: Commit and push
+        run: |
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git rm -f .github/workflows/patch-v15.yml
+          git add -A
+          git commit -m "feat(progress): 新增「排序：查驗日期（新→舊）」選項"
+          git push

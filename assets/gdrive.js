@@ -212,6 +212,8 @@
         tokenClient = global.google.accounts.oauth2.initTokenClient({
           client_id: cid,
           scope: SCOPE,
+          /* 一律用彈出視窗，避免在無 Google session 時把整個頁面導向登入頁 */
+          ux_mode: 'popup',
           callback: function (resp) {
             if (resp && resp.access_token) {
               accessToken = resp.access_token;

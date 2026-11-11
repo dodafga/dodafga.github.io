@@ -353,24 +353,16 @@
     t._tm = setTimeout(function(){ t.className = 'toast'; }, 3200);
   }
 
-  function todayISO(){
-    var d = new Date();
-    var m = d.getMonth() + 1, day = d.getDate();
-    return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
-  }
-
-  function isoToSlash(iso){
-    if (!iso) return '';
-    var p = String(iso).split('-');
-    if (p.length !== 3) return iso;
-    return p[0] + '/' + p[1] + '/' + p[2];
-  }
-
-  function escHtml(s){
-    return String(s == null ? '' : s)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;');
-  }
+  /* 共用工具一律取自 assets/core.js（core.js 已在本頁 inline script 之前載入）。
+     原本本頁各自複製一份 todayISO / isoToSlash / escHtml：
+       - todayISO 內嵌補零邏輯（等同 Core.pad2），與 Core 版本重複
+       - escHtml 只跳脫 & < > "，漏了單引號，屬性值有注入風險
+     現統一改為呼叫 Core 版本，行為一致且補上單引號跳脫。 */
+  var CORE = window.Core;
+  if (!CORE) { console.error('[log] assets/core.js 未載入，共用工具無法使用'); }
+  var todayISO   = CORE.todayISO;
+  var isoToSlash = CORE.isoToSlash;
+  var escHtml    = CORE.esc;
 
   function uniq(arr){
     var out = [], seen = {};

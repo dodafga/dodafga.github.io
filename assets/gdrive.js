@@ -21,6 +21,9 @@
   var SCOPE       = 'https://www.googleapis.com/auth/drive.file';
   var GIS_SRC     = 'https://accounts.google.com/gsi/client';
 
+  /* 內建固定的 OAuth Client ID（由管理者指定，使用者不需手動貼上） */
+  var FIXED_CLIENT_ID = '401815954786-jn3vqu7riudvpcmvirl17rhsa4tp0mgp.apps.googleusercontent.com';
+
   var st = { state: 'idle', message: '', lastSync: '', email: '' };
   var listeners = [];
   var tokenClient = null;
@@ -47,18 +50,28 @@
 
   /* ---------------- 設定 ---------------- */
 
+  /**
+   * 取得 Client ID：一律以內建固定值為準。
+   * 若 localStorage 有舊的、不同的值，載入時直接覆寫成固定值，避免用到錯的 ID。
+   */
   function getClientId() {
-    try { return localStorage.getItem(CID_KEY) || ''; } catch (e) { return ''; }
+    var stored = '';
+    try { stored = localStorage.getItem(CID_KEY) || ''; } catch (e) { stored = ''; }
+    if (stored !== FIXED_CLIENT_ID) {
+      try { localStorage.setItem(CID_KEY, FIXED_CLIENT_ID); } catch (e) {}
+    }
+    return FIXED_CLIENT_ID;
   }
 
+  /** 保留相容介面：寫入時一律寫入固定值（不接受其他值） */
   function setClientId(v) {
-    try { localStorage.setItem(CID_KEY, String(v || '').trim()); } catch (e) {}
+    try { localStorage.setItem(CID_KEY, FIXED_CLIENT_ID); } catch (e) {}
     tokenClient = null;
     accessToken = null;
-    setState(getClientId() ? 'idle' : 'unauthorized', getClientId() ? '已設定 Client ID，尚未連線' : '尚未設定 Client ID');
+    setState('idle', '已設定 Client ID，尚未連線');
   }
 
-  function isConfigured() { return !!getClientId(); }
+  function isConfigured() { return !!FIXED_CLIENT_ID; }
 
   function hasToken() { return !!accessToken; }
 
@@ -422,6 +435,7 @@
     FOLDER_NAME: FOLDER_NAME,
     FILE_NAME: FILE_NAME,
     SCOPE: SCOPE,
+    FIXED_CLIENT_ID: FIXED_CLIENT_ID,
     getClientId: getClientId,
     setClientId: setClientId,
     isConfigured: isConfigured,

@@ -1,0 +1,43 @@
+name: fix-formbuilder
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/fix-formbuilder.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore original and patch
+        run: |
+          git show b8ef46595d97c6e37df35339c6ae5138800a5710:form/formbuilder.js > form/formbuilder.js
+          wc -c form/formbuilder.js
+          python3 - <<'PY'
+          import io
+          p = 'form/formbuilder.js'
+          src = open(p, encoding='utf-8').read()
+          def rep(old, new, tag):
+              global src
+              assert old in src, 'MISSING ' + tag
+              src = src.replace(old, new, 1)
+          rep("    var piers = Array.isArray(data.piers) ? data.piers.join('\u3001') : String(data.piers || '');\n    var piles = Array.isArray(data.piles) ? data.piles.join('\u3001') : String(data.piles || '');\n", '', 'piers')
+          rep("    tbl.appendChild(mkRow(doc, [\n      mkCell(doc, '\u67e5\u9a57\u4eba\u54e1\uff1a' + (data.inspector || ''), half, 'left', 24, false),\n      mkCell(doc, '\u76e3\u9020\u4eba\u54e1\uff1a' + (data.supervisor || ''), ATT_TOTAL_W - half, 'left', 24, false)\n    ], 340));\n\n    tbl.appendChild(mkRow(doc, [\n      mkCell(doc, '\u58a9\u865f\uff1a' + piers, half, 'left', 24, false),\n      mkCell(doc, '\u6a01\u865f\uff1a' + piles, ATT_TOTAL_W - half, 'left', 24, false)\n    ], 340));\n\n", '', 'rows')
+          rep("  function buildAttachmentTable(doc, att) {\n    att = att || {};\n    var rows = att.rows || [];", "  function buildAttachmentTable(doc, att, data) {\n    att = att || {};\n    data = data || {};\n    var rows = att.rows || [];", 'sig')
+          rep("    /* \u5167\u5bb9\u5217\uff1a12pt \u6a19\u6977\u9ad4 */\n    if (!rows.length) rows = [{ no: '', desc: '', unit: '', qty: '', check: '' }];\n    rows.forEach(function (r) {", "    /* \u7b2c\u4e00\u5217\uff1a\u56fa\u5b9a\u5e36\u5165\u67e5\u9a57\u55ae\u7684\u5951\u7d04\u9805\u6b21\u8207\u5951\u7d04\u540d\u7a31\uff08\u9805\u76ee\u53ca\u8aaa\u660e\uff09 */\n    tbl.appendChild(mkRow(doc, [\n      mkCell(doc, data.itemNo || '', ATT_COLS[0].w, 'center', 24, false),\n      mkCell(doc, data.itemName || '', ATT_COLS[1].w, 'left', 24, false),\n      mkCell(doc, '', ATT_COLS[2].w, 'center', 24, false),\n      mkCell(doc, '', ATT_COLS[3].w, 'center', 24, false),\n      mkCell(doc, '', ATT_COLS[4].w, 'center', 24, false)\n    ], 900));\n\n    /* \u5167\u5bb9\u5217\uff1a12pt \u6a19\u6977\u9ad4 */\n    rows.forEach(function (r) {", 'firstrow')
+          rep("      out.push(buildAttachmentTable(doc, att));", "      out.push(buildAttachmentTable(doc, att, data));", 'call')
+          open(p, 'w', encoding='utf-8').write(src)
+          print('PATCHED', len(src))
+          PY
+          wc -c form/formbuilder.js
+      - name: Commit
+        run: |
+          git config user.name dodafga
+          git config user.email dodafga@users.noreply.github.com
+          git add form/formbuilder.js
+          git commit -m "fix(form): 還原 formbuilder.js 並套用契約項次帶入第一列" || echo nothing
+          git push

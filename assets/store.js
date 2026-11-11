@@ -266,15 +266,20 @@
     return out;
   }
 
-  /** 查驗位置顯示字串：自由文字 + 墩號／樁號標籤 */
+  /**
+   * 查驗位置顯示字串：墩號／樁號自動併入位置文字（不再另設獨立欄位）
+   *   有樁號 → 「PR4-1、PR4-2 橋墩基礎」
+   *   只有墩號 → 「PR4 墩 橋墩基礎」
+   */
   function composeLocation(d, l) {
     if (!l) return '';
-    var parts = [];
+    var piers = logPiers(d, l);
+    var piles = logPileNos(d, l);
     var txt = String(l.location || '').trim();
-    if (txt) parts.push(txt);
-    logPiers(d, l).forEach(function (p) { parts.push(p); });
-    logPileNos(d, l).forEach(function (no) { parts.push(no); });
-    return parts.join(' ');
+    var head = '';
+    if (piles.length) head = piles.join('、');
+    else if (piers.length) head = piers.join('、') + ' 墩';
+    return [head, txt].filter(Boolean).join(' ');
   }
 
   function recompute(d) {
@@ -302,11 +307,17 @@
       });
     });
 
-    /* 2. 完成狀態：有實際日期就自動推導，否則保留原值 */
+    /* 2. 完成狀態判定（優先順序）：
+     *      已查驗            → 已完成（不論實際日期是否填寫）
+     *      未查驗但有實際完成 → 已完成
+     *      未查驗但有實際開始 → 施作中
+     *      都沒有            → 未施作
+     */
     d.piles.forEach(function (p) {
-      if (p.actualEnd) p.status = '已完成';
+      if (p.inspectStatus === '已查驗') p.status = '已完成';
+      else if (p.actualEnd) p.status = '已完成';
       else if (p.actualStart) p.status = '施作中';
-      else if (p.status === '已完成' || p.status === '施作中') p.status = '未施作';
+      else p.status = '未施作';
     });
 
     return d;
@@ -586,21 +597,19 @@
 
   var PROGRESS_WIDTHS = [9, 11, 9, 7, 12, 12, 12, 12, 10, 10, 12, 22];
 
-  /* 查驗紀錄表 → 列資料（含墩號、樁號） */
+  /* 查驗紀錄表 → 列資料（墩號／樁號已併入查驗位置，不另設欄位） */
   function logRows(d) {
-    var head = ['日期', '查驗人員', '監造派員', '查驗位置', '墩號', '樁號'];
+    var head = ['日期', '查驗人員', '監造派員', '查驗位置'];
     var rows = [head];
     (d.logs || []).forEach(function (l) {
-      var nos = logPileNos(d, l);
       rows.push([
-        isoToSlash(l.date), l.inspector, l.supervisor, composeLocation(d, l),
-        logPiers(d, l).join('、'), nos.join('、')
+        isoToSlash(l.date), l.inspector, l.supervisor, composeLocation(d, l)
       ]);
     });
     return rows;
   }
 
-  var LOG_WIDTHS = [16, 18, 18, 40, 12, 26];
+  var LOG_WIDTHS = [16, 18, 18, 52];
 
   global.SuiteStore = {
     KEY: KEY,

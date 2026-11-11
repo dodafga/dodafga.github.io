@@ -1,0 +1,28 @@
+name: apply-fix2
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-fix2.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply
+        run: |
+          set -e
+          base64 -d fb3.b64 > /tmp/fix3.patch
+          git apply --verbose /tmp/fix3.patch
+          node --check form/formbuilder.js
+          git config user.name 'dodafga'
+          git config user.email 'dodafga@users.noreply.github.com'
+          git add form/formbuilder.js
+          git commit -m 'fix: F-24-03 查驗單逐段對齊範本（run 結構保留 + 雙字型 + 半形冒號 + 全形空格）'
+          git push
+      - name: Cleanup
+        run: |
+          git rm -q fb3.b64 .github/workflows/apply-fix2.yml
+          git commit -m 'chore: remove one-off patch and workflow'
+          git push

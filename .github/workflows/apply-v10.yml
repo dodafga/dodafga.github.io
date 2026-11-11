@@ -20,7 +20,7 @@ jobs:
       - name: Download patch
         run: |
           set -euo pipefail
-          URL='https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/inspection-suite-v10-patch/patch-v10.zip'
+          URL='https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/inspection-suite-v10-patch/patch-v10.zip?tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL2luc3BlY3Rpb24tc3VpdGUtdjEwLXBhdGNoOjE3OTQzNzI2MTM.YmVmNGJmMzJhNjdjZDIzOTg3OTMzNTlhMmM5YjljMjc'
           curl -fsSL --retry 3 -o /tmp/patch.zip "$URL"
           ls -la /tmp/patch.zip
           unzip -o -q /tmp/patch.zip -d "$GITHUB_WORKSPACE"

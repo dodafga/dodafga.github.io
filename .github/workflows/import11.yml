@@ -1,0 +1,44 @@
+name: Import inspection suite v11
+on:
+  push:
+    paths:
+      - '.github/workflows/import11.yml'
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Download and verify ZIP
+        run: |
+          set -euo pipefail
+          URL="https://x0.at/rysO.zip"
+          curl -fsSL --retry 8 --retry-delay 5 --retry-all-errors -o /tmp/site.zip "$URL"
+          ls -l /tmp/site.zip
+          test "$(stat -c %s /tmp/site.zip)" -gt 1000000
+          unzip -l /tmp/site.zip
+          unzip -l /tmp/site.zip | grep -q 'progress/index.html'
+          unzip -l /tmp/site.zip | grep -q 'assets/store.js'
+          echo "ZIP OK"
+      - name: Replace repository content
+        run: |
+          set -euo pipefail
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.github' -exec rm -rf {} +
+          unzip -q /tmp/site.zip -d .
+          rm -f .github/workflows/import11.yml
+          ls -la
+          find . -type f -not -path './.git/*' | sort
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          git config user.name  "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git commit -m "查驗紀錄表多樁號兩層下拉 + 進度表實際施作排序與聯動（v11）"
+          git push origin main

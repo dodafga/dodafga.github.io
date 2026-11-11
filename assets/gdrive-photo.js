@@ -202,6 +202,43 @@
     });
   }
 
+  /**
+   * 取回單一 Drive 檔案的二進位內容（批次／打包下載用）
+   * 只讀，不會重新上傳、也不會修改 Drive 上的檔案。
+   * 回傳 Promise<Blob>
+   */
+  function fetchFile(fileId) {
+    if (!fileId) return Promise.reject(new Error('缺少 Drive 檔案 ID'));
+    return getToken().then(function (tok) {
+      return fetch('https://www.googleapis.com/drive/v3/files/' +
+                   encodeURIComponent(fileId) + '?alt=media', {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + tok }
+      });
+    }).then(function (r) {
+      if (r.status === 401) {
+        myToken = null;
+        if (base && base.disconnect) base.disconnect();
+        throw new Error('授權已過期，請重新連線');
+      }
+      if (!r.ok) {
+        return r.text().then(function (t) {
+          var msg = 'Drive API ' + r.status;
+          try {
+            var j = JSON.parse(t);
+            if (j && j.error && j.error.message) msg += '：' + j.error.message;
+          } catch (e) { msg += '：' + String(t).slice(0, 160); }
+          throw new Error(msg);
+        });
+      }
+      return r.blob();
+    }).catch(function (e) {
+      var err = new Error(friendlyError(e));
+      err.raw = e;
+      throw err;
+    });
+  }
+
   /* ---------------- 併入 window.GDrive ---------------- */
 
   var merged = {};
@@ -218,6 +255,7 @@
   merged.ensureNamedFolder     = ensureNamedFolder;
   merged.ensurePhotoDateFolder = ensurePhotoDateFolder;
   merged.uploadPhoto     = uploadPhoto;
+  merged.fetchFile       = fetchFile;
   merged.friendlyError   = friendlyError;
 
   global.GDrivePhoto = merged;

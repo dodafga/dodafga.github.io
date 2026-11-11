@@ -26,7 +26,7 @@
 
   var KEY = 'inspection-suite-data-v1';
   var LEGACY_LOG_KEY = 'inspection-log-rows-v1';
-  var DATA_VERSION = 2;
+  var DATA_VERSION = 3;
 
   /* 樁號定義：沿用「預壘樁進度管控表.xlsx」的樁號、樁數、類型、岸別、預定日期 */
   var PIER_DEFS = [
@@ -155,12 +155,23 @@
     var logs = (Array.isArray(d.logs) ? d.logs : []).map(function (l) {
       l = l || {};
       var list = normPileList(l.piles);
+      var piers = normPileList(l.piers);
       var pier = String(l.pier || '');
-      /* 舊資料沒有 piles：若指定了墩號，視為該墩全部樁號（於 recompute 展開） */
-      if (!pier && list.length) {
-        var first = byNo[list[0]];
-        if (first) pier = first.pier;
+
+      /* 舊資料（單一墩號）→ 轉為 piers 陣列 */
+      if (!piers.length && pier) piers = [pier];
+
+      /* 只有樁號清單時，由樁號推導墩號 */
+      if (!piers.length && list.length) {
+        list.forEach(function (no) {
+          var p = byNo[no];
+          if (p && piers.indexOf(p.pier) < 0) piers.push(p.pier);
+        });
       }
+
+      /* 有墩號但沒有樁號清單 → 保留空清單，於 recompute 展開為該墩全部樁號 */
+      if (!pier && piers.length) pier = piers[0];
+
       return {
         id: String(l.id || uid()),
         date: String(l.date || ''),
@@ -168,6 +179,7 @@
         supervisor: String(l.supervisor || ''),
         location: String(l.location || ''),
         pier: pier,
+        piers: piers,
         piles: list
       };
     });
@@ -222,15 +234,44 @@
 
   /* ---------------- 聯動核心 ---------------- */
 
+  /** 取得某筆紀錄涵蓋的墩號清單（相容舊資料的單一 pier） */
+  function logPiers(d, l) {
+    if (!l) return [];
+    var out = normPileList(l.piers);
+    if (out.length) return out;
+    if (l.pier) return [String(l.pier)];
+    /* 只有樁號清單時，由樁號推導墩號 */
+    var byNo = {};
+    (d && d.piles ? d.piles : []).forEach(function (p) { byNo[p.pileNo] = p; });
+    normPileList(l.piles).forEach(function (no) {
+      var p = byNo[no];
+      if (p && out.indexOf(p.pier) < 0) out.push(p.pier);
+    });
+    return out;
+  }
+
   /** 取得某筆紀錄實際涵蓋的樁號清單（含舊資料以墩號推導） */
   function logPileNos(d, l) {
     if (!l) return [];
     if (Array.isArray(l.piles) && l.piles.length) return l.piles.slice();
-    if (l.pier) {
-      return (d.piles || []).filter(function (p) { return p.pier === l.pier; })
-        .map(function (p) { return p.pileNo; });
-    }
-    return [];
+    var piers = logPiers(d, l);
+    if (!piers.length) return [];
+    var out = [];
+    (d.piles || []).forEach(function (p) {
+      if (piers.indexOf(p.pier) >= 0) out.push(p.pileNo);
+    });
+    return out;
+  }
+
+  /** 查驗位置顯示字串：自由文字 + 墩號／樁號標籤 */
+  function composeLocation(d, l) {
+    if (!l) return '';
+    var parts = [];
+    var txt = String(l.location || '').trim();
+    if (txt) parts.push(txt);
+    logPiers(d, l).forEach(function (p) { parts.push(p); });
+    logPileNos(d, l).forEach(function (no) { parts.push(no); });
+    return parts.join(' ');
   }
 
   function recompute(d) {
@@ -293,7 +334,7 @@
   /** 某墩相關的查驗紀錄（含 piles 交集者） */
   function logsOf(d, pier) {
     return (d.logs || []).filter(function (l) {
-      if (l.pier === pier) return true;
+      if (logPiers(d, l).indexOf(pier) >= 0) return true;
       var nos = logPileNos(d, l);
       for (var i = 0; i < nos.length; i++) {
         var p = (d.piles || []).filter(function (x) { return x.pileNo === nos[i]; })[0];
@@ -549,8 +590,8 @@
     (d.logs || []).forEach(function (l) {
       var nos = logPileNos(d, l);
       rows.push([
-        isoToSlash(l.date), l.inspector, l.supervisor, l.location,
-        l.pier || '', nos.join('、')
+        isoToSlash(l.date), l.inspector, l.supervisor, composeLocation(d, l),
+        logPiers(d, l).join('、'), nos.join('、')
       ]);
     });
     return rows;
@@ -574,7 +615,9 @@
     load: load,
     save: save,
     recompute: recompute,
+    logPiers: logPiers,
     logPileNos: logPileNos,
+    composeLocation: composeLocation,
     pierList: pierList,
     pierDef: pierDef,
     pilesOf: pilesOf,

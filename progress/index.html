@@ -108,6 +108,7 @@
   .pill.s2{background:var(--ok-bg);color:var(--ok);border:1px solid #cfe6da;}
   .pill.i0{background:#f7f9fc;color:var(--muted);border:1px solid var(--line-2);}
   .pill.i1{background:#e8effa;color:var(--blue);border:1px solid #c9d9f0;}
+  .pill.i2{background:#fdf1e0;color:#9a5f0c;border:1px solid #f0dcb8;}
   .pill.late{background:var(--danger-bg);color:var(--danger);border:1px solid #f0cfcc;}
 
   .empty{text-align:center;padding:30px 12px;color:var(--muted);font-size:13px;}
@@ -498,12 +499,18 @@
     } else {
       logs.forEach(function(l){
         var nos = S.logPileNos ? S.logPileNos(data, l) : (l.piles || []);
+        var lPiers = S.logPiers ? S.logPiers(data, l) : (l.pier ? [l.pier] : []);
         h += '<div class="logitem">' +
           '<div class="lt"><span class="ld">' + (S.isoToSlash(l.date) || '—') + '</span>' +
-          '<span class="lm">' + (l.pier || '') + '</span></div>' +
+          '<span class="lm">' + (lPiers.join('、') || '') + '</span></div>' +
           '<div class="ll"><b>查驗人員：</b>' + (l.inspector || '—') +
           '　<b>監造派員：</b>' + (l.supervisor || '—') + '</div>' +
           '<div class="ll"><b>查驗位置：</b>' + (l.location || '—') + '</div>' +
+          '<div class="ll"><b>涵蓋墩號：</b>' +
+            (lPiers.length ? lPiers.map(function(p){
+              return '<span class="pill i2" style="margin:1px 3px 1px 0;">' + p + '</span>';
+            }).join('') : '—') +
+          '</div>' +
           '<div class="ll"><b>涵蓋樁號：</b>' +
             (nos.length ? nos.map(function(no){
               return '<span class="pill i1" style="margin:1px 3px 1px 0;">' + no + '</span>';

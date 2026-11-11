@@ -13,9 +13,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download originals
         run: |
-          curl -sSL --fail -o form/formbuilder.js "https://static.teamily.ai/files/9ab5159f-56c9-417e-8da3-4f9a02ca6f8d/formbuilder.js"
-          curl -sSL --fail -o form/index.html "https://static.teamily.ai/files/c7ae1c2b-19d3-4601-929f-3bb195e009cd/index.html"
+          curl -sSL --fail -o form/formbuilder.js "https://static.teamily.ai/files/9ab5159f-56c9-417e-8da3-4f9a02ca6f8d/formbuilder.js?tk=ZmlsZTo5YWI1MTU5Zi01NmM5LTQxN2UtOGRhMy00ZjlhMDJjYTZmOGQ6MTc5NDQxNTgwOQ.MDg5Y2VmZDNiNTg3NmRiMDBiMTA2ZjA1YzRiYTFkNmU"
+          curl -sSL --fail -o form/index.html "https://static.teamily.ai/files/c7ae1c2b-19d3-4601-929f-3bb195e009cd/index.html?tk=ZmlsZTpjN2FlMWMyYi0xOWQzLTQ2MDEtOTI5Zi0zYmIxOTVlMDA5Y2Q6MTc5NDQxNTgwOQ.OGU3ZjNjMjNkMTQ4YmYxYjNiOWY2ZjY5MmFlYjY4NWY"
           wc -c form/formbuilder.js form/index.html
+          head -c 60 form/formbuilder.js
       - name: Commit
         run: |
           git config user.name dodafga

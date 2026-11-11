@@ -76,6 +76,8 @@
         <span class="ic">📊</span>查驗紀錄表</button>
       <button id="btnProgress" type="button" role="tab" aria-selected="false">
         <span class="ic">🏗️</span>預壘樁進度</button>
+      <button id="btnDrive" type="button" role="tab" aria-selected="false">
+        <span class="ic">☁</span>相片上傳歸檔</button>
       <a id="btnSettings" class="setlink" href="settings/index.html" target="_blank" rel="noopener" title="Google Drive 設定">
         <span class="ic">⚙</span>設定</a>
     </div>
@@ -92,8 +94,9 @@
   var MODES = {
     form:  { src:"form/index.html",  sub:"工程施工中請驗單 · 版面沿用 F-24-03 範本 · 附件共用欄位 · Google Drive 備份 · A4 直式" },
     photo: { src:"photo/index.html", sub:"工程照片記錄表 · 每頁 3 張 · 照片尺寸與範本一致 · A4 直式" },
-    log:   { src:"log/index.html",   sub:"查驗紀錄表 · 墩號可多選 · 樁號依墩分組跨墩勾選 · 整墩全選 · 位置標籤 · 本機自動保存 · A4 橫式 · 下載 .xlsx" },
-    progress: { src:"progress/index.html", sub:"預壘樁進度管控表 · 進度以查驗日期為基準 · 墩號彙總（墩開始／整墩結束） · 排序：實際施作／查驗日期／墩號" }
+    log:   { src:"log/index.html",   sub:"查驗紀錄表 · 樁號可多選 · 樁號依墩分組跨墩勾選 · 整墩全選 · 位置標籤 · 本機自動保存 · A4 橫式 · 下載 .xlsx" },
+    progress: { src:"progress/index.html", sub:"預壘樁進度管控表 · 進度以查驗日期為基準 · 墩號彙總（墩開始／整墩結束） · 排序：實際施作／查驗日期／墩號" },
+    drive:  { src:"drive/index.html",  sub:"相片上傳歸檔 · 選取或拍攝 → 上傳 Google Drive · 依日期資料夾（YYYY-MM-DD）歸檔 · 批次上傳與重試" }
   };
   var frames = {};
   var stage = document.getElementById("stage");
@@ -103,8 +106,9 @@
   var btnPhoto = document.getElementById("btnPhoto");
   var btnLog = document.getElementById("btnLog");
   var btnProgress = document.getElementById("btnProgress");
+  var btnDrive = document.getElementById("btnDrive");
   var current = null;
-  var TITLES = { form:"查驗單", photo:"查驗相片表", log:"查驗紀錄表", progress:"預壘樁進度管控表" };
+  var TITLES = { form:"查驗單", photo:"查驗相片表", log:"查驗紀錄表", progress:"預壘樁進度管控表", drive:"相片上傳歸檔" };
 
   function ensureFrame(key){
     if(frames[key]) return frames[key];
@@ -147,10 +151,12 @@
     btnPhoto.classList.toggle("on", key === "photo");
     btnLog.classList.toggle("on", key === "log");
     btnProgress.classList.toggle("on", key === "progress");
+    btnDrive.classList.toggle("on", key === "drive");
     btnForm.setAttribute("aria-selected", key === "form" ? "true" : "false");
     btnPhoto.setAttribute("aria-selected", key === "photo" ? "true" : "false");
     btnLog.setAttribute("aria-selected", key === "log" ? "true" : "false");
     btnProgress.setAttribute("aria-selected", key === "progress" ? "true" : "false");
+    btnDrive.setAttribute("aria-selected", key === "drive" ? "true" : "false");
     try{ history.replaceState(null, "", "#" + key); }catch(e){}
   }
 
@@ -158,6 +164,7 @@
   btnPhoto.addEventListener("click", function(){ show("photo"); });
   btnLog.addEventListener("click", function(){ show("log"); });
   btnProgress.addEventListener("click", function(){ show("progress"); });
+  btnDrive.addEventListener("click", function(){ show("drive"); });
 
   var initial = (location.hash || "").replace("#","");
   show(MODES[initial] ? initial : "form");

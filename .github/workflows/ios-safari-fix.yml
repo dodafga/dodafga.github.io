@@ -1,0 +1,1 @@
+$(cat /workspace/ios_fix/.github/workflows/ios-safari-fix.yml)

@@ -1,0 +1,50 @@
+name: one-shot import v12
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/import-v12.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Fetch files
+        run: |
+          set -e
+          B="https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/webpages/inspection-suite_v12"
+          mkdir -p assets log progress
+          curl -fsSL "$B/assets/store.js"     -o assets/store.js
+          curl -fsSL "$B/log/index.html"      -o log/index.html
+          curl -fsSL "$B/progress/index.html" -o progress/index.html
+          curl -fsSL "$B/index.html"          -o index.html
+          curl -fsSL "$B/README.md"           -o README.md
+          echo "--- sizes ---"
+          wc -c assets/store.js log/index.html progress/index.html index.html README.md
+          echo "--- sanity ---"
+          grep -c "logPiers" assets/store.js
+          grep -c "整墩全選" log/index.html
+          grep -c "涵蓋墩號" progress/index.html
+
+      - name: Commit and push
+        run: |
+          set -e
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add assets/store.js log/index.html progress/index.html index.html README.md
+          git commit -m "查驗紀錄表：墩號可多選、樁號依墩分組跨墩勾選、整墩全選、位置標籤（v12）" || echo "nothing to commit"
+          git push origin main
+
+      - name: Self-delete workflow
+        run: |
+          set -e
+          git rm -f .github/workflows/import-v12.yml
+          git commit -m "移除一次性匯入 workflow"
+          git push origin main

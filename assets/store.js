@@ -387,46 +387,63 @@
   /* ---------------- 排序 ---------------- */
 
   /**
-   * 排序樁位：
-   *   mode='actual'（預設）→ 有實際開始日期者依日期由早到晚排前面，沒有實際日期的排後面
-   *   mode='pier'          → 依墩號（原始順序）、樁號
-   * 兩種模式最後都以墩號、樁號作穩定次要排序。
-   */
-  function sortPiles(piles, mode) {
-    var pierOrder = {};
-    PIER_DEFS.forEach(function (d, i) { pierOrder[d.pier] = i; });
+ * 排序樁位：
+ *   mode='actual'（預設）→ 有實際開始日期者依日期由早到晚排前面，沒有實際日期的排後面
+ *   mode='pier'          → 依墩號（原始順序）、樁號
+ *   mode='inspect'       → 已查驗者依查驗日期由新到舊排前面，未查驗者排後面
+ * 三種模式最後都以墩號、樁號作穩定次要排序。
+ */
+function sortPiles(piles, mode) {
+  var pierOrder = {};
+  PIER_DEFS.forEach(function (d, i) { pierOrder[d.pier] = i; });
 
-    function pileSeq(no) {
-      var m = String(no).match(/-(\d+)$/);
-      return m ? parseInt(m[1], 10) : 0;
-    }
+  function pileSeq(no) {
+    var m = String(no).match(/-(\d+)$/);
+    return m ? parseInt(m[1], 10) : 0;
+  }
 
-    var arr = (piles || []).slice();
+  /* 次要排序：墩號（原始順序）→ 樁號 */
+  function tieBreak(a, b) {
+    var pa = pierOrder[a.pier] == null ? 999 : pierOrder[a.pier];
+    var pb = pierOrder[b.pier] == null ? 999 : pierOrder[b.pier];
+    if (pa !== pb) return pa - pb;
+    return pileSeq(a.pileNo) - pileSeq(b.pileNo);
+  }
 
-    if (mode === 'pier') {
-      arr.sort(function (a, b) {
-        var pa = pierOrder[a.pier] == null ? 999 : pierOrder[a.pier];
-        var pb = pierOrder[b.pier] == null ? 999 : pierOrder[b.pier];
-        if (pa !== pb) return pa - pb;
-        return pileSeq(a.pileNo) - pileSeq(b.pileNo);
-      });
-      return arr;
-    }
+  var arr = (piles || []).slice();
 
-    /* mode === 'actual' */
+  if (mode === 'pier') {
+    arr.sort(tieBreak);
+    return arr;
+  }
+
+  /* mode === 'inspect'：已查驗者依查驗日期新→舊排前，未查驗者排後 */
+  if (mode === 'inspect') {
     arr.sort(function (a, b) {
-      var sa = a.actualStart || '';
-      var sb = b.actualStart || '';
-      var ha = !!sa, hb = !!sb;
-      if (ha !== hb) return ha ? -1 : 1;          /* 有實際日期者優先 */
-      if (ha && hb && sa !== sb) return sa < sb ? -1 : 1;  /* 日期早的在前 */
-      var pa = pierOrder[a.pier] == null ? 999 : pierOrder[a.pier];
-      var pb = pierOrder[b.pier] == null ? 999 : pierOrder[b.pier];
-      if (pa !== pb) return pa - pb;
-      return pileSeq(a.pileNo) - pileSeq(b.pileNo);
+      var ia = a.inspectStatus === '已查驗';
+      var ib = b.inspectStatus === '已查驗';
+      if (ia !== ib) return ia ? -1 : 1;              /* 已查驗者優先 */
+      if (ia && ib) {
+        var da = a.inspectDate || '';
+        var db = b.inspectDate || '';
+        if (da !== db) return da < db ? 1 : -1;       /* 查驗日期新→舊 */
+      }
+      return tieBreak(a, b);
     });
     return arr;
   }
+
+  /* mode === 'actual' */
+  arr.sort(function (a, b) {
+    var sa = a.actualStart || '';
+    var sb = b.actualStart || '';
+    var ha = !!sa, hb = !!sb;
+    if (ha !== hb) return ha ? -1 : 1;          /* 有實際日期者優先 */
+    if (ha && hb && sa !== sb) return sa < sb ? -1 : 1;  /* 日期早的在前 */
+    return tieBreak(a, b);
+  });
+  return arr;
+}
 
   /* ---------------- JSON 匯出／匯入 ---------------- */
 

@@ -1,0 +1,25 @@
+name: restore-form
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/restore-form.yml'
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download originals
+        run: |
+          curl -sSL --fail -o form/formbuilder.js "https://static.teamily.ai/files/9ab5159f-56c9-417e-8da3-4f9a02ca6f8d/formbuilder.js"
+          curl -sSL --fail -o form/index.html "https://static.teamily.ai/files/c7ae1c2b-19d3-4601-929f-3bb195e009cd/index.html"
+          wc -c form/formbuilder.js form/index.html
+      - name: Commit
+        run: |
+          git config user.name dodafga
+          git config user.email dodafga@users.noreply.github.com
+          git add form/formbuilder.js form/index.html
+          git commit -m "fix(form): 還原 formbuilder.js 與 index.html 原始內容" || echo nothing
+          git push

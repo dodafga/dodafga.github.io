@@ -142,6 +142,40 @@
     .paper td.photo{height:auto;}
     .paper td.photo img{max-height:150px;}
   }
+
+  /* ---------- 從歸檔照片挑選 ---------- */
+  .modal{position:fixed;inset:0;background:rgba(15,25,40,.55);display:none;z-index:120;
+    align-items:center;justify-content:center;padding:18px;}
+  .modal.on{display:flex;}
+  .modal-box{background:#fff;border-radius:14px;width:min(760px,100%);max-height:88vh;
+    display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(15,25,40,.35);}
+  .modal-h{display:flex;align-items:center;gap:9px;padding:13px 16px;border-bottom:1px solid var(--line-2);}
+  .modal-h h3{margin:0;font-size:15px;font-weight:700;}
+  .modal-h .spacer,.modal-f .spacer,.pickbar .spacer{margin-left:auto;}
+  .modal-b{padding:12px 16px;overflow:auto;flex:1 1 auto;min-height:0;}
+  .modal-f{display:flex;align-items:center;gap:9px;padding:12px 16px;border-top:1px solid var(--line-2);}
+  .pickbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .pickbar input[type=date]{width:auto;padding:6px 9px;font-size:13px;}
+  .chkbox{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;}
+  .picklist{display:flex;flex-direction:column;gap:7px;}
+  .prow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:9px;
+    padding:8px 10px;background:#fcfdfe;cursor:pointer;transition:.15s;}
+  .prow:hover{background:#f5f8fb;}
+  .prow.on{border-color:var(--steel-2);background:#eef4fb;}
+  .prow input[type=checkbox]{width:17px;height:17px;flex:0 0 17px;}
+  .pthumb{width:64px;height:48px;flex:0 0 64px;border-radius:6px;overflow:hidden;background:#e8edf3;
+    border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+    font-size:18px;color:#9aa6b4;}
+  .pthumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pmeta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .pnm{font-size:12.5px;font-weight:600;color:var(--ink);word-break:break-all;}
+  .pdt{font-size:11.5px;color:var(--muted);}
+  .pickmsg{font-size:12px;color:var(--muted);}
+  @media (max-width:640px){
+    .modal{padding:0;}
+    .modal-box{width:100%;max-height:100vh;height:100vh;border-radius:0;}
+    .pthumb{width:54px;height:42px;flex:0 0 54px;}
+  }
 </style>
 </head>
 <body>
@@ -213,6 +247,10 @@
       <div class="card" style="margin-top:16px;">
         <div class="card-h"><h2>上傳照片</h2><span class="tag ok" id="cntTag">0 張</span></div>
         <div class="card-b">
+          <div class="inlineacts" style="margin:0 0 12px;">
+            <button class="btn btn-primary btn-sm" id="btnPickArchive" type="button">📂 從歸檔照片挑選</button>
+            <span style="font-size:11.5px;color:var(--muted);align-self:center;">從「相片上傳歸檔」已上傳的照片挑選</span>
+          </div>
           <div class="drop" id="drop">
             <div class="ic">📷</div>
             <div class="t">點此選擇照片，或拖曳檔案到此</div>
@@ -262,7 +300,39 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- 從歸檔照片挑選 -->
+<div class="modal" id="pickModal">
+  <div class="modal-box">
+    <div class="modal-h">
+      <h3>從歸檔照片挑選</h3>
+      <span class="tag" id="pickCount">0 張</span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" id="pickClose" type="button">✕ 關閉</button>
+    </div>
+    <div class="modal-b">
+      <div class="pickbar">
+        <span style="font-size:12.5px;font-weight:600;color:var(--ink-2);">日期</span>
+        <input type="date" id="pickFrom">
+        <span style="color:var(--muted);">～</span>
+        <input type="date" id="pickTo">
+        <button class="btn btn-ghost btn-sm" id="pickClear" type="button">清除</button>
+        <span class="spacer"></span>
+        <label class="chkbox"><input type="checkbox" id="pickAll"> 全選</label>
+      </div>
+      <div class="picklist" id="pickList"></div>
+    </div>
+    <div class="modal-f">
+      <span class="pickmsg" id="pickMsg"></span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" id="pickCancel" type="button">取消</button>
+      <button class="btn btn-amber" id="pickAdd" type="button" disabled>加入相片表</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/jszip.min.js"></script>
+<script src="../assets/gdrive.js"></script>
+<script src="../assets/gdrive-photo.js"></script>
 <script src="photobuilder.js"></script>
 <script>
 (function(){
@@ -753,7 +823,217 @@
       if(state.page < paginate().length - 1){ state.page++; renderPreview(); }
     });
 
+    /* 從歸檔照片挑選 */
+    $('btnPickArchive').addEventListener('click', openPick);
+    $('pickClose').addEventListener('click', closePick);
+    $('pickCancel').addEventListener('click', closePick);
+    $('pickAdd').addEventListener('click', addPicked);
+    $('pickFrom').addEventListener('change', renderPick);
+    $('pickTo').addEventListener('change', renderPick);
+    $('pickClear').addEventListener('click', function(){
+      $('pickFrom').value = ''; $('pickTo').value = ''; renderPick();
+    });
+    $('pickAll').addEventListener('change', function(){
+      var on = this.checked;
+      pickFiltered().forEach(function(r){ if (on) pickSel[r.id] = true; else delete pickSel[r.id]; });
+      renderPick();
+    });
+    $('pickModal').addEventListener('click', function(e){
+      if (e.target === $('pickModal')) closePick();
+    });
+
     loadTemplate().catch(function(){ /* 下載時會再提示 */ });
+  }
+
+  /* ---------- 從歸檔照片挑選 ---------- */
+  var ARCHIVE_KEY = 'inspection-drive-photo-history';
+  var pickSel = {};
+  var pickRecords = [];
+  var pickThumbCache = {};
+  var thumbObserver = null;
+
+  function loadArchive(){
+    try {
+      var raw = localStorage.getItem(ARCHIVE_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch(e){ return []; }
+  }
+
+  function pickFiltered(){
+    var a = $('pickFrom').value, b = $('pickTo').value;
+    if (a && b && a > b) { var t = a; a = b; b = t; }
+    return pickRecords.filter(function(r){
+      if (a && (r.date || '') < a) return false;
+      if (b && (r.date || '') > b) return false;
+      return true;
+    });
+  }
+
+  function updatePickUI(){
+    var n = Object.keys(pickSel).length;
+    var btn = $('pickAdd');
+    btn.disabled = (n === 0);
+    btn.textContent = n ? ('加入相片表（' + n + '）') : '加入相片表';
+    var list = pickFiltered();
+    var all = list.length > 0 && list.every(function(r){ return pickSel[r.id]; });
+    $('pickAll').checked = all;
+    $('pickAll').disabled = (list.length === 0);
+  }
+
+  function renderPick(){
+    var box = $('pickList');
+    var list = pickFiltered();
+    $('pickCount').textContent = list.length + ' 張';
+    if (!pickRecords.length){
+      box.innerHTML = '<div class="empty">尚無歸檔照片。<br>請先到「相片上傳歸檔」上傳照片，或按「↻ 從 Drive 匯入」。</div>';
+      updatePickUI(); return;
+    }
+    if (!list.length){
+      box.innerHTML = '<div class="empty">此日期區間沒有符合的歸檔照片。</div>';
+      updatePickUI(); return;
+    }
+    var html = '';
+    list.forEach(function(r){
+      var on = !!pickSel[r.id];
+      html += '<label class="prow' + (on ? ' on' : '') + '">' +
+        '<input type="checkbox" data-pick="' + escapeHtml(r.id) + '"' + (on ? ' checked' : '') + '>' +
+        '<span class="pthumb" data-thumb="' + escapeHtml(r.id) + '">🖼</span>' +
+        '<span class="pmeta">' +
+          '<span class="pnm">' + escapeHtml(r.name || '') + '</span>' +
+          '<span class="pdt">' + escapeHtml(r.date || '') +
+            (r.item ? '　' + escapeHtml(r.item) : '') +
+            (r.note ? '　' + escapeHtml(r.note) : '') +
+          '</span>' +
+        '</span>' +
+      '</label>';
+    });
+    box.innerHTML = html;
+    box.querySelectorAll('[data-pick]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        var id = cb.getAttribute('data-pick');
+        if (cb.checked) pickSel[id] = true; else delete pickSel[id];
+        var row = cb.closest ? cb.closest('.prow') : null;
+        if (row) row.classList.toggle('on', cb.checked);
+        updatePickUI();
+      });
+    });
+    lazyThumbs();
+    updatePickUI();
+  }
+
+  function lazyThumbs(){
+    var els = $('pickList').querySelectorAll('[data-thumb]');
+    if (!('IntersectionObserver' in window)) {
+      Array.prototype.forEach.call(els, loadThumb);
+      return;
+    }
+    if (thumbObserver) thumbObserver.disconnect();
+    thumbObserver = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (en.isIntersecting){ loadThumb(en.target); thumbObserver.unobserve(en.target); }
+      });
+    }, { root: $('pickList'), rootMargin: '140px' });
+    Array.prototype.forEach.call(els, function(el){ thumbObserver.observe(el); });
+  }
+
+  function loadThumb(el){
+    var id = el.getAttribute('data-thumb');
+    if (!id || el.getAttribute('data-done')) return;
+    el.setAttribute('data-done', '1');
+    if (pickThumbCache[id]) { el.innerHTML = '<img src="' + pickThumbCache[id] + '" alt="">'; return; }
+    var G = window.GDrive;
+    if (!G || !G.fetchFile) return;
+    G.fetchFile(id).then(function(blob){
+      return new Promise(function(res, rej){
+        var fr = new FileReader();
+        fr.onload = function(){ res(fr.result); };
+        fr.onerror = function(){ rej(new Error('read')); };
+        fr.readAsDataURL(blob);
+      });
+    }).then(function(url){
+      pickThumbCache[id] = url;
+      el.innerHTML = '<img src="' + url + '" alt="">';
+    }).catch(function(){ el.textContent = '—'; });
+  }
+
+  function ensureDriveToken(){
+    var G = window.GDrive;
+    if (!G) { $('pickMsg').textContent = 'Google Drive 模組未載入，無法讀取縮圖。'; return; }
+    if (G.hasToken && G.hasToken()) return;
+    if (G.isSignedOut && G.isSignedOut()) {
+      $('pickMsg').textContent = '尚未連線 Google Drive，縮圖與加入功能需要授權。';
+      return;
+    }
+    if (G.silentConnect) {
+      G.silentConnect().then(function(){ renderPick(); }).catch(function(){
+        $('pickMsg').textContent = '需要授權才能讀取歸檔照片，請先到「相片上傳歸檔」連線 Google Drive。';
+      });
+    }
+  }
+
+  function openPick(){
+    pickRecords = loadArchive();
+    pickSel = {};
+    $('pickFrom').value = '';
+    $('pickTo').value = '';
+    $('pickMsg').textContent = '';
+    $('pickModal').classList.add('on');
+    renderPick();
+    ensureDriveToken();
+  }
+
+  function closePick(){ $('pickModal').classList.remove('on'); }
+
+  function addPicked(){
+    var ids = Object.keys(pickSel);
+    if (!ids.length) return;
+    var G = window.GDrive;
+    if (!G || !G.fetchFile) { toast('Google Drive 模組未載入', true); return; }
+    var btn = $('pickAdd');
+    btn.disabled = true;
+    var total = ids.length, done = 0, failed = 0;
+    $('pickMsg').textContent = '讀取中 0 / ' + total + '…';
+
+    var gPlace = $('gPlace').value.trim();
+    var gItem  = $('gItem').value.trim();
+    var gDate  = $('gDate').value || todayISO();
+
+    var chain = Promise.resolve();
+    ids.forEach(function(id){
+      chain = chain.then(function(){
+        var rec = pickRecords.filter(function(r){ return r.id === id; })[0] || {};
+        return G.fetchFile(id).then(function(blob){
+          return new Promise(function(res, rej){
+            var fr = new FileReader();
+            fr.onload = function(){ res(fr.result); };
+            fr.onerror = function(){ rej(new Error('讀取失敗')); };
+            fr.readAsDataURL(blob);
+          });
+        }).then(function(dataUrl){
+          state.photos.push({
+            name: rec.name || ('archive_' + (done + 1) + '.png'),
+            dataUrl: dataUrl,
+            place: gPlace,
+            item: rec.item || gItem,
+            date: rec.date || gDate,
+            desc: rec.note || ''
+          });
+          done++;
+        }).catch(function(){ failed++; });
+      }).then(function(){
+        $('pickMsg').textContent = '讀取中 ' + (done + failed) + ' / ' + total + '…';
+      });
+    });
+
+    chain.then(function(){
+      state.page = 0;
+      render();
+      $('pickMsg').textContent = '已加入 ' + done + ' 張' + (failed ? ('，' + failed + ' 張讀取失敗') : '');
+      toast('已從歸檔照片加入 ' + done + ' 張' + (failed ? ('（' + failed + ' 張失敗）') : ''), !!failed);
+      if (!failed) { pickSel = {}; setTimeout(closePick, 700); }
+      else { btn.disabled = false; updatePickUI(); }
+    });
   }
 
   if (document.readyState === 'loading') {

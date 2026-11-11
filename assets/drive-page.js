@@ -378,11 +378,11 @@
         $('prevTag').textContent = '已壓浮水印';
         $('prevTag').className = 'tag ok';
         $('prevNote').innerHTML = '浮水印已壓在<b>右下角</b>，日期 <b>' + esc(dateISO) +
-          '</b>；上傳到 Drive 的 JPEG 檔本身就帶此浮水印。';
+          '</b>；上傳到 Drive 的 PNG 檔本身就帶此浮水印。';
       } else {
         $('prevTag').textContent = '未壓浮水印';
         $('prevTag').className = 'tag';
-        $('prevNote').innerHTML = '浮水印開關為<b>關閉</b>，相片將原樣（僅壓縮）上傳。';
+        $('prevNote').innerHTML = '浮水印開關為<b>關閉</b>，相片將僅壓縮並轉存 PNG 後上傳。';
       }
     }).catch(function(){
       $('prevTag').textContent = '無法預覽';
@@ -403,13 +403,13 @@
     var taken = {};
     history.forEach(function(h){ if (h.date === dateISO) taken[h.name] = 1; });
     var guard = 0;
-    while (taken[base + '.jpg'] && guard < 200) {
+    while (taken[base + '.png'] && guard < 200) {
       seq++;
       n = pad2(seq);
       base = d + '_' + mid + '_' + n;
       guard++;
     }
-    return base + '.jpg';
+    return base + '.png';
   }
 
   /* ---------- 佇列 ---------- */
@@ -532,7 +532,7 @@
     var G = window.GDrive;
     if (G && G.preparePhotoBlob) {
       return G.preparePhotoBlob(file, {
-        date: dateISO, watermark: wmOn, maxEdge: 2000, quality: 0.88, detect: true
+        date: dateISO, watermark: wmOn, maxEdge: 2000, detect: true
       });
     }
     return Promise.resolve({ blob: file, applied: false, detected: false });
@@ -580,7 +580,7 @@
           var desc = [note, item ? ('工項：' + item) : '', '歸檔日期：' + dateISO].filter(Boolean).join('｜');
           q.wm = { applied: !!prep.applied, detected: !!prep.detected };
           return window.GDrive.uploadPhoto({
-            blob: prep.blob, filename: name, date: dateISO, description: desc
+            blob: prep.blob, filename: name, date: dateISO, description: desc, mime: 'image/png'
           });
         }).then(function(res){
           q.status = 'done';
@@ -909,8 +909,8 @@
 
   /* ---------- 打包下載 ---------- */
   function fileNameOf(h, idx){
-    var n = safeName(h.name) || ('photo_' + (idx + 1) + '.jpg');
-    if (!/\.jpe?g$/i.test(n)) n += '.jpg';
+    var n = safeName(h.name) || ('photo_' + (idx + 1) + '.png');
+    if (!/\.(png|jpe?g)$/i.test(n)) n += '.png';
     return n;
   }
 

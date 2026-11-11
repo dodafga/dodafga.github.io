@@ -215,7 +215,12 @@
 
       var form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-      form.append('file', opts.blob, opts.filename);
+      /* 一律以 PNG 上傳：若 blob 型別不是 image/png，重新包一層確保 MIME 正確 */
+      var fileBlob = opts.blob;
+      if (opts.mime && fileBlob.type !== opts.mime) {
+        try { fileBlob = new Blob([fileBlob], { type: opts.mime }); } catch (e) { fileBlob = opts.blob; }
+      }
+      form.append('file', fileBlob, opts.filename);
 
       return getToken().then(function (tok) {
         return fetch('https://www.googleapis.com/upload/drive/v3/files' +
@@ -447,10 +452,10 @@
   /* ---------------- 相片前置處理（壓縮 + 浮水印） ---------------- */
 
   /**
-   * 把原始檔壓成 JPEG（長邊 ≤ maxEdge、quality 0.88），並依需要壓上歸檔日期浮水印。
-   * 浮水印會壓進實際輸出的 JPEG，上傳到 Drive 的檔案本身就帶浮水印。
+   * 把原始檔壓成 PNG（長邊 ≤ maxEdge），並依需要壓上歸檔日期浮水印。
+   * 浮水印會壓進實際輸出的 PNG，上傳到 Drive 的檔案本身（image/png）就帶浮水印。
    *
-   * opts: { date:'YYYY-MM-DD', watermark:true, maxEdge:2000, quality:0.88, detect:true }
+   * opts: { date:'YYYY-MM-DD', watermark:true, maxEdge:2000, detect:true }
    * 回傳 Promise<{ blob, applied, detected, width, height, box }>
    *
    * 若瀏覽器不支援 canvas 或解碼失敗，會退回原檔（不中斷上傳）。
@@ -472,7 +477,7 @@
       } finally {
         try { img.release(); } catch (e) {}
       }
-      return WM.toBlob(r.canvas, opts.quality == null ? 0.88 : opts.quality).then(function (blob) {
+      return WM.toPng(r.canvas).then(function (blob) {
         return {
           blob: blob,
           applied: r.applied,

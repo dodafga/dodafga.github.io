@@ -11,7 +11,8 @@
  * 功能：
  *   - detectExisting()：偵測相片是否已有相機 App 壓的日期時間戳，避免重複壓
  *   - render()：把浮水印壓進 canvas（實際輸出 JPEG 會帶浮水印）
- *   - toBlob()：輸出 JPEG
+ *   - toBlob()：輸出 JPEG（預覽用）
+ *   - toPng()：輸出 PNG（上傳到 Google Drive 用，無損）
  *
  * 瀏覽器：window.PhotoWatermark
  */
@@ -311,6 +312,21 @@
   }
 
   /**
+   * 輸出 PNG（無損）。上傳到 Google Drive 的相片一律用這個，
+   * 浮水印已畫在 canvas 上，因此 PNG 檔本身就帶浮水印。
+   */
+  function toPng(canvas) {
+    return new Promise(function (resolve, reject) {
+      try {
+        canvas.toBlob(function (b) {
+          if (b) resolve(b);
+          else reject(new Error('影像輸出失敗'));
+        }, 'image/png');
+      } catch (e) { reject(e); }
+    });
+  }
+
+  /**
    * 產生預覽用 dataURL（小圖，僅供畫面顯示）
    */
   function previewDataURL(img, opts) {
@@ -343,6 +359,7 @@
     drawWatermark: drawWatermark,
     render: render,
     toBlob: toBlob,
+    toPng: toPng,
     previewDataURL: previewDataURL
   };
 

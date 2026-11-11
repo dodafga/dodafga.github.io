@@ -16,7 +16,7 @@
     </div>
     <div class="hmeta">
       根資料夾 <b>營建相片</b> ／ 子資料夾 <b>YYYY-MM-DD</b><br>
-      <a href="../index.html">← 回查驗表單與工具</a>
+      <a href="../index.html">← 回查驗助手</a>
     </div>
   </div>
 </header>
@@ -104,7 +104,7 @@
       <div class="drop" id="drop">
         <div class="ic">📷</div>
         <div class="t">點此選取相片、拖曳進來，或用手機直接拍攝</div>
-        <div class="s">支援多選與批次上傳 · 上傳前自動壓縮（長邊 ≤2000px、JPEG 0.88）</div>
+        <div class="s">支援多選與批次上傳 · 上傳前自動壓縮並轉存 PNG（長邊 ≤2000px）</div>
       </div>
       <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
       <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
@@ -138,8 +138,8 @@
 
       <div class="note">
         <b>資料夾規則：</b><code>營建相片 / YYYY-MM-DD /</code>，資料夾已存在就沿用，不重複建立。<br>
-        <b>檔名規則：</b><code>日期_工項或墩號樁號_序號.jpg</code>；未填工項時為 <code>日期_時間_序號.jpg</code>。<br>
-        <b>歸檔日期浮水印：</b>上傳前會把歸檔日期壓在相片<b>右下角</b>（橘色粗體＋黑色陰影），<b>壓進實際輸出的 JPEG</b>，
+        <b>檔名規則：</b><code>日期_工項或墩號樁號_序號.png</code>；未填工項時為 <code>日期_時間_序號.png</code>。<br>
+        <b>歸檔日期浮水印：</b>上傳前會把歸檔日期壓在相片<b>右下角</b>（橘色粗體＋黑色陰影），<b>壓進實際輸出的 PNG</b>，
         Drive 上的檔案本身就帶浮水印；相片若已有相機時間戳會<b>自動跳過</b>不重複壓。可用上方開關關閉。
       </div>
     </div>

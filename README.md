@@ -1,4 +1,4 @@
-# 查驗表單產生器（Inspection Suite）
+# 查驗助手（Inspection Suite）
 
 工程查驗文件線上填寫工具。純前端（HTML / CSS / JavaScript），**不需要伺服器、不需要資料庫、不需要安裝任何套件**，直接放上 GitHub Pages 即可使用。
 

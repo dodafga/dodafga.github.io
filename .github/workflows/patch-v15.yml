@@ -1,0 +1,161 @@
+name: patch-v15
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply patch
+        run: |
+          python3 - <<'PY'
+          import io, sys
+
+          def rd(p):
+              return io.open(p, encoding='utf-8').read()
+
+          def wr(p, s):
+              io.open(p, 'w', encoding='utf-8', newline='').write(s)
+
+          fails = []
+
+          # ---------- 1) assets/store.js : replace sortPiles block ----------
+          p = 'assets/store.js'
+          s = rd(p)
+          start = s.find('  /**\n   * \u6392\u5e8f\u6a01\u4f4d\uff1a')
+          end = s.find('  /* ---------------- JSON \u532f\u51fa\uff0f\u532f\u5165 ---------------- */')
+          if start < 0 or end < 0 or end <= start:
+              fails.append('store.js anchors start=%d end=%d' % (start, end))
+          else:
+              L = []
+              L.append('  /**')
+              L.append('   * \u6392\u5e8f\u6a01\u4f4d\uff1a')
+              L.append("   *   mode='actual'\uff08\u9810\u8a2d\uff09\u2192 \u6709\u5be6\u969b\u958b\u59cb\u65e5\u671f\u8005\u4f9d\u65e5\u671f\u7531\u65e9\u5230\u665a\u6392\u524d\u9762\uff0c\u6c92\u6709\u5be6\u969b\u65e5\u671f\u7684\u6392\u5f8c\u9762")
+              L.append("   *   mode='pier'          \u2192 \u4f9d\u58a9\u865f\uff08\u539f\u59cb\u9806\u5e8f\uff09\u3001\u6a01\u865f")
+              L.append("   *   mode='inspect'       \u2192 \u5df2\u67e5\u9a57\u8005\u4f9d\u67e5\u9a57\u65e5\u671f\u7531\u65b0\u5230\u820a\u6392\u524d\u9762\uff0c\u672a\u67e5\u9a57\u8005\u6392\u5f8c\u9762")
+              L.append('   * \u4e09\u7a2e\u6a21\u5f0f\u6700\u5f8c\u90fd\u4ee5\u58a9\u865f\u3001\u6a01\u865f\u4f5c\u7a69\u5b9a\u6b21\u8981\u6392\u5e8f\u3002')
+              L.append('   */')
+              L.append('  function sortPiles(piles, mode) {')
+              L.append('    var pierOrder = {};')
+              L.append('    PIER_DEFS.forEach(function (d, i) { pierOrder[d.pier] = i; });')
+              L.append('')
+              L.append('    function pileSeq(no) {')
+              L.append('      var m = String(no).match(/-(\\\\d+)$/);')
+              L.append('      return m ? parseInt(m[1], 10) : 0;')
+              L.append('    }')
+              L.append('')
+              L.append('    /* \u6b21\u8981\u6392\u5e8f\uff1a\u58a9\u865f\uff08\u539f\u59cb\u9806\u5e8f\uff09\u2192 \u6a01\u865f */')
+              L.append('    function tieBreak(a, b) {')
+              L.append('      var pa = pierOrder[a.pier] == null ? 999 : pierOrder[a.pier];')
+              L.append('      var pb = pierOrder[b.pier] == null ? 999 : pierOrder[b.pier];')
+              L.append('      if (pa !== pb) return pa - pb;')
+              L.append('      return pileSeq(a.pileNo) - pileSeq(b.pileNo);')
+              L.append('    }')
+              L.append('')
+              L.append('    var arr = (piles || []).slice();')
+              L.append('')
+              L.append("    if (mode === 'pier') {")
+              L.append('      arr.sort(tieBreak);')
+              L.append('      return arr;')
+              L.append('    }')
+              L.append('')
+              L.append("    /* mode === 'inspect'\uff1a\u5df2\u67e5\u9a57\u8005\u4f9d\u67e5\u9a57\u65e5\u671f\u65b0\u2192\u820a\u6392\u524d\uff0c\u672a\u67e5\u9a57\u8005\u6392\u5f8c */")
+              L.append("    if (mode === 'inspect') {")
+              L.append('      arr.sort(function (a, b) {')
+              L.append("        var ia = a.inspectStatus === '\u5df2\u67e5\u9a57';")
+              L.append("        var ib = b.inspectStatus === '\u5df2\u67e5\u9a57';")
+              L.append('        if (ia !== ib) return ia ? -1 : 1;              /* \u5df2\u67e5\u9a57\u8005\u512a\u5148 */')
+              L.append('        if (ia && ib) {')
+              L.append("          var da = a.inspectDate || '';")
+              L.append("          var db = b.inspectDate || '';")
+              L.append('          if (da !== db) return da < db ? 1 : -1;       /* \u67e5\u9a57\u65e5\u671f\u65b0\u2192\u820a */')
+              L.append('        }')
+              L.append('        return tieBreak(a, b);')
+              L.append('      });')
+              L.append('      return arr;')
+              L.append('    }')
+              L.append('')
+              L.append("    /* mode === 'actual' */")
+              L.append('    arr.sort(function (a, b) {')
+              L.append("      var sa = a.actualStart || '';")
+              L.append("      var sb = b.actualStart || '';")
+              L.append('      var ha = !!sa, hb = !!sb;')
+              L.append('      if (ha !== hb) return ha ? -1 : 1;          /* \u6709\u5be6\u969b\u65e5\u671f\u8005\u512a\u5148 */')
+              L.append('      if (ha && hb && sa !== sb) return sa < sb ? -1 : 1;  /* \u65e5\u671f\u65e9\u7684\u5728\u524d */')
+              L.append('      return tieBreak(a, b);')
+              L.append('    });')
+              L.append('    return arr;')
+              L.append('  }')
+              L.append('')
+              s = s[:start] + '\n'.join(L) + '\n' + s[end:]
+              wr(p, s)
+              print('store.js: sortPiles replaced')
+
+          # ---------- 2) progress/index.html : add option ----------
+          p = 'progress/index.html'
+          s = rd(p)
+          old = '          <option value="actual">\u6392\u5e8f\uff1a\u5be6\u969b\u65bd\u4f5c\uff08\u65e9\u2192\u665a\uff09</option>\n'
+          if s.count(old) != 1:
+              fails.append('progress option count=%d' % s.count(old))
+          else:
+              add = '          <option value="inspect">\u6392\u5e8f\uff1a\u67e5\u9a57\u65e5\u671f\uff08\u65b0\u2192\u820a\uff09</option>\n'
+              s = s.replace(old, old + add)
+              wr(p, s)
+              print('progress: option added')
+
+          # ---------- 3) index.html : sub text ----------
+          p = 'index.html'
+          s = rd(p)
+          old3 = '\u9810\u8a2d\u4f9d\u5be6\u969b\u65bd\u4f5c\u65e5\u671f\u6392\u5e8f'
+          if s.count(old3) != 1:
+              fails.append('index sub count=%d' % s.count(old3))
+          else:
+              s = s.replace(old3, '\u6392\u5e8f\uff1a\u5be6\u969b\u65bd\u4f5c\uff0f\u67e5\u9a57\u65e5\u671f\uff0f\u58a9\u865f')
+              wr(p, s)
+              print('index.html: sub updated')
+
+          # ---------- 4) README.md ----------
+          p = 'README.md'
+          s = rd(p)
+          olda = '\u53ef\u5207\u56de\u58a9\u865f\u9806\u5e8f\u3002'
+          if s.count(olda) != 1:
+              fails.append('README table count=%d' % s.count(olda))
+          else:
+              s = s.replace(olda, '\u53ef\u5207\u63db\u300c\u67e5\u9a57\u65e5\u671f\uff08\u65b0\u2192\u820a\uff09\u300d\u6216\u58a9\u865f\u9806\u5e8f\u3002')
+          oldb = '   - **\u6392\u5e8f\uff1a\u58a9\u865f\u9806\u5e8f**'
+          if s.count(oldb) != 1:
+              fails.append('README bullet count=%d' % s.count(oldb))
+          else:
+              ins = ('   - **\u6392\u5e8f\uff1a\u67e5\u9a57\u65e5\u671f\uff08\u65b0\u2192\u820a\uff09** \u2014 \u5df2\u67e5\u9a57\u7684\u6a01\u4f9d\u67e5\u9a57\u65e5\u671f\u7531\u65b0\u5230\u820a\u6392\u5728\u6700\u524d\u9762\uff1b'
+                     '\u672a\u67e5\u9a57\u7684\u6a01\u6392\u5728\u5f8c\u9762\uff0c\u518d\u4f9d\u58a9\u865f\u3001\u6a01\u865f\u6392\u5e8f\u3002\u67e5\u9a57\u65e5\u671f\u76f8\u540c\u6642\u4ee5\u58a9\u865f\u3001\u6a01\u865f\u70ba\u6b21\u8981\u6392\u5e8f\u3002\n')
+              s = s.replace(oldb, ins + oldb)
+          wr(p, s)
+          print('README.md: updated')
+
+          if fails:
+              sys.stderr.write('PATCH FAILED: ' + '; '.join(fails) + '\n')
+              sys.exit(1)
+          print('ALL PATCHES APPLIED')
+          PY
+
+      - name: Verify syntax
+        run: |
+          node --check assets/store.js
+          echo "store.js syntax OK"
+          grep -c 'value="inspect"' progress/index.html
+
+      - name: Commit and push
+        run: |
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git rm -f .github/workflows/patch-v15.yml
+          git add -A
+          git commit -m "feat(progress): 新增「排序：查驗日期（新→舊）」選項"
+          git push

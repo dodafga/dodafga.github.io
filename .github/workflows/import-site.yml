@@ -1,0 +1,44 @@
+name: import-site
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/import-site.yml'
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download bundle
+        run: |
+          set -e
+          curl -sSL -o /tmp/site.zip "https://store-na-phx-4.gofile.io/download/direct/55169107-83e8-47d8-8729-0f34acc4350f/site.zip" || true
+          ls -la /tmp/site.zip || true
+          head -c 4 /tmp/site.zip | xxd || true
+      - name: Unpack
+        run: |
+          set -e
+          mkdir -p /tmp/site
+          unzip -o -q /tmp/site.zip -d /tmp/site
+          ls -la /tmp/site
+      - name: Copy into repo
+        run: |
+          set -e
+          rsync -a --exclude '.git' /tmp/site/ ./
+          git status --short
+      - name: Commit and push
+        run: |
+          set -e
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: 查驗單附件共用欄位 + Google Drive 雲端儲存 + 設定頁" || echo "nothing to commit"
+          git push
+      - name: Self-delete workflow
+        run: |
+          set -e
+          git rm -f .github/workflows/import-site.yml
+          git commit -m "chore: remove one-off import workflow"
+          git push

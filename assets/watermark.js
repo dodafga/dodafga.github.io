@@ -9,18 +9,35 @@
  *   - 字高：約 3.5% 圖高（cap height），文字總寬約 16.7% 圖寬
  *
  * 功能：
- *   - detectExisting()：偵測相片是否已有相機 App 壓的日期時間戳，避免重複壓
- *   - render()：把浮水印壓進 canvas（實際輸出 JPEG 會帶浮水印）
+ *   - detectExisting()：偵測照片是否已有相機 App 壓的日期時間戳，避免重複壓
+ *   - render()：把浮水印壓進 canvas
  *   - toBlob()：輸出 JPEG（預覽用）
  *   - toPng()：輸出 PNG（上傳到 Google Drive 用，無損）
+ *   - previewDataURL()：直接以預覽尺寸繪製（不再先算 2000px 再縮小）
+ *
+ * 本版效能重點：
+ *   1. previewDataURL 直接以 720px 繪製 —— 原本先 render 2000px 再縮成 720px，
+ *      等於每張預覽都做了 7.7 倍的多餘像素運算（手機上非常明顯）。
+ *   2. 連通元件與字元分群加上上限，避免雜訊多的照片讓 BFS／O(n²) 分群爆掉。
+ *   3. 偵測用的 canvas 用完即釋放（寬高歸零），避免 Safari 保留大塊記憶體。
  *
  * 瀏覽器：window.PhotoWatermark
  */
 (function (global) {
   'use strict';
 
+  var CORE = global.Core || null;
+
   var COLOR = '#FF7505';
   var FONT_STACK = '"Arial Black","Helvetica Neue",Arial,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+
+  var LIMITS = (CORE && CORE.LIMITS) || {};
+  var MAX_EDGE_DEFAULT = LIMITS.MAX_EDGE || 2000;
+  var PREVIEW_EDGE = LIMITS.PREVIEW_EDGE || 720;
+  var PREVIEW_QUALITY = LIMITS.JPEG_QUALITY || 0.88;
+  var DETECT_WIDTH = LIMITS.DETECT_WIDTH || 480;
+  var DETECT_MAX_GLYPHS = LIMITS.DETECT_MAX_GLYPHS || 400;
+  var DETECT_MAX_COMPONENTS = LIMITS.DETECT_MAX_COMPONENTS || 4000;
 
   /* 樣式比例（依參考圖量測） */
   var RATIO = {
@@ -36,7 +53,12 @@
   function loadImageFromBlob(blob) {
     if (global.createImageBitmap) {
       return global.createImageBitmap(blob).then(function (bmp) {
-        return { el: bmp, width: bmp.width, height: bmp.height, release: function () { try { bmp.close(); } catch (e) {} } };
+        return {
+          el: bmp,
+          width: bmp.width,
+          height: bmp.height,
+          release: function () { try { bmp.close(); } catch (e) {} }
+        };
       }).catch(function () { return loadViaObjectURL(blob); });
     }
     return loadViaObjectURL(blob);
@@ -65,24 +87,11 @@
   /* ---------------- 既有浮水印偵測 ---------------- */
 
   /**
-   * 偵測相片底部是否已有日期時間戳（相機 App 常見：橘黃色或白色文字 + 深色描邊）。
+   * 偵測照片底部是否已有日期時間戳（相機 App 常見：橘黃色或白色文字 + 深色描邊）。
    * 回傳 { found:boolean, reason:string, box:{x,y,w,h}|null }
-   *
-   * 演算法（在縮小到寬 480px 的畫布上做，速度快）：
-   *   1. 只掃描畫面下方 28% 帶狀區域
-   *   2. 建立「文字樣」遮罩：高飽和暖色（橘／黃）或近白
-   *   3. 連通元件分析，取出「字元大小」的元件
-   *   4. 依基線（底部 y）與字高把字元分群，要求：
-   *        - 同群至少 5 個字元（日期時間戳一定有 5 個以上字元）
-   *        - 字高一致（差異 ≤ 30%）
-   *        - 字元間距緊密（無大缺口）
-   *        - 整串寬度 7%~55% 圖寬
-   *        - 位於畫面下方 25% 內
-   *   5. 符合即判定「已有時間戳」，不再重複壓浮水印
    */
   function detectExisting(img) {
-    var MAXW = 480;
-    var scale = Math.min(1, MAXW / Math.max(1, img.width));
+    var scale = Math.min(1, DETECT_WIDTH / Math.max(1, img.width));
     var w = Math.max(1, Math.round(img.width * scale));
     var h = Math.max(1, Math.round(img.height * scale));
 
@@ -94,7 +103,13 @@
 
     var data;
     try { data = ctx.getImageData(0, 0, w, h).data; }
-    catch (e) { return { found: false, reason: 'no-data', box: null }; }
+    catch (e) {
+      /* 跨網域圖片會讓 getImageData 丟錯；釋放畫布後回報無法偵測 */
+      cv.width = 0; cv.height = 0;
+      return { found: false, reason: 'no-data', box: null };
+    }
+    /* 資料已取出，畫布可以立刻釋放（Safari 對大 canvas 很敏感） */
+    cv.width = 0; cv.height = 0;
 
     var y0 = Math.floor(h * 0.72);
     var sh = h - y0;
@@ -119,7 +134,9 @@
     var seen = new Uint8Array(w * sh);
     var comps = [];
     var stack = new Int32Array(w * sh);
-    for (var sy = 0; sy < sh; sy++) {
+    var overflow = false;
+
+    for (var sy = 0; sy < sh && !overflow; sy++) {
       for (var sx = 0; sx < w; sx++) {
         var si = sy * w + sx;
         if (!mask[si] || seen[si]) continue;
@@ -144,6 +161,8 @@
           }
         }
         comps.push({ x0: minX, y0: minY, x1: maxX, y1: maxY, area: area });
+        /* 保護：雜訊極多的照片（例如樹葉、碎石）會產生上萬個元件 */
+        if (comps.length >= DETECT_MAX_COMPONENTS) { overflow = true; break; }
       }
     }
 
@@ -159,6 +178,7 @@
       if (cw > maxCw) continue;
       if (c.area < 6) continue;
       glyphs.push({ x0: c.x0, y0: c.y0, x1: c.x1, y1: c.y1, cw: cw, ch: ch });
+      if (glyphs.length >= DETECT_MAX_GLYPHS) break;
     }
     if (glyphs.length < 5) return { found: false, reason: 'few-glyphs', box: null };
 
@@ -191,8 +211,11 @@
       if (maxGap > Math.round(w * 0.08)) continue;
 
       /* 字高必須一致 */
-      var hs = grp.map(function (q) { return q.ch; });
-      var hMin = Math.min.apply(null, hs), hMax = Math.max.apply(null, hs);
+      var hMin = grp[0].ch, hMax = grp[0].ch;
+      for (var gh = 1; gh < grp.length; gh++) {
+        if (grp[gh].ch < hMin) hMin = grp[gh].ch;
+        if (grp[gh].ch > hMax) hMax = grp[gh].ch;
+      }
       if ((hMax - hMin) > Math.max(2, Math.round(hMax * 0.30))) continue;
 
       /* 必須位於畫面下方 25% 內 */
@@ -260,13 +283,13 @@
   /* ---------------- 主流程 ---------------- */
 
   /**
-   * 把相片畫到 canvas（可同時縮圖），必要時壓上浮水印。
+   * 把照片畫到 canvas（可同時縮圖），必要時壓上浮水印。
    * opts: { maxEdge:2000, date:'YYYY-MM-DD', watermark:true, detect:true }
    * 回傳 { canvas, width, height, applied, detected, box }
    */
   function render(img, opts) {
     opts = opts || {};
-    var maxEdge = opts.maxEdge || 2000;
+    var maxEdge = opts.maxEdge || MAX_EDGE_DEFAULT;
     var w0 = img.width, h0 = img.height;
     if (!w0 || !h0) throw new Error('圖片尺寸無效');
 
@@ -306,15 +329,12 @@
         canvas.toBlob(function (b) {
           if (b) resolve(b);
           else reject(new Error('影像輸出失敗'));
-        }, 'image/jpeg', quality == null ? 0.88 : quality);
+        }, 'image/jpeg', quality == null ? PREVIEW_QUALITY : quality);
       } catch (e) { reject(e); }
     });
   }
 
-  /**
-   * 輸出 PNG（無損）。上傳到 Google Drive 的相片一律用這個，
-   * 浮水印已畫在 canvas 上，因此 PNG 檔本身就帶浮水印。
-   */
+  /** 輸出 PNG（無損）。上傳到 Google Drive 的照片一律用這個。 */
   function toPng(canvas) {
     return new Promise(function (resolve, reject) {
       try {
@@ -327,23 +347,21 @@
   }
 
   /**
-   * 產生預覽用 dataURL（小圖，僅供畫面顯示）
+   * 產生預覽用 dataURL。
+   * 直接以預覽尺寸（720px）繪製 —— 不再先算 2000px 再縮小。
+   * 浮水印比例是相對短邊計算，因此縮小後外觀與實際輸出完全一致。
    */
   function previewDataURL(img, opts) {
-    var r = render(img, opts);
-    var maxPrev = 720;
-    var s = Math.min(1, maxPrev / Math.max(r.width, r.height));
-    var out = r.canvas;
-    if (s < 1) {
-      var c2 = document.createElement('canvas');
-      c2.width = Math.max(1, Math.round(r.width * s));
-      c2.height = Math.max(1, Math.round(r.height * s));
-      var x2 = c2.getContext('2d');
-      x2.drawImage(r.canvas, 0, 0, c2.width, c2.height);
-      out = c2;
-    }
+    opts = opts || {};
+    var previewOpts = {
+      maxEdge: Math.min(opts.maxEdge || MAX_EDGE_DEFAULT, PREVIEW_EDGE),
+      date: opts.date,
+      watermark: opts.watermark,
+      detect: opts.detect
+    };
+    var r = render(img, previewOpts);
     return {
-      url: out.toDataURL('image/jpeg', 0.82),
+      url: r.canvas.toDataURL('image/jpeg', PREVIEW_QUALITY),
       applied: r.applied,
       detected: r.detected,
       width: r.width,

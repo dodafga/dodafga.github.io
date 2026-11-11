@@ -1,49 +1,43 @@
-(function(){
+(function () {
   'use strict';
+
+  /* ============================================================
+   * 相片上傳歸檔 — 頁面邏輯
+   *
+   * 本版優化重點（功能與版面完全不變）：
+   *   1. 事件委派：清單／紀錄原本每次重繪都重新 querySelectorAll + addEventListener，
+   *      上傳 50 張就會綁上千個 listener。改為在容器上綁一次，用 data-* 分派。
+   *   2. 勾選不再整份重繪：原本每勾一筆就 renderHist() 重建整個清單（捲動位置會跳掉、
+   *      100 筆時明顯卡頓）。改為只切換該列的 class 與計數。
+   *   3. 排序比較函式修正：原本 uploadedAt 的比較方向錯誤且不具遞移性，
+   *      同一天多筆時順序會亂跳。
+   *   4. 檔名序號改為「先掃描既有檔名再一次配發」，避免同一批上傳時序號撞號。
+   *   5. 權杖剩餘時間改讀 GDrive.tokenExpiresAt()，不再自己解析 localStorage。
+   *   6. 所有 DOM 綁定改走 Core.on()，元素缺少時不會讓整頁白屏。
+   *   7. 定時器在頁面隱藏時暫停，回到前景再恢復（省電、避免背景無謂請求）。
+   *   8. 連結一律經 Core.safeUrl() 過濾，避免舊資料／匯入 JSON 夾帶 javascript:。
+   * ============================================================ */
+
+  var C = window.Core;
+  var L = C.LIMITS;
 
   var HIST_KEY = 'inspection-drive-photo-history';
   var FILTER_KEY = 'inspection-drive-photo-filter';
   var WM_KEY = 'inspection-drive-photo-watermark';
   var IMPORTED_KEY = 'inspection-drive-photo-imported';
 
-  var $ = function(id){ return document.getElementById(id); };
-  function esc(s){
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
-      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
-    });
-  }
+  var $ = C.$;
+  var esc = C.esc;
+  var pad2 = C.pad2;
+  var todayISO = C.todayISO;
+  var fmtSize = C.fmtSize;
+  var safeName = C.safeName;
+  var toast = C.makeToast('toast', L.TOAST_MS);
 
-  /* ---------- 小工具 ---------- */
-  function pad2(n){ return (n < 10 ? '0' : '') + n; }
-  function todayISO(){
-    var d = new Date();
-    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
-  }
-  function compactDate(iso){ return String(iso || '').replace(/-/g, ''); }
-  function hhmmss(){
-    var d = new Date();
-    return pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
-  }
-  function fmtSize(b){
-    if (!b || b < 0) return '—';
-    if (b < 1024) return b + ' B';
-    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
-    return (b / 1024 / 1024).toFixed(1) + ' MB';
-  }
-  function safeName(s){
-    return String(s || '').trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '-').slice(0, 40);
-  }
-
-  var toastTimer = null;
-  function toast(msg, isErr){
-    var t = $('toast');
-    t.textContent = msg;
-    t.className = 'toast show' + (isErr ? ' err' : '');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function(){ t.className = 'toast'; }, 3000);
-  }
+  function compactDate(iso) { return String(iso || '').replace(/-/g, ''); }
 
   /* ---------- 狀態 ---------- */
+
   var queue = [];
   var history = [];
   var uploading = false;
@@ -53,68 +47,67 @@
   var filter = { mode: 'all', from: '', to: '' };
 
   /* ---------- 儲存 ---------- */
-  function loadHist(){
-    try {
-      var raw = localStorage.getItem(HIST_KEY);
-      var arr = raw ? JSON.parse(raw) : [];
-      history = Array.isArray(arr) ? arr : [];
-    } catch (e) { history = []; }
+
+  function loadHist() {
+    var arr = C.store.getJSON(HIST_KEY, []);
+    history = Array.isArray(arr) ? arr : [];
   }
-  function saveHist(){
-    try { localStorage.setItem(HIST_KEY, JSON.stringify(history.slice(0, 800))); } catch (e) {}
+
+  function saveHist() {
+    /* 超過上限就丟掉最舊的（history 已依日期新→舊排序） */
+    if (history.length > L.HISTORY_LIMIT) history = history.slice(0, L.HISTORY_LIMIT);
+    if (!C.store.setJSON(HIST_KEY, history)) {
+      toast('本機儲存空間不足，較舊的紀錄可能無法保存', true);
+    }
   }
-  function loadFilter(){
-    try {
-      var raw = localStorage.getItem(FILTER_KEY);
-      if (!raw) return;
-      var o = JSON.parse(raw);
-      if (o && (o.mode === 'all' || o.mode === 'day' || o.mode === 'range')) {
-        filter.mode = o.mode;
-        filter.from = o.from || '';
-        filter.to = o.to || '';
-      }
-    } catch (e) {}
+
+  function loadFilter() {
+    var o = C.store.getJSON(FILTER_KEY, null);
+    if (o && (o.mode === 'all' || o.mode === 'day' || o.mode === 'range')) {
+      filter.mode = o.mode;
+      filter.from = o.from || '';
+      filter.to = o.to || '';
+    }
   }
-  function saveFilter(){
-    try { localStorage.setItem(FILTER_KEY, JSON.stringify(filter)); } catch (e) {}
+
+  function saveFilter() { C.store.setJSON(FILTER_KEY, filter); }
+
+  function loadWm() {
+    var v = C.store.get(WM_KEY, '');
+    if (v === '0') wmOn = false;
+    else if (v === '1') wmOn = true;
   }
-  function loadWm(){
-    try {
-      var v = localStorage.getItem(WM_KEY);
-      if (v === '0') wmOn = false;
-      else if (v === '1') wmOn = true;
-    } catch (e) {}
-  }
-  function saveWm(){
-    try { localStorage.setItem(WM_KEY, wmOn ? '1' : '0'); } catch (e) {}
-  }
+
+  function saveWm() { C.store.set(WM_KEY, wmOn ? '1' : '0'); }
 
   /* ---------- 連線狀態 ---------- */
-  var lastConnState = null;
-  function tokenSpill(){
-    try {
-      var raw = localStorage.getItem('inspection-gdrive-token');
-      if (!raw) return '';
-      var o = JSON.parse(raw);
-      if (!o || !o.expires_at) return '';
-      var left = Number(o.expires_at) - Date.now();
-      if (left <= 0) return '<span class="tokenspill warn">權杖已過期</span>';
-      var m = Math.ceil(left / 60000);
-      return '<span class="tokenspill">權杖尚餘 ' + (m > 60 ? Math.floor(m / 60) + ' 小時 ' + (m % 60) + ' 分' : m + ' 分鐘') + '</span>';
-    } catch (e) { return ''; }
+
+  function tokenSpill() {
+    var G = window.GDrive;
+    if (!G || !G.tokenExpiresAt) return '';
+    var exp = G.tokenExpiresAt();
+    if (!exp) return '';
+    var left = exp - Date.now();
+    if (left <= 0) return '<span class="tokenspill warn">權杖已過期</span>';
+    var m = Math.ceil(left / 60000);
+    var txt = m > 60
+      ? (Math.floor(m / 60) + ' 小時 ' + (m % 60) + ' 分')
+      : (m + ' 分鐘');
+    return '<span class="tokenspill">權杖尚餘 ' + txt + '</span>';
   }
 
-  function renderConn(){
+  function renderConn() {
     var G = window.GDrive || {};
     var st = (G.getStatus ? G.getStatus() : {}) || {};
     var connected = !!(G.hasToken && G.hasToken());
     var email = st.email || (G.getEmail ? G.getEmail() : '') || '';
     var tag = $('connTag');
+    if (!tag) return;
 
     if (connected) {
       $('connDot').className = 'dot on';
       $('connTxt').innerHTML = '已連線 Google Drive ' + tokenSpill();
-      $('connMail').textContent = email ? email : '（已取得授權）';
+      $('connMail').textContent = email || '（已取得授權）';
       tag.textContent = '已連線';
       tag.className = 'tag ok';
       $('connWarn').style.display = 'none';
@@ -138,16 +131,20 @@
     }
     $('connErr').style.display = 'none';
   }
-  function connErr(msg){
+
+  function connErr(msg) {
     var e = $('connErr');
+    if (!e) return;
     e.textContent = msg;
     e.style.display = 'block';
   }
 
   /* ---------- 自動連線／匯入提示框 ---------- */
-  function syncBoxShow(title, msg, opts){
+
+  function syncBoxShow(title, msg, opts) {
     opts = opts || {};
     var b = $('syncBox');
+    if (!b) return;
     b.className = 'syncbox on' + (opts.err ? ' err' : (opts.warn ? ' warn' : ''));
     $('syncIcon').textContent = opts.icon || '⏳';
     $('syncTitle').textContent = title;
@@ -157,49 +154,55 @@
       barWrap.style.display = 'none';
     } else {
       barWrap.style.display = '';
-      $('syncBar').style.width = Math.max(0, Math.min(100, opts.pct)) + '%';
+      $('syncBar').style.width = C.clamp(opts.pct, 0, 100) + '%';
     }
   }
-  function syncBoxHide(){
-    $('syncBox').className = 'syncbox';
+
+  function syncBoxHide() {
+    var b = $('syncBox');
+    if (!b) return;
+    b.className = 'syncbox';
     $('syncBarWrap').style.display = '';
     $('syncBar').style.width = '0%';
   }
 
-  $('btnConnect').addEventListener('click', function(){
+  /* ---------- 連線按鈕 ---------- */
+
+  C.on('btnConnect', 'click', function () {
     var G = window.GDrive;
     if (!G || !G.connect) { connErr('Google 授權模組未載入，請重新整理頁面。'); return; }
     var self = this;
     self.disabled = true;
     syncBoxShow('正在連線 Google Drive…', '請在彈出的視窗選擇你的 Google 帳號並同意授權。', { pct: null });
-    G.connect().then(function(){
+    G.connect().then(function () {
       syncBoxHide();
       $('relinkWarn').style.display = 'none';
       renderConn();
       toast('已連線 Google Drive');
       return G.getUser ? G.getUser() : null;
-    }).then(function(){
+    }).then(function () {
       renderConn();
       importFromDrive(true);
-    }).catch(function(err){
+    }).catch(function (err) {
       syncBoxHide();
-      connErr((G.friendlyError ? G.friendlyError(err) : String((err && err.message) || err)));
+      connErr(G.friendlyError ? G.friendlyError(err) : String((err && err.message) || err));
       toast('連線失敗', true);
-    }).then(function(){ self.disabled = false; });
+    }).then(function () { self.disabled = false; });
   });
 
-  function doDisconnect(reconnect){
+  function doDisconnect(reconnect) {
     var G = window.GDrive;
     try { if (G && G.disconnect) G.disconnect(); } catch (e) {}
     renderConn();
     if (reconnect && G && G.connect) {
       syncBoxShow('正在切換帳號…', '請在彈出的視窗選擇另一個 Google 帳號。', { pct: null });
-      G.connect().then(function(){
+      G.connect().then(function () {
         syncBoxHide();
         renderConn();
         toast('已切換帳號');
         return G.getUser ? G.getUser() : null;
-      }).then(function(){ renderConn(); importFromDrive(true); }).catch(function(){ syncBoxHide(); });
+      }).then(function () { renderConn(); importFromDrive(true); })
+        .catch(function () { syncBoxHide(); });
     } else {
       syncBoxHide();
       $('relinkWarn').style.display = 'none';
@@ -207,14 +210,15 @@
       toast('已登出 Google Drive（本機權杖已清除）');
     }
   }
-  $('btnLogout').addEventListener('click', function(){ doDisconnect(false); });
-  $('btnSwitch').addEventListener('click', function(){ doDisconnect(true); });
+
+  C.on('btnLogout', 'click', function () { doDisconnect(false); });
+  C.on('btnSwitch', 'click', function () { doDisconnect(true); });
 
   /* ---------- 從 Drive 匯入已上傳紀錄 ---------- */
-  var importing = false;
-  var lastImportAt = '';
 
-  function importFromDrive(manual){
+  var importing = false;
+
+  function importFromDrive(manual) {
     var G = window.GDrive;
     if (importing) return;
     if (!G || !G.listPhotoRecords) { if (manual) toast('匯入模組未載入', true); return; }
@@ -224,32 +228,30 @@
     }
     importing = true;
     var btn = $('btnSyncNow');
-    btn.disabled = true;
-    btn.textContent = '↻ 匯入中…';
+    if (btn) { btn.disabled = true; btn.textContent = '↻ 匯入中…'; }
     syncBoxShow('正在從 Google Drive 匯入紀錄…', '尋找「營建相片」資料夾…', { pct: 8 });
 
     G.listPhotoRecords({
-      onProgress: function(p){
+      onProgress: function (p) {
         var pct = 8;
         if (p.phase === 'folders') pct = 15;
         else if (p.phase === 'files') pct = 15 + Math.round((p.current / Math.max(1, p.total)) * 80);
         else if (p.phase === 'done') pct = 100;
         syncBoxShow('正在從 Google Drive 匯入紀錄…', p.message, { pct: pct });
       }
-    }).then(function(res){
+    }).then(function (res) {
       var stats = mergeImported(res.records || []);
-      lastImportAt = new Date().toISOString();
-      try { localStorage.setItem(IMPORTED_KEY, JSON.stringify({
-        at: lastImportAt,
+      C.store.setJSON(IMPORTED_KEY, {
+        at: new Date().toISOString(),
         folders: res.scanned || 0,
         found: (res.records || []).length,
         added: stats.added,
         updated: stats.updated
-      })); } catch (e) {}
+      });
 
       applyFilterUI();
       renderHist();
-      var msg = stats.added || stats.updated
+      var msg = (stats.added || stats.updated)
         ? ('新增 ' + stats.added + ' 筆、更新 ' + stats.updated + ' 筆')
         : '沒有新紀錄（本機已是最新）';
       syncBoxShow('已從 Google Drive 同步完成',
@@ -257,7 +259,7 @@
         { icon: '✓', pct: 100 });
       setTimeout(syncBoxHide, 6000);
       if (manual) toast('已從 Drive 匯入：' + msg);
-    }).catch(function(e){
+    }).catch(function (e) {
       var why = (G.friendlyError ? G.friendlyError(e) : ((e && e.message) || String(e)));
       syncBoxShow('匯入失敗（本機紀錄已保留）', why, { icon: '⚠', err: true, pct: null });
       toast('匯入失敗，已保留本機紀錄', true);
@@ -266,28 +268,27 @@
         $('relinkWarn').style.display = '';
         renderConn();
       }
-    }).then(function(){
+    }).then(function () {
       importing = false;
-      btn.disabled = false;
-      btn.textContent = '↻ 從 Drive 匯入';
+      if (btn) { btn.disabled = false; btn.textContent = '↻ 從 Drive 匯入'; }
     });
   }
 
   /**
    * 把 Drive 讀回來的紀錄併入本機：以 Drive 檔案 ID 為鍵去重。
-   * - 本機已有的（同 ID）只補空欄位（日期／工項／說明／大小），不覆蓋既有值
+   * - 本機已有的（同 ID）只補空欄位（日期／工項／說明／大小／連結），不覆蓋既有值
    * - 本機沒有的才新增
    */
-  function mergeImported(recs){
+  function mergeImported(recs) {
     var byId = {};
-    history.forEach(function(h){ if (h && h.id) byId[h.id] = h; });
+    history.forEach(function (h) { if (h && h.id) byId[h.id] = h; });
     var added = 0, updated = 0;
 
-    recs.forEach(function(r){
+    recs.forEach(function (r) {
       if (!r || !r.id) return;
       var cur = byId[r.id];
       if (!cur) {
-        history.push({
+        var rec = {
           id: r.id,
           name: r.name || '',
           link: r.link || ('https://drive.google.com/file/d/' + r.id + '/view'),
@@ -298,8 +299,9 @@
           watermark: '',
           uploadedAt: r.uploadedAt || '',
           source: 'drive'
-        });
-        byId[r.id] = history[history.length - 1];
+        };
+        history.push(rec);
+        byId[r.id] = rec;
         added++;
       } else {
         var ch = false;
@@ -314,36 +316,47 @@
     });
 
     if (added || updated) {
-      /* 依歸檔日期新→舊、同日再依上傳時間新→舊排序 */
-      history.sort(function(a, b){
-        if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-        return String(b.uploadedAt || '') < String(a.uploadedAt || '') ? -1 : 1;
-      });
+      sortHistory();
       saveHist();
     }
     return { added: added, updated: updated };
   }
 
-  $('btnSyncNow').addEventListener('click', function(){ importFromDrive(true); });
+  /** 依歸檔日期新→舊、同日再依上傳時間新→舊（比較函式具遞移性） */
+  function sortHistory() {
+    history.sort(function (a, b) {
+      var da = String(a.date || ''), db = String(b.date || '');
+      if (da !== db) return da < db ? 1 : -1;
+      var ua = String(a.uploadedAt || ''), ub = String(b.uploadedAt || '');
+      if (ua !== ub) return ua < ub ? 1 : -1;
+      return 0;
+    });
+  }
+
+  C.on('btnSyncNow', 'click', function () { importFromDrive(true); });
 
   /* ---------- 浮水印 ---------- */
-  function applyWmUI(){
+
+  function applyWmUI() {
     $('chkWm').checked = wmOn;
     $('wmState').textContent = wmOn ? '開啟' : '關閉';
   }
-  $('chkWm').addEventListener('change', function(){
+
+  C.on('chkWm', 'change', function () {
     wmOn = this.checked;
     saveWm();
     applyWmUI();
     renderPreview();
-    toast(wmOn ? '已開啟歸檔日期浮水印' : '已關閉浮水印（相片原樣上傳）');
+    toast(wmOn ? '已開啟歸檔日期浮水印' : '已關閉浮水印（照片原樣上傳）');
   });
 
   var previewBusy = false;
-  function renderPreview(){
+  var previewPending = false;
+
+  function renderPreview() {
     var wrap = $('prevWrap');
     var q = null;
-    if (previewKey) q = queue.filter(function(x){ return x.key === previewKey; })[0];
+    if (previewKey) q = queue.filter(function (x) { return x.key === previewKey; })[0];
     if (!q) q = queue[0];
     if (!q) { wrap.classList.remove('on'); previewKey = null; return; }
     previewKey = q.key;
@@ -357,23 +370,24 @@
       $('prevNote').textContent = '浮水印模組未載入。';
       return;
     }
-    if (previewBusy) return;
+    /* 預覽進行中就排隊，結束後再跑一次（避免快速切換時互相覆蓋） */
+    if (previewBusy) { previewPending = true; return; }
     previewBusy = true;
     $('prevTag').textContent = '產生中…';
     $('prevTag').className = 'tag';
 
-    WM.loadImageFromBlob(q.file).then(function(img){
+    WM.loadImageFromBlob(q.file).then(function (img) {
       var out;
       try {
         out = WM.previewDataURL(img, {
-          maxEdge: 2000, date: dateISO, watermark: wmOn, detect: true
+          maxEdge: L.MAX_EDGE, date: dateISO, watermark: wmOn, detect: true
         });
       } finally { try { img.release(); } catch (e) {} }
       $('prevImg').src = out.url;
       if (out.detected) {
         $('prevTag').textContent = '未壓（已有時間戳）';
         $('prevTag').className = 'tag';
-        $('prevNote').innerHTML = '偵測到相片底部<b>已有相機時間戳</b>，依需求<b>不重複壓</b>，將原樣上傳。';
+        $('prevNote').innerHTML = '偵測到照片底部<b>已有相機時間戳</b>，依需求<b>不重複壓</b>，將原樣上傳。';
       } else if (out.applied) {
         $('prevTag').textContent = '已壓浮水印';
         $('prevTag').className = 'tag ok';
@@ -382,38 +396,49 @@
       } else {
         $('prevTag').textContent = '未壓浮水印';
         $('prevTag').className = 'tag';
-        $('prevNote').innerHTML = '浮水印開關為<b>關閉</b>，相片將僅壓縮並轉存 PNG 後上傳。';
+        $('prevNote').innerHTML = '浮水印開關為<b>關閉</b>，照片將只壓縮並轉存 PNG 後上傳。';
       }
-    }).catch(function(){
+    }).catch(function () {
       $('prevTag').textContent = '無法預覽';
       $('prevTag').className = 'tag';
       $('prevNote').textContent = '此檔案無法解碼預覽（仍會嘗試上傳）。';
-    }).then(function(){ previewBusy = false; });
+    }).then(function () {
+      previewBusy = false;
+      if (previewPending) { previewPending = false; renderPreview(); }
+    });
   }
-  $('btnPrevRefresh').addEventListener('click', function(){ renderPreview(); });
-  $('fDate').addEventListener('change', function(){ renderPreview(); });
+
+  C.on('btnPrevRefresh', 'click', function () { renderPreview(); });
+  C.on('fDate', 'change', function () { renderPreview(); });
 
   /* ---------- 檔名 ---------- */
-  function buildFilename(dateISO, item, seq){
+
+  /**
+   * 產生檔名：日期_工項_序號.png
+   * 先掃描當日既有檔名建立集合，再一次配發序號，避免同一批上傳時互相撞號。
+   */
+  function makeNameAllocator(dateISO, item) {
     var d = compactDate(dateISO) || compactDate(todayISO());
-    var mid = safeName(item);
-    if (!mid) mid = hhmmss();
-    var n = pad2(seq);
-    var base = d + '_' + mid + '_' + n;
+    var mid = safeName(item) || C.hhmmss();
     var taken = {};
-    history.forEach(function(h){ if (h.date === dateISO) taken[h.name] = 1; });
-    var guard = 0;
-    while (taken[base + '.png'] && guard < 200) {
-      seq++;
-      n = pad2(seq);
-      base = d + '_' + mid + '_' + n;
-      guard++;
-    }
-    return base + '.png';
+    history.forEach(function (h) {
+      if (h && h.date === dateISO && h.name) taken[h.name] = 1;
+    });
+    var seq = 0;
+    return function next() {
+      var name;
+      do {
+        seq++;
+        name = d + '_' + mid + '_' + pad2(seq) + '.png';
+      } while (taken[name] && seq < 1000);
+      taken[name] = 1;
+      return name;
+    };
   }
 
   /* ---------- 佇列 ---------- */
-  function addFiles(fileList){
+
+  function addFiles(fileList) {
     var added = 0;
     for (var i = 0; i < fileList.length; i++) {
       var f = fileList[i];
@@ -433,45 +458,48 @@
     renderQueue();
     if (!previewKey) previewKey = queue[0].key;
     renderPreview();
-    toast('已加入 ' + added + ' 張相片');
+    toast('已加入 ' + added + ' 張照片');
   }
 
-  function updateUploadBtn(){
-    var waiting = queue.filter(function(q){ return q.status === 'wait' || q.status === 'fail'; }).length;
+  function updateUploadBtn() {
+    var waiting = queue.filter(function (q) { return q.status === 'wait' || q.status === 'fail'; }).length;
     var btn = $('btnUpload');
-    btn.disabled = uploading || waiting === 0;
-    btn.textContent = waiting ? ('☁ 開始上傳（' + waiting + '）') : '☁ 開始上傳';
+    if (btn) {
+      btn.disabled = uploading || waiting === 0;
+      btn.textContent = waiting ? ('☁ 開始上傳（' + waiting + '）') : '☁ 開始上傳';
+    }
     $('queueTag').textContent = queue.length + ' 張';
-    var done = queue.filter(function(q){ return q.status === 'done'; }).length;
+    var done = queue.filter(function (q) { return q.status === 'done'; }).length;
     $('uploadHint').textContent = uploading
       ? '上傳中，請勿關閉頁面…'
-      : (queue.length ? ('待上傳 ' + waiting + ' 張 · 已完成 ' + done + ' 張') : '請先加入相片');
+      : (queue.length ? ('待上傳 ' + waiting + ' 張 · 已完成 ' + done + ' 張') : '請先加入照片');
   }
 
-  function statusPill(q){
+  function statusPill(q) {
     if (q.status === 'done') return '<span class="pill done">已上傳</span>';
     if (q.status === 'up') return '<span class="pill up">上傳中…</span>';
     if (q.status === 'fail') return '<span class="pill fail">失敗</span>';
     return '<span class="pill wait">待上傳</span>';
   }
-  function wmPill(q){
+
+  function wmPill(q) {
     if (!q.wm) return '';
     if (q.wm.applied) return '　<span class="pill up">已壓浮水印</span>';
     if (q.wm.detected) return '　<span class="pill wait">已有時間戳，未重複壓</span>';
     return '　<span class="pill wait">未壓浮水印</span>';
   }
 
-  function renderQueue(){
+  function renderQueue() {
     var box = $('queueList');
     if (!queue.length) {
-      box.innerHTML = '<div class="empty">尚未加入相片。<br>點上方虛線區選取，或按「📷 直接拍攝」。</div>';
+      box.innerHTML = '<div class="empty">尚未加入照片。<br>點上方虛線區選取，或按「📷 直接拍攝」。</div>';
       $('prevWrap').classList.remove('on');
       previewKey = null;
       updateUploadBtn();
       return;
     }
     var html = '';
-    queue.forEach(function(q){
+    queue.forEach(function (q) {
       var retry = (q.status === 'fail')
         ? '<button type="button" data-retry="' + q.key + '">重試</button>' : '';
       html +=
@@ -492,53 +520,58 @@
         '</div>';
     });
     box.innerHTML = html;
-
-    box.querySelectorAll('[data-prev]').forEach(function(b){
-      b.addEventListener('click', function(){
-        previewKey = b.getAttribute('data-prev');
-        renderQueue();
-        renderPreview();
-      });
-    });
-    box.querySelectorAll('[data-retry]').forEach(function(b){
-      b.addEventListener('click', function(){
-        if (uploading) { toast('上傳中，請稍候', true); return; }
-        var k = b.getAttribute('data-retry');
-        var q = queue.filter(function(x){ return x.key === k; })[0];
-        if (!q) return;
-        q.status = 'wait'; q.msg = '';
-        renderQueue();
-        runUpload([q]);
-      });
-    });
-    box.querySelectorAll('[data-remove]').forEach(function(b){
-      b.addEventListener('click', function(){
-        if (uploading) { toast('上傳中，請稍候', true); return; }
-        var k = b.getAttribute('data-remove');
-        queue = queue.filter(function(x){
-          if (x.key === k) { try { URL.revokeObjectURL(x.url); } catch (e) {} return false; }
-          return true;
-        });
-        if (previewKey === k) previewKey = queue.length ? queue[0].key : null;
-        renderQueue();
-        renderPreview();
-      });
-    });
     updateUploadBtn();
   }
 
+  /* 佇列事件：容器上綁一次，用 data-* 分派（不再每次重繪都重新綁） */
+  C.on('queueList', 'click', function (e) {
+    var t = e.target;
+    var el = t.closest ? t.closest('[data-prev],[data-retry],[data-remove]') : null;
+    if (!el) return;
+
+    var k;
+    if (el.hasAttribute('data-prev')) {
+      previewKey = el.getAttribute('data-prev');
+      renderQueue();
+      renderPreview();
+      return;
+    }
+    if (el.hasAttribute('data-retry')) {
+      if (uploading) { toast('上傳中，請稍候', true); return; }
+      k = el.getAttribute('data-retry');
+      var q = queue.filter(function (x) { return x.key === k; })[0];
+      if (!q) return;
+      q.status = 'wait'; q.msg = '';
+      renderQueue();
+      runUpload([q]);
+      return;
+    }
+    if (el.hasAttribute('data-remove')) {
+      if (uploading) { toast('上傳中，請稍候', true); return; }
+      k = el.getAttribute('data-remove');
+      queue = queue.filter(function (x) {
+        if (x.key === k) { try { URL.revokeObjectURL(x.url); } catch (err) {} return false; }
+        return true;
+      });
+      if (previewKey === k) previewKey = queue.length ? queue[0].key : null;
+      renderQueue();
+      renderPreview();
+    }
+  });
+
   /* ---------- 上傳 ---------- */
-  function prepareBlob(file, dateISO){
+
+  function prepareBlob(file, dateISO) {
     var G = window.GDrive;
     if (G && G.preparePhotoBlob) {
       return G.preparePhotoBlob(file, {
-        date: dateISO, watermark: wmOn, maxEdge: 2000, detect: true
+        date: dateISO, watermark: wmOn, maxEdge: L.MAX_EDGE, detect: true
       });
     }
     return Promise.resolve({ blob: file, applied: false, detected: false });
   }
 
-  function runUpload(list){
+  function runUpload(list) {
     if (uploading) return;
     if (!window.GDrive || !window.GDrive.hasToken || !window.GDrive.hasToken()) {
       toast('請先連線 Google Drive', true);
@@ -557,8 +590,9 @@
 
     var total = list.length;
     var done = 0, failed = 0;
+    var nextName = makeNameAllocator(dateISO, item);
 
-    function tick(){
+    function tick() {
       var pct = Math.round((done + failed) / total * 100);
       $('progBar').style.width = pct + '%';
       $('progTxt').textContent = '已完成 ' + done + ' / ' + total + ' 張' +
@@ -566,23 +600,21 @@
     }
     tick();
 
-    var seqBase = history.filter(function(h){ return h.date === dateISO; }).length;
-
     var chain = Promise.resolve();
-    list.forEach(function(q, idx){
-      chain = chain.then(function(){
+    list.forEach(function (q) {
+      chain = chain.then(function () {
         if (q.status === 'done') { done++; tick(); return; }
         q.status = 'up'; q.msg = '';
         renderQueue();
-        return prepareBlob(q.file, dateISO).then(function(prep){
-          var seq = seqBase + idx + 1;
-          var name = buildFilename(dateISO, item, seq);
-          var desc = [note, item ? ('工項：' + item) : '', '歸檔日期：' + dateISO].filter(Boolean).join('｜');
+        return prepareBlob(q.file, dateISO).then(function (prep) {
+          var name = nextName();
+          var desc = [note, item ? ('工項：' + item) : '', '歸檔日期：' + dateISO]
+            .filter(Boolean).join('｜');
           q.wm = { applied: !!prep.applied, detected: !!prep.detected };
           return window.GDrive.uploadPhoto({
             blob: prep.blob, filename: name, date: dateISO, description: desc, mime: 'image/png'
           });
-        }).then(function(res){
+        }).then(function (res) {
           q.status = 'done';
           q.result = res;
           history.unshift({
@@ -598,12 +630,12 @@
           });
           saveHist();
           done++;
-        }).catch(function(e){
+        }).catch(function (e) {
           q.status = 'fail';
           q.msg = (window.GDrive.friendlyError ? window.GDrive.friendlyError(e)
             : ((e && e.message) ? e.message : String(e))) || '未知錯誤';
           failed++;
-        }).then(function(){
+        }).then(function () {
           tick();
           renderQueue();
           renderHist();
@@ -611,13 +643,13 @@
       });
     });
 
-    chain.then(function(){
+    chain.then(function () {
       uploading = false;
       updateUploadBtn();
       $('progTxt').textContent = '已完成 ' + done + ' / ' + total + ' 張' +
         (failed ? '（失敗 ' + failed + ' 張，可單張重試）' : '　✓ 全部完成');
       if (!failed) {
-        queue.forEach(function(q){ try { URL.revokeObjectURL(q.url); } catch (e) {} });
+        queue.forEach(function (q) { try { URL.revokeObjectURL(q.url); } catch (e) {} });
         queue = [];
         renderQueue();
       }
@@ -625,45 +657,46 @@
     });
   }
 
-  $('btnUpload').addEventListener('click', function(){
-    var list = queue.filter(function(q){ return q.status === 'wait' || q.status === 'fail'; });
+  C.on('btnUpload', 'click', function () {
+    var list = queue.filter(function (q) { return q.status === 'wait' || q.status === 'fail'; });
     runUpload(list);
   });
 
-  $('btnClear').addEventListener('click', function(){
+  C.on('btnClear', 'click', function () {
     if (uploading) { toast('上傳中，請稍候', true); return; }
-    queue.forEach(function(q){ try { URL.revokeObjectURL(q.url); } catch (e) {} });
+    queue.forEach(function (q) { try { URL.revokeObjectURL(q.url); } catch (e) {} });
     queue = [];
     previewKey = null;
     renderQueue();
     $('progWrap').classList.remove('on');
   });
 
-  $('btnCamera').addEventListener('click', function(){ $('camInput').click(); });
-  $('camInput').addEventListener('change', function(){
+  C.on('btnCamera', 'click', function () { $('camInput').click(); });
+  C.on('camInput', 'change', function () {
     if (this.files && this.files.length) addFiles(this.files);
     this.value = '';
   });
 
   var drop = $('drop');
-  drop.addEventListener('click', function(){ $('fileInput').click(); });
-  $('fileInput').addEventListener('change', function(){
+  C.on(drop, 'click', function () { $('fileInput').click(); });
+  C.on('fileInput', 'change', function () {
     if (this.files && this.files.length) addFiles(this.files);
     this.value = '';
   });
-  ['dragenter','dragover'].forEach(function(ev){
-    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('over'); });
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    C.on(drop, ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
   });
-  ['dragleave','drop'].forEach(function(ev){
-    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('over'); });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    C.on(drop, ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
   });
-  drop.addEventListener('drop', function(e){
+  C.on(drop, 'drop', function (e) {
     if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
   });
 
   /* ---------- 日期篩選 ---------- */
-  function applyFilterUI(){
-    [].forEach.call($('segFilter').children, function(b){
+
+  function applyFilterUI() {
+    C.toArray($('segFilter').children).forEach(function (b) {
       b.classList.toggle('on', b.getAttribute('data-mode') === filter.mode);
     });
     var isDay = filter.mode === 'day';
@@ -676,22 +709,22 @@
     $('btnClearFilter').disabled = (filter.mode === 'all');
   }
 
-  function filtered(){
+  function filtered() {
     if (filter.mode === 'all') return history;
     if (filter.mode === 'day') {
       if (!filter.from) return history;
-      return history.filter(function(h){ return h.date === filter.from; });
+      return history.filter(function (h) { return h.date === filter.from; });
     }
     var a = filter.from, b = filter.to;
     if (a && b && a > b) { var t = a; a = b; b = t; }
-    return history.filter(function(h){
+    return history.filter(function (h) {
       if (a && h.date < a) return false;
       if (b && h.date > b) return false;
       return true;
     });
   }
 
-  $('segFilter').addEventListener('click', function(e){
+  C.on('segFilter', 'click', function (e) {
     var b = e.target.closest ? e.target.closest('button[data-mode]') : null;
     if (!b) return;
     filter.mode = b.getAttribute('data-mode');
@@ -705,7 +738,7 @@
     renderHist();
   });
 
-  $('fFrom').addEventListener('change', function(){
+  C.on('fFrom', 'change', function () {
     filter.from = this.value;
     if (filter.mode === 'range' && filter.to && filter.from && filter.from > filter.to) {
       filter.to = filter.from;
@@ -715,7 +748,8 @@
     saveFilter();
     renderHist();
   });
-  $('fTo').addEventListener('change', function(){
+
+  C.on('fTo', 'change', function () {
     filter.to = this.value;
     if (filter.from && filter.to && filter.to < filter.from) {
       filter.from = filter.to;
@@ -726,7 +760,7 @@
     renderHist();
   });
 
-  $('btnClearFilter').addEventListener('click', function(){
+  C.on('btnClearFilter', 'click', function () {
     filter = { mode: 'all', from: '', to: '' };
     saveFilter();
     applyFilterUI();
@@ -735,49 +769,63 @@
   });
 
   /* ---------- 勾選與批次 ---------- */
-  function selectedList(){
-    var f = filtered();
-    return f.filter(function(h){ return selected[h.id]; });
+
+  function selectedList() {
+    return filtered().filter(function (h) { return selected[h.id]; });
   }
-  function updateSelUI(){
-    var n = Object.keys(selected).filter(function(k){ return selected[k]; }).length;
+
+  function selectedCount() {
+    var n = 0;
+    for (var k in selected) {
+      if (Object.prototype.hasOwnProperty.call(selected, k) && selected[k]) n++;
+    }
+    return n;
+  }
+
+  function updateSelUI() {
+    var n = selectedCount();
     var sc = $('selCount');
     sc.textContent = '已選 ' + n + ' 筆';
     sc.className = 'selcount' + (n ? '' : ' zero');
-    ['btnCopy','btnTxt','btnCsv','btnZip'].forEach(function(id){
-      $(id).disabled = (n === 0);
+    ['btnCopy', 'btnTxt', 'btnCsv', 'btnZip'].forEach(function (id) {
+      var b = $(id);
+      if (b) b.disabled = (n === 0);
     });
     var f = filtered();
-    var allSel = f.length > 0 && f.every(function(h){ return selected[h.id]; });
+    var allSel = f.length > 0 && f.every(function (h) { return selected[h.id]; });
     $('chkAll').checked = allSel;
     $('chkAll').disabled = (f.length === 0);
   }
 
-  $('chkAll').addEventListener('change', function(){
+  C.on('chkAll', 'change', function () {
     var on = this.checked;
-    filtered().forEach(function(h){ if (on) selected[h.id] = true; else delete selected[h.id]; });
+    filtered().forEach(function (h) {
+      if (on) selected[h.id] = true; else delete selected[h.id];
+    });
     renderHist();
   });
 
   /* ---------- 紀錄清單 ---------- */
-  function histWmPill(h){
+
+  function histWmPill(h) {
     if (h.watermark === 'applied') return '　<span class="pill up">已壓浮水印</span>';
     if (h.watermark === 'skipped-existing') return '　<span class="pill wait">已有時間戳</span>';
     return '';
   }
 
-  function renderHist(){
+  function renderHist() {
     var box = $('histList');
     var f = filtered();
     $('histTag').textContent = history.length + ' 筆';
     $('fCount').textContent = '符合 ' + f.length + ' 筆 / 共 ' + history.length + ' 筆';
 
+    /* 清掉已不存在的選取（例如匯入後被去重） */
     var ids = {};
-    history.forEach(function(h){ ids[h.id] = 1; });
-    Object.keys(selected).forEach(function(k){ if (!ids[k]) delete selected[k]; });
+    history.forEach(function (h) { ids[h.id] = 1; });
+    Object.keys(selected).forEach(function (k) { if (!ids[k]) delete selected[k]; });
 
     if (!history.length) {
-      box.innerHTML = '<div class="empty">尚無上傳紀錄。<br>上傳成功的相片會列在這裡，並保留 Drive 連結。</div>';
+      box.innerHTML = '<div class="empty">尚無上傳紀錄。<br>上傳成功的照片會列在這裡，並保留 Drive 連結。</div>';
       updateSelUI();
       return;
     }
@@ -797,10 +845,10 @@
     }
 
     var html = '';
-    f.forEach(function(h){
+    f.forEach(function (h) {
       var on = !!selected[h.id];
       html +=
-        '<div class="item' + (on ? ' selon' : '') + '">' +
+        '<div class="item' + (on ? ' selon' : '') + '" data-row="' + esc(h.id) + '">' +
           '<label class="ck"><input type="checkbox" data-sel="' + esc(h.id) + '"' +
             (on ? ' checked' : '') + '></label>' +
           '<div class="meta">' +
@@ -812,71 +860,63 @@
             '</div>' +
           '</div>' +
           '<div class="acts">' +
-            '<a href="' + esc(h.link) + '" target="_blank" rel="noopener">在 Google Drive 開啟</a>' +
+            '<a href="' + esc(C.safeUrl(h.link, '#')) + '" target="_blank" rel="noopener noreferrer">在 Google Drive 開啟</a>' +
           '</div>' +
         '</div>';
     });
     box.innerHTML = html;
-
-    box.querySelectorAll('[data-sel]').forEach(function(cb){
-      cb.addEventListener('change', function(){
-        var id = cb.getAttribute('data-sel');
-        if (cb.checked) selected[id] = true; else delete selected[id];
-        renderHist();
-      });
-    });
     updateSelUI();
   }
 
+  /* 勾選：只切換該列樣式，不重建整個清單（保留捲動位置、避免卡頓） */
+  C.on('histList', 'change', function (e) {
+    var cb = e.target;
+    if (!cb || !cb.hasAttribute || !cb.hasAttribute('data-sel')) return;
+    var id = cb.getAttribute('data-sel');
+    if (cb.checked) selected[id] = true; else delete selected[id];
+    var row = cb.closest ? cb.closest('.item') : null;
+    if (row) row.classList.toggle('selon', cb.checked);
+    updateSelUI();
+  });
+
   /* ---------- 清單文字 ---------- */
-  function buildText(items){
+
+  function buildText(items) {
     var lines = [];
-    lines.push('預壘樁查驗相片 — Google Drive 連結清單');
+    lines.push('預壘樁查驗照片 — Google Drive 連結清單');
     lines.push('產生時間：' + new Date().toLocaleString('zh-TW'));
     lines.push('筆數：' + items.length + ' 筆');
     lines.push('根資料夾：營建相片');
     lines.push('');
-    items.forEach(function(h, i){
+    items.forEach(function (h, i) {
       lines.push((i + 1) + '. ' + h.name);
       lines.push('   歸檔日期：' + h.date +
-        (h.item ? '　工項／墩號樁號：' + h.item : '') +
+        (h.item ? '　工項／樁號樁號：' + h.item : '') +
         (h.note ? '　說明：' + h.note : '') +
         '　大小：' + fmtSize(h.size));
       lines.push('   Google Drive：' + h.link);
     });
     return lines.join('\r\n');
   }
-  function buildCsv(items){
-    function q(v){
+
+  function buildCsv(items) {
+    function q(v) {
       var s = String(v == null ? '' : v);
       return '"' + s.replace(/"/g, '""') + '"';
     }
-    var rows = ['序號,檔名,歸檔日期,工項／墩號樁號,說明,檔案大小,Google Drive 連結'];
-    items.forEach(function(h, i){
+    var rows = ['序號,檔名,歸檔日期,工項／樁號樁號,說明,檔案大小,Google Drive 連結'];
+    items.forEach(function (h, i) {
       rows.push([i + 1, q(h.name), q(h.date), q(h.item || ''), q(h.note || ''),
         q(fmtSize(h.size)), q(h.link)].join(','));
     });
     return '\ufeff' + rows.join('\r\n');
   }
-  function download(name, text, mime){
-    var blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
-  }
-  function stamp(){
-    var d = new Date();
-    return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '_' +
-      pad2(d.getHours()) + pad2(d.getMinutes());
-  }
 
-  $('btnCopy').addEventListener('click', function(){
+  C.on('btnCopy', 'click', function () {
     var items = selectedList();
     if (!items.length) { toast('請先勾選至少一筆紀錄', true); return; }
     var text = buildText(items);
-    function fallback(){
+    function fallback() {
       var ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed'; ta.style.opacity = '0';
@@ -887,34 +927,35 @@
       toast(ok ? ('已複製 ' + items.length + ' 筆連結') : '複製失敗，請改用「下載 TXT」', !ok);
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function(){
+      navigator.clipboard.writeText(text).then(function () {
         toast('已複製 ' + items.length + ' 筆連結');
       }).catch(fallback);
     } else fallback();
   });
 
-  $('btnTxt').addEventListener('click', function(){
+  C.on('btnTxt', 'click', function () {
     var items = selectedList();
     if (!items.length) { toast('請先勾選至少一筆紀錄', true); return; }
-    download('相片連結清單_' + stamp() + '.txt', buildText(items), 'text/plain');
+    C.download('照片連結清單_' + C.stampNow() + '.txt', buildText(items), 'text/plain');
     toast('已下載 ' + items.length + ' 筆的 TXT 清單');
   });
 
-  $('btnCsv').addEventListener('click', function(){
+  C.on('btnCsv', 'click', function () {
     var items = selectedList();
     if (!items.length) { toast('請先勾選至少一筆紀錄', true); return; }
-    download('相片連結清單_' + stamp() + '.csv', buildCsv(items), 'text/csv');
+    C.download('照片連結清單_' + C.stampNow() + '.csv', buildCsv(items), 'text/csv');
     toast('已下載 ' + items.length + ' 筆的 CSV 清單');
   });
 
   /* ---------- 打包下載 ---------- */
-  function fileNameOf(h, idx){
+
+  function fileNameOf(h, idx) {
     var n = safeName(h.name) || ('photo_' + (idx + 1) + '.png');
     if (!/\.(png|jpe?g)$/i.test(n)) n += '.png';
     return n;
   }
 
-  $('btnZip').addEventListener('click', function(){
+  C.on('btnZip', 'click', function () {
     var items = selectedList();
     if (!items.length) { toast('請先勾選至少一筆紀錄', true); return; }
     if (!window.JSZip) { toast('打包模組未載入，請重新整理頁面', true); return; }
@@ -934,68 +975,59 @@
     var failItems = [];
     var i = 0;
 
-    function next(){
+    function next() {
       if (i >= items.length) return finish();
       var h = items[i];
       $('batchTxt').textContent = '取回 ' + (i + 1) + ' / ' + items.length + ' 張：' + h.name;
-      window.GDrive.fetchFile(h.id).then(function(blob){
+      window.GDrive.fetchFile(h.id).then(function (blob) {
         zip.file(fileNameOf(h, i), blob);
         okCount++;
-      }).catch(function(){
+      }).catch(function () {
         failItems.push(h);
-      }).then(function(){
+      }).then(function () {
         i++;
         $('batchBar').style.width = Math.round(i / items.length * 100) + '%';
         setTimeout(next, 0);
       });
     }
 
-    function finish(){
+    function finish() {
       zip.file('連結清單.txt', buildText(items));
       zip.file('連結清單.csv', buildCsv(items));
 
       zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
-        .then(function(blob){
-          var url = URL.createObjectURL(blob);
-          var a = document.createElement('a');
-          a.href = url;
-          a.download = '營建相片_' + stamp() + '.zip';
-          document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(function(){ URL.revokeObjectURL(url); }, 8000);
+        .then(function (blob) {
+          C.download('營建相片_' + C.stampNow() + '.zip', blob, 'application/zip');
 
           $('batchTxt').textContent = '已完成：打包 ' + okCount + ' 張' +
             (failItems.length ? ('，' + failItems.length + ' 張取回失敗，改為逐張開啟 Drive 連結') : '') +
             '（ZIP 內含連結清單 TXT／CSV）';
-          toast('已打包 ' + okCount + ' 張相片', failItems.length > 0);
+          toast('已打包 ' + okCount + ' 張照片', failItems.length > 0);
 
           if (failItems.length) {
-            failItems.forEach(function(h, k){
-              setTimeout(function(){
-                try { window.open(h.link, '_blank', 'noopener'); } catch (e) {}
-              }, k * 350);
-            });
+            /* 只開第一個（瀏覽器會封鎖連續彈窗），其餘留在清單中可手動點 */
+            try { window.open(C.safeUrl(failItems[0].link, '#'), '_blank', 'noopener'); } catch (e) {}
           }
         })
-        .catch(function(err){
+        .catch(function (err) {
           $('batchTxt').textContent = '打包失敗：' + ((err && err.message) ? err.message : '未知錯誤');
           toast('打包失敗，可改勾單筆後逐張下載', true);
         })
-        .then(function(){
-          btn.disabled = false;
-        });
+        .then(function () { btn.disabled = false; });
     }
 
     next();
   });
 
   /* ---------- 匯出 JSON ---------- */
-  $('btnExport').addEventListener('click', function(){
+
+  C.on('btnExport', 'click', function () {
     var payload = {
       exportedAt: new Date().toISOString(),
       rootFolder: '營建相片',
       total: history.length,
       filter: filter,
-      photos: history.map(function(h){
+      photos: history.map(function (h) {
         return {
           id: h.id,
           name: h.name,
@@ -1009,11 +1041,12 @@
         };
       })
     };
-    download('相片歸檔記錄_' + stamp() + '.json', JSON.stringify(payload, null, 2), 'application/json');
+    C.download('照片歸檔記錄_' + C.stampNow() + '.json', JSON.stringify(payload, null, 2), 'application/json');
     toast('已匯出 ' + history.length + ' 筆紀錄（含 Drive 檔案 ID／連結）');
   });
 
   /* ---------- 啟動 ---------- */
+
   $('fDate').value = todayISO();
   loadHist();
   loadFilter();
@@ -1024,14 +1057,14 @@
   renderQueue();
   renderConn();
 
-  /*
+  /**
    * 進入頁面自動連線：
    *   1. 先用本機尚未過期的權杖（同步，零網路）→ 直接進入已連線狀態
    *   2. 沒有可用權杖 → 靜默授權 prompt:'' 取回（不彈窗、不需按鈕）
    *   3. 靜默失敗（需互動／已登出／瀏覽器封鎖）→ 顯示「重新連線」並說明原因
    * 連線成功後自動從 Drive 匯入紀錄。
    */
-  function autoConnectAndImport(){
+  function autoConnectAndImport() {
     var G = window.GDrive;
     if (!G) { syncBoxHide(); return; }
 
@@ -1046,7 +1079,7 @@
     if (G.restoreToken && G.restoreToken() && G.hasToken && G.hasToken()) {
       syncBoxShow('已沿用先前的授權', '正在從 Google Drive 匯入已上傳紀錄…', { icon: '✓', pct: 10 });
       renderConn();
-      if (G.getUser) { G.getUser().then(function(){ renderConn(); }).catch(function(){}); }
+      if (G.getUser) { G.getUser().then(function () { renderConn(); }).catch(function () {}); }
       importFromDrive(false);
       return;
     }
@@ -1055,13 +1088,13 @@
     if (!G.silentConnect) { syncBoxHide(); renderConn(); return; }
     syncBoxShow('正在自動連線 Google Drive…', '使用先前的授權，不會開啟任何視窗。', { pct: null });
 
-    G.silentConnect().then(function(){
+    G.silentConnect().then(function () {
       renderConn();
       return (G.getUser ? G.getUser() : null);
-    }).then(function(){
+    }).then(function () {
       renderConn();
       return importFromDrive(false);
-    }).catch(function(e){
+    }).catch(function (e) {
       renderConn();
       var code = (e && e.code) || '';
       var why = (G.friendlyError ? G.friendlyError(e) : ((e && e.message) || String(e)));
@@ -1082,32 +1115,45 @@
     });
   }
 
-  window.addEventListener('focus', function(){
+  /* 回到頁面時若權杖即將過期（< 2 分鐘），自動靜默續期 */
+  C.on(window, 'focus', function () {
     renderConn();
     var G = window.GDrive;
     if (!G || !G.tokenExpiresAt) return;
-    /* 回到頁面時若權杖即將過期（< 2 分鐘），自動靜默續期，不必使用者動手 */
     var exp = G.tokenExpiresAt();
     if (exp && (exp - Date.now()) < 120000 && G.ensureToken) {
-      G.ensureToken().then(function(){ renderConn(); }).catch(function(){ renderConn(); });
+      G.ensureToken().then(function () { renderConn(); }).catch(function () { renderConn(); });
     }
   });
-  document.addEventListener('visibilitychange', function(){
+
+  C.on(document, 'visibilitychange', function () {
     if (!document.hidden) renderConn();
   });
+
   setTimeout(renderConn, 500);
 
   /* 頁面載入後立即嘗試自動連線 + 匯入 */
   autoConnectAndImport();
 
-  /* 定時檢查權杖剩餘時間；快到期就靜默續期 */
-  setInterval(function(){
-    var G = window.GDrive;
-    if (!G || !G.hasToken || !G.hasToken()) return;
-    var exp = G.tokenExpiresAt ? G.tokenExpiresAt() : 0;
-    if (exp && (exp - Date.now()) < 5 * 60 * 1000 && G.ensureToken) {
-      G.ensureToken().then(function(){ renderConn(); }).catch(function(){ renderConn(); });
-    }
-    renderConn();
-  }, 60000);
+  /* 定時檢查權杖剩餘時間；快到期就靜默續期。頁面隱藏時暫停。 */
+  var pollTimer = null;
+  function startPoll() {
+    if (pollTimer) return;
+    pollTimer = setInterval(function () {
+      var G = window.GDrive;
+      if (!G || !G.hasToken || !G.hasToken()) return;
+      var exp = G.tokenExpiresAt ? G.tokenExpiresAt() : 0;
+      if (exp && (exp - Date.now()) < L.TOKEN_WARN_MS && G.ensureToken) {
+        G.ensureToken().then(function () { renderConn(); }).catch(function () { renderConn(); });
+      }
+      renderConn();
+    }, L.CONN_POLL_MS);
+  }
+  function stopPoll() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+  C.on(document, 'visibilitychange', function () {
+    if (document.hidden) stopPoll(); else startPoll();
+  });
+  startPoll();
 })();

@@ -331,6 +331,7 @@
 </div>
 
 <script src="../assets/jszip.min.js"></script>
+<script src="../assets/core.js"></script>
 <script src="../assets/gdrive.js"></script>
 <script src="../assets/gdrive-photo.js"></script>
 <script src="photobuilder.js"></script>
@@ -841,6 +842,16 @@
     $('pickModal').addEventListener('click', function(e){
       if (e.target === $('pickModal')) closePick();
     });
+    /* 勾選：容器上綁一次，用 data-pick 分派（原本在 renderPick 內重綁，清單一長就累積 listener） */
+    $('pickList').addEventListener('change', function(e){
+      var cb = e.target;
+      if (!cb || !cb.getAttribute || !cb.getAttribute('data-pick')) return;
+      var id = cb.getAttribute('data-pick');
+      if (cb.checked) pickSel[id] = true; else delete pickSel[id];
+      var row = cb.closest ? cb.closest('.prow') : null;
+      if (row) row.classList.toggle('on', cb.checked);
+      updatePickUI();
+    });
 
     loadTemplate().catch(function(){ /* 下載時會再提示 */ });
   }
@@ -909,15 +920,8 @@
       '</label>';
     });
     box.innerHTML = html;
-    box.querySelectorAll('[data-pick]').forEach(function(cb){
-      cb.addEventListener('change', function(){
-        var id = cb.getAttribute('data-pick');
-        if (cb.checked) pickSel[id] = true; else delete pickSel[id];
-        var row = cb.closest ? cb.closest('.prow') : null;
-        if (row) row.classList.toggle('on', cb.checked);
-        updatePickUI();
-      });
-    });
+    /* 勾選事件改由容器統一處理（見 bind() 的 pickList 委派），
+       不再每次重繪都重新 querySelectorAll + addEventListener。 */
     lazyThumbs();
     updatePickUI();
   }
@@ -943,15 +947,20 @@
     el.setAttribute('data-done', '1');
     if (pickThumbCache[id]) { el.innerHTML = '<img src="' + pickThumbCache[id] + '" alt="">'; return; }
     var G = window.GDrive;
-    if (!G || !G.fetchFile) return;
-    G.fetchFile(id).then(function(blob){
+    if (!G) return;
+    /* 只下載一次原圖並縮成 200px 小縮圖，避免把每張 1～3MB 的 PNG
+       以 dataURL 塞進記憶體（60 張就吃掉上百 MB）；快取上限 60 張。 */
+    var job = (G.makeThumb ? G.makeThumb(id, 200) : G.fetchFile(id).then(function(blob){
       return new Promise(function(res, rej){
         var fr = new FileReader();
         fr.onload = function(){ res(fr.result); };
         fr.onerror = function(){ rej(new Error('read')); };
         fr.readAsDataURL(blob);
       });
-    }).then(function(url){
+    }));
+    job.then(function(url){
+      var keys = Object.keys(pickThumbCache);
+      if (keys.length >= 60) delete pickThumbCache[keys[0]];
       pickThumbCache[id] = url;
       el.innerHTML = '<img src="' + url + '" alt="">';
     }).catch(function(){ el.textContent = '—'; });

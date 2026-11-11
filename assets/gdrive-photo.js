@@ -3,22 +3,29 @@
  *
  * 設計：
  *   - 完全沿用 assets/gdrive.js 的 Google OAuth（同一個固定 Client ID、同一個 drive.file scope），
- *     不另外做一套登入；本模組只是把 token 拿來做「相片上傳 + 依日期歸檔」。
- *   - 載入時會把功能併進 window.GDrive，頁面可直接用 GDrive.uploadPhoto(...) 等。
+ *     不另外做一套登入；本模組只負責「相片上傳 + 依日期歸檔 + 讀回紀錄」。
+ *   - 所有 HTTP 都走 GDrive.api() / GDrive.fetchBlob() / GDrive.uploadMultipart()，
+ *     不再自己複製一份 fetch + 401 處理（原本三處各抄一份，行為還不一致）。
  *   - 資料夾結構：營建相片 / YYYY-MM-DD，已存在就沿用，不重複建立。
  *
- * 瀏覽器：window.GDrive（原有 API + 相片 API）
+ * 本版重點：
+ *   1. 移除重複的 api()/401 處理，改用 gdrive.js 的單一入口（含重試）。
+ *   2. 新增 makeThumb()：挑選照片時只下載一次原圖並縮成小縮圖，
+ *      避免把每張 1～3MB 的 PNG 以 dataURL 塞進記憶體（原本 60 張就吃掉上百 MB）。
+ *   3. 紀錄解析支援 .png / .jpg / .jpeg，並保留舊資料相容。
+ *
+ * 瀏覽器：window.GDrivePhoto（同時併入 window.GDrive）
  */
 (function (global) {
   'use strict';
 
+  var CORE = global.Core || null;
   var base = global.GDrive || null;
 
   var PHOTO_ROOT = '營建相片';
+  var MAX_EDGE = (CORE && CORE.LIMITS.MAX_EDGE) || 2000;
+  var THUMB_EDGE = 200;   /* 挑選清單縮圖長邊 */
 
-  /* 本模組自己的 token 快取（base 的 accessToken 在閉包內取不到，故自行保留）
-     改版後優先向 base 要權杖，讓 gdrive.js 的 localStorage 持久化與靜默續期生效。 */
-  var myToken = null;
   var myEmail = '';
 
   /* ---------------- 錯誤訊息 ---------------- */
@@ -40,44 +47,31 @@
       return '權限不足或 Drive API 未啟用（403）：' + m.replace(/^Drive API 403：/, '');
     }
     if (/404/.test(m)) return '找不到目標資料夾（404），請重試';
-    if (/Failed to fetch|NetworkError|network error/i.test(m)) return '網路錯誤，請確認連線後重試';
+    if (/網路錯誤|Failed to fetch|NetworkError|network error/i.test(m)) return '網路錯誤，請確認連線後重試';
     if (/檔案過大|too large|exceed/i.test(m)) return '檔案過大，請縮小後再上傳';
     return m || '未知錯誤';
   }
 
+  function wrap(e) {
+    var err = new Error(friendlyError(e));
+    err.code = (e && e.code) || 'NEED_INTERACTIVE';
+    err.raw = e;
+    return err;
+  }
+
   /* ---------------- token ---------------- */
 
-  /**
-   * 取得權杖。
-   * 優先用 base（gdrive.js）的 ensureToken：它會 1) 用記憶體 2) 用 localStorage 未過期的權杖
-   * 3) 靜默 prompt:'' 續期；因此重新整理、再次進入頁面都不必使用者重新授權。
-   * 只有全部失敗（需互動）才會 reject，錯誤碼 NEED_INTERACTIVE。
-   */
   function getToken() {
     if (base && base.ensureToken) {
-      return base.ensureToken().then(function (t) {
-        myToken = t;
-        return t;
-      }, function (e) {
-        myToken = null;
-        var err = new Error(friendlyError(e));
-        err.code = (e && e.code) || 'NEED_INTERACTIVE';
-        err.raw = e;
-        throw err;
-      });
+      return base.ensureToken().catch(function (e) { throw wrap(e); });
     }
-    if (myToken) return Promise.resolve(myToken);
     if (!base) return Promise.reject(new Error('NO_CLIENT_ID'));
-    return base.connect().then(function (t) {
-      myToken = t;
-      return t;
-    });
+    return base.connect();
   }
 
   function connect() {
     if (!base) return Promise.reject(new Error('NO_CLIENT_ID'));
     return base.connect().then(function (t) {
-      myToken = t;
       getUser().then(function (u) {
         if (u && u.emailAddress) myEmail = u.emailAddress;
       }).catch(function () {});
@@ -85,84 +79,42 @@
     });
   }
 
-  /** 靜默授權：重新整理／再次進入頁面時自動取回權杖，不彈窗 */
   function silentConnect() {
-    if (base && base.silentConnect) {
-      return base.silentConnect().then(function (t) {
-        myToken = t;
-        return t;
-      });
-    }
+    if (base && base.silentConnect) return base.silentConnect();
     return getToken();
   }
 
-  /** 沿用本機未過期的權杖（同步，不發網路動作） */
   function restoreToken() {
-    if (base && base.restoreToken) {
-      var ok = base.restoreToken();
-      if (ok && base.hasToken && base.hasToken()) myToken = null;
-      return ok;
-    }
-    return !!myToken;
+    if (base && base.restoreToken) return base.restoreToken();
+    return false;
   }
 
   function disconnect() {
-    myToken = null;
     myEmail = '';
     if (base && base.disconnect) base.disconnect();
   }
 
   function hasToken() {
     if (base && base.hasToken) return !!base.hasToken();
-    return !!myToken;
+    return false;
   }
 
   function getEmail() {
     return myEmail || (base && base.getEmail ? base.getEmail() : '') || '';
   }
 
-  /* ---------------- Drive API ---------------- */
+  /* ---------------- Drive API（全部轉呼叫 gdrive.js） ---------------- */
 
   function api(path, opts) {
-    opts = opts || {};
-    return getToken().then(function (tok) {
-      var headers = opts.headers || {};
-      headers['Authorization'] = 'Bearer ' + tok;
-      return fetch('https://www.googleapis.com' + path, {
-        method: opts.method || 'GET',
-        headers: headers,
-        body: opts.body
-      }).then(function (r) {
-        if (r.status === 401) {
-          /* silent 模式（例如查詢帳號 Email）不因暫時性失敗就清掉授權，
-             避免一次網路異常或端點問題讓使用者被迫重新授權。 */
-          if (!opts.silent) {
-            myToken = null;
-            if (base && base.clearStoredToken) base.clearStoredToken();
-            if (base && base.disconnect) base.disconnect();
-            var e401 = new Error('授權已過期，請重新連線');
-            e401.code = 'NEED_INTERACTIVE';
-            throw e401;
-          }
-          throw new Error('Drive API 401');
-        }
-        if (!r.ok) {
-          return r.text().then(function (t) {
-            var msg = 'Drive API ' + r.status;
-            try {
-              var j = JSON.parse(t);
-              if (j && j.error && j.error.message) msg += '：' + j.error.message;
-            } catch (e) { msg += '：' + String(t).slice(0, 160); }
-            throw new Error(msg);
-          });
-        }
-        if (r.status === 204) return null;
-        return r.json();
-      });
-    });
+    if (!base || !base.api) return Promise.reject(new Error('Drive 模組未載入'));
+    return base.api(path, opts).catch(function (e) { throw wrap(e); });
   }
 
-  /** 目前授權的 Google 帳號 */
+  function fetchFile(fileId) {
+    if (!base || !base.fetchBlob) return Promise.reject(new Error('Drive 模組未載入'));
+    return base.fetchBlob(fileId).catch(function (e) { throw wrap(e); });
+  }
+
   function getUser() {
     if (!hasToken()) return Promise.resolve(null);
     return api('/drive/v3/about?fields=user(displayName,emailAddress,permissionId)', { silent: true })
@@ -202,12 +154,13 @@
 
   /**
    * 上傳單張相片到「營建相片 / YYYY-MM-DD」
-   * opts: { blob, filename, date, description }
+   * opts: { blob, filename, date, description, mime }
    * 回傳 { id, name, webViewLink, size }
    */
   function uploadPhoto(opts) {
     opts = opts || {};
     if (!opts.blob) return Promise.reject(new Error('沒有可上傳的檔案內容'));
+    if (!base || !base.uploadMultipart) return Promise.reject(new Error('Drive 模組未載入'));
 
     return ensurePhotoDateFolder(opts.date).then(function (f) {
       var meta = { name: opts.filename, parents: [f.dayId] };
@@ -215,41 +168,16 @@
 
       var form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+
       /* 一律以 PNG 上傳：若 blob 型別不是 image/png，重新包一層確保 MIME 正確 */
       var fileBlob = opts.blob;
-      if (opts.mime && fileBlob.type !== opts.mime) {
-        try { fileBlob = new Blob([fileBlob], { type: opts.mime }); } catch (e) { fileBlob = opts.blob; }
+      var wantMime = opts.mime || 'image/png';
+      if (fileBlob.type !== wantMime) {
+        try { fileBlob = new Blob([fileBlob], { type: wantMime }); } catch (e) { fileBlob = opts.blob; }
       }
       form.append('file', fileBlob, opts.filename);
 
-      return getToken().then(function (tok) {
-        return fetch('https://www.googleapis.com/upload/drive/v3/files' +
-                     '?uploadType=multipart&fields=id,name,webViewLink,size', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + tok },
-          body: form
-        });
-      }).then(function (r) {
-        if (r.status === 401) {
-          myToken = null;
-          if (base && base.clearStoredToken) base.clearStoredToken();
-          if (base && base.disconnect) base.disconnect();
-          var eu = new Error('授權已過期，請重新連線');
-          eu.code = 'NEED_INTERACTIVE';
-          throw eu;
-        }
-        if (!r.ok) {
-          return r.text().then(function (t) {
-            var msg = 'Drive API ' + r.status;
-            try {
-              var j = JSON.parse(t);
-              if (j && j.error && j.error.message) msg += '：' + j.error.message;
-            } catch (e) { msg += '：' + String(t).slice(0, 160); }
-            throw new Error(msg);
-          });
-        }
-        return r.json();
-      });
+      return base.uploadMultipart(form, 'id,name,webViewLink,size');
     }).then(function (j) {
       return {
         id: j.id,
@@ -257,61 +185,17 @@
         webViewLink: j.webViewLink || ('https://drive.google.com/file/d/' + j.id + '/view'),
         size: j.size ? Number(j.size) : (opts.blob ? opts.blob.size : 0)
       };
-    }).catch(function (e) {
-      var err = new Error(friendlyError(e));
-      err.raw = e;
-      throw err;
-    });
-  }
-
-  /**
-   * 取回單一 Drive 檔案的二進位內容（批次／打包下載用）
-   * 只讀，不會重新上傳、也不會修改 Drive 上的檔案。
-   * 回傳 Promise<Blob>
-   */
-  function fetchFile(fileId) {
-    if (!fileId) return Promise.reject(new Error('缺少 Drive 檔案 ID'));
-    return getToken().then(function (tok) {
-      return fetch('https://www.googleapis.com/drive/v3/files/' +
-                   encodeURIComponent(fileId) + '?alt=media', {
-        method: 'GET',
-        headers: { 'Authorization': 'Bearer ' + tok }
-      });
-    }).then(function (r) {
-      if (r.status === 401) {
-        myToken = null;
-        if (base && base.clearStoredToken) base.clearStoredToken();
-        if (base && base.disconnect) base.disconnect();
-        var ef = new Error('授權已過期，請重新連線');
-        ef.code = 'NEED_INTERACTIVE';
-        throw ef;
-      }
-      if (!r.ok) {
-        return r.text().then(function (t) {
-          var msg = 'Drive API ' + r.status;
-          try {
-            var j = JSON.parse(t);
-            if (j && j.error && j.error.message) msg += '：' + j.error.message;
-          } catch (e) { msg += '：' + String(t).slice(0, 160); }
-          throw new Error(msg);
-        });
-      }
-      return r.blob();
-    }).catch(function (e) {
-      var err = new Error(friendlyError(e));
-      err.raw = e;
-      throw err;
-    });
+    }).catch(function (e) { throw wrap(e); });
   }
 
   /* ---------------- 從 Drive 匯入已上傳紀錄 ---------------- */
 
-  /** 列出單一資料夾內所有檔案（自動分頁） */
+  /** 列出符合 query 的所有檔案（自動分頁） */
   function listAllFiles(query, fields, maxPages) {
     var out = [];
     var pageToken = '';
     var pages = 0;
-    var limit = maxPages || 20; /* 每頁 1000 筆，最多 2 萬筆，足以保護瀏覽器 */
+    var limit = maxPages || (CORE && CORE.LIMITS.IMPORT_MAX_PAGES) || 20;
 
     function step() {
       if (pages >= limit) return Promise.resolve(out);
@@ -333,12 +217,9 @@
   }
 
   /**
-   * 從 Drive 讀回「營建相片 / YYYY-MM-DD / *.jpg」結構，組成可與本機合併的紀錄。
-   *
+   * 從 Drive 讀回「營建相片 / YYYY-MM-DD / *」結構，組成可與本機合併的紀錄。
    * 回傳 Promise<{ records:[], folders:{}, scanned:number, rootId:string }>
    * record = { id, name, link, date, item, note, size, uploadedAt, source:'drive' }
-   *
-   * 注意：drive.file scope 只能看到「本程式建立」的檔案，使用者自己丟進去的相片不會出現在這裡。
    */
   function listPhotoRecords(opts) {
     opts = opts || {};
@@ -389,8 +270,8 @@
               .then(function (files) {
                 folderMap[f.name] = f.id;
                 for (var k = 0; k < files.length; k++) {
-                  var it = files[k];
-                  records.push(toRecord(it, f.name));
+                  var rec = toRecord(files[k], f.name);
+                  if (rec) records.push(rec);
                 }
                 idx++;
                 return nextFolder();
@@ -404,20 +285,29 @@
         });
       })
       .catch(function (e) {
-        var err = new Error(friendlyError(e));
+        var err = wrap(e);
         err.code = (e && e.code) || 'IMPORT_FAILED';
-        err.raw = e;
         throw err;
       });
   }
 
+  /** 只認圖片檔（PNG／JPG），其他（例如清單 TXT）不當成相片紀錄 */
+  function isImageFile(it) {
+    var mt = String(it.mimeType || '');
+    if (mt) return /^image\//.test(mt);
+    return /\.(png|jpe?g|webp)$/i.test(String(it.name || ''));
+  }
+
   /** 把 Drive 檔案物件轉成本頁紀錄（僅 JPG／PNG 相片） */
   function toRecord(it, dateISO) {
+    if (!it || !it.id) return null;
+    if (!isImageFile(it)) return null;
+
     var name = it.name || '';
     var item = '';
     var note = '';
 
-    /* 檔名規則 日期_工項_序號.jpg → 把工項抓回來 */
+    /* 檔名規則 日期_工項_序號.png → 把工項抓回來 */
     var m = /^\d{8}_(.+?)_\d{2}\.[a-z0-9]+$/i.exec(name);
     if (m) {
       var mid = m[1];
@@ -457,8 +347,6 @@
    *
    * opts: { date:'YYYY-MM-DD', watermark:true, maxEdge:2000, detect:true }
    * 回傳 Promise<{ blob, applied, detected, width, height, box }>
-   *
-   * 若瀏覽器不支援 canvas 或解碼失敗，會退回原檔（不中斷上傳）。
    */
   function preparePhotoBlob(file, opts) {
     opts = opts || {};
@@ -469,7 +357,7 @@
       var r;
       try {
         r = WM.render(img, {
-          maxEdge: opts.maxEdge || 2000,
+          maxEdge: opts.maxEdge || MAX_EDGE,
           date: opts.date,
           watermark: opts.watermark !== false,
           detect: opts.detect !== false
@@ -493,6 +381,46 @@
     });
   }
 
+  /* ---------------- 縮圖（挑選清單用） ---------------- */
+
+  /**
+   * 把 Drive 上的原圖縮成小縮圖 dataURL。
+   * 原本的做法是把整張原圖（PNG 可能 1～3MB）轉成 dataURL 存進記憶體，
+   * 60 張就吃掉上百 MB，手機很容易被系統砍掉。這裡只留 200px 的縮圖。
+   *
+   * 回傳 Promise<string dataURL>
+   */
+  function makeThumb(fileId, maxEdge) {
+    var edge = maxEdge || THUMB_EDGE;
+    return fetchFile(fileId).then(function (blob) {
+      var WM = global.PhotoWatermark;
+      if (WM && WM.loadImageFromBlob) {
+        return WM.loadImageFromBlob(blob).then(function (img) {
+          try {
+            var s = Math.min(1, edge / Math.max(1, img.width, img.height));
+            var w = Math.max(1, Math.round(img.width * s));
+            var h = Math.max(1, Math.round(img.height * s));
+            var cv = document.createElement('canvas');
+            cv.width = w; cv.height = h;
+            var ctx = cv.getContext('2d');
+            if (!ctx) throw new Error('no-ctx');
+            ctx.drawImage(img.el, 0, 0, w, h);
+            return cv.toDataURL('image/jpeg', 0.72);
+          } finally {
+            try { img.release(); } catch (e) {}
+          }
+        });
+      }
+      /* 沒有浮水印模組時退回 FileReader（仍會是原尺寸，但至少能顯示） */
+      return new Promise(function (res, rej) {
+        var fr = new FileReader();
+        fr.onload = function () { res(fr.result); };
+        fr.onerror = function () { rej(new Error('讀取失敗')); };
+        fr.readAsDataURL(blob);
+      });
+    });
+  }
+
   /* ---------------- 併入 window.GDrive ---------------- */
 
   var merged = {};
@@ -500,22 +428,23 @@
   if (base) {
     for (k in base) { if (Object.prototype.hasOwnProperty.call(base, k)) merged[k] = base[k]; }
   }
-  merged.PHOTO_ROOT      = PHOTO_ROOT;
-  merged.connect         = connect;
-  merged.silentConnect   = silentConnect;
-  merged.restoreToken    = restoreToken;
-  merged.disconnect      = disconnect;
-  merged.hasToken        = hasToken;
-  merged.getUser         = getUser;
-  merged.getEmail        = getEmail;
+  merged.PHOTO_ROOT            = PHOTO_ROOT;
+  merged.connect               = connect;
+  merged.silentConnect         = silentConnect;
+  merged.restoreToken          = restoreToken;
+  merged.disconnect            = disconnect;
+  merged.hasToken              = hasToken;
+  merged.getUser               = getUser;
+  merged.getEmail              = getEmail;
   merged.ensureNamedFolder     = ensureNamedFolder;
   merged.ensurePhotoDateFolder = ensurePhotoDateFolder;
-  merged.uploadPhoto     = uploadPhoto;
-  merged.fetchFile       = fetchFile;
+  merged.uploadPhoto           = uploadPhoto;
+  merged.fetchFile             = fetchFile;
   merged.listPhotoRecords      = listPhotoRecords;
-  merged.listAllFiles    = listAllFiles;
-  merged.preparePhotoBlob = preparePhotoBlob;
-  merged.friendlyError   = friendlyError;
+  merged.listAllFiles          = listAllFiles;
+  merged.preparePhotoBlob      = preparePhotoBlob;
+  merged.makeThumb             = makeThumb;
+  merged.friendlyError         = friendlyError;
 
   global.GDrivePhoto = merged;
   global.GDrive = merged;

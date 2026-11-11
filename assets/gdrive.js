@@ -3,43 +3,75 @@
  *
  * 設計：
  *   - 不需要後端。使用 GIS token model（OAuth 2.0 implicit / token client）。
- *   - scope 只用 drive.file：只能存取「本程式自己建立」的檔案，看不到使用者其他雲端硬碟內容。
+ *   - scope 只用 drive.file：只能存取「本程式自己建立」的檔案。
  *   - 首次存檔時自動建立資料夾「營建查驗資料」與檔案 inspection-data.json；
  *     之後以 fileId 覆寫同一份檔案，不會每次新增。
- *   - localStorage 只存 Client ID 與 fileId（不是資料本身），資料仍由各頁面自己保存。
+ *   - localStorage 只存 Client ID 與 fileId（不是資料本身）。
+ *
+ * 本版重點（相對前一版）：
+ *   1. tokenClient 只初始化一次並重複使用（原本每次請求都新建一個，會累積 iframe 與監聽）。
+ *   2. 401／網路錯誤／5xx 的處理收斂到單一 _request()，不再在 save/load/api 各抄一份。
+ *   3. 暫時性失敗（網路中斷、5xx、429）自動重試（指數退避），避免一次抖動就失敗。
+ *   4. 401 只清權杖、不再順手把使用者「登出」（原本會設 signedout，變成永久需要重新按授權）。
+ *   5. 所有 Drive 呼叫集中在此，其他模組（gdrive-photo.js）改為呼叫 api()/fetchBlob()，不重複實作。
  *
  * 瀏覽器：window.GDrive
  */
 (function (global) {
   'use strict';
 
-  var CID_KEY    = 'inspection-gdrive-clientid';
-  var FID_KEY    = 'inspection-gdrive-fileid';
-  var SYNC_KEY   = 'inspection-gdrive-lastsync';
-  var TOKEN_KEY  = 'inspection-gdrive-token';
+  var CORE = global.Core || null;
+
+  /* ---------------- 常數 ---------------- */
+
+  var CID_KEY     = 'inspection-gdrive-clientid';
+  var FID_KEY     = 'inspection-gdrive-fileid';
+  var SYNC_KEY    = 'inspection-gdrive-lastsync';
+  var TOKEN_KEY   = 'inspection-gdrive-token';
+  var OFF_KEY     = 'inspection-gdrive-signedout';
+
   var FOLDER_NAME = '營建查驗資料';
   var FILE_NAME   = 'inspection-data.json';
   var SCOPE       = 'https://www.googleapis.com/auth/drive.file';
   var GIS_SRC     = 'https://accounts.google.com/gsi/client';
+  var API_BASE    = 'https://www.googleapis.com';
+  var UPLOAD_BASE = 'https://www.googleapis.com/upload/drive/v3/files';
 
   /* 內建固定的 OAuth Client ID（由管理者指定，使用者不需手動貼上） */
   var FIXED_CLIENT_ID = '401815954786-jn3vqu7riudvpcmvirl17rhsa4tp0mgp.apps.googleusercontent.com';
 
-  var st = { state: 'idle', message: '', lastSync: '', email: '' };
-  var listeners = [];
-  var tokenClient = null;
-  var accessToken = null;
-  var tokenExpAt = 0;       /* 權杖到期時間（epoch ms） */
-  var TOKEN_SKEW = 60000;   /* 提前 60 秒視為過期，避免邊界失敗 */
-  var gisLoading = null;
+  var TOKEN_SKEW    = 60000;   /* 提前 60 秒視為過期，避免邊界失敗 */
+  var RETRY_TIMES   = (CORE && CORE.LIMITS.RETRY_TIMES) || 2;
+  var RETRY_DELAY   = (CORE && CORE.LIMITS.RETRY_DELAY) || 600;
 
   /* ---------------- 狀態 ---------------- */
 
+  var st = { state: 'idle', message: '', lastSync: '', email: '' };
+  var listeners = [];
+  var tokenClient = null;
+  var tokenClientCid = '';
+  var accessToken = null;
+  var tokenExpAt = 0;
+  var gisLoading = null;
+  var pending = null;   /* 目前等待中的權杖請求 {resolve,reject,silent} */
+
+  var store = (CORE && CORE.store) ? CORE.store : {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? (d || '') : v; } catch (e) { return d || ''; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
+    remove: function (k) { try { localStorage.removeItem(k); return true; } catch (e) { return false; } }
+  };
+
+  /* ---------------- 狀態廣播 ---------------- */
+
   function emit() {
-    listeners.forEach(function (f) { try { f(st); } catch (e) {} });
+    for (var i = 0; i < listeners.length; i++) {
+      try { listeners[i](st); } catch (e) { /* 單一 listener 出錯不影響其他人 */ }
+    }
   }
 
   function setState(s, msg) {
+    /* 狀態沒變就不廣播，省掉多餘的 DOM 重繪 */
+    if (st.state === s && (msg === undefined || msg === st.message)) return;
     st.state = s;
     if (msg !== undefined) st.message = msg;
     emit();
@@ -48,66 +80,52 @@
   function getStatus() { return st; }
 
   function onStatus(fn) {
-    if (typeof fn === 'function') { listeners.push(fn); fn(st); }
+    if (typeof fn !== 'function') return;
+    if (listeners.indexOf(fn) < 0) listeners.push(fn);
+    try { fn(st); } catch (e) {}
   }
 
   /* ---------------- 設定 ---------------- */
 
-  /**
-   * 取得 Client ID：一律以內建固定值為準。
-   * 若 localStorage 有舊的、不同的值，載入時直接覆寫成固定值，避免用到錯的 ID。
-   */
   function getClientId() {
-    var stored = '';
-    try { stored = localStorage.getItem(CID_KEY) || ''; } catch (e) { stored = ''; }
-    if (stored !== FIXED_CLIENT_ID) {
-      try { localStorage.setItem(CID_KEY, FIXED_CLIENT_ID); } catch (e) {}
-    }
+    if (store.get(CID_KEY, '') !== FIXED_CLIENT_ID) store.set(CID_KEY, FIXED_CLIENT_ID);
     return FIXED_CLIENT_ID;
   }
 
-  /** 保留相容介面：寫入時一律寫入固定值（不接受其他值） */
-  function setClientId(v) {
-    try { localStorage.setItem(CID_KEY, FIXED_CLIENT_ID); } catch (e) {}
+  /** 保留相容介面：寫入時一律寫固定值（不接受其他值） */
+  function setClientId() {
+    store.set(CID_KEY, FIXED_CLIENT_ID);
     tokenClient = null;
+    tokenClientCid = '';
     clearStoredToken();
     setState('idle', '已設定 Client ID，尚未連線');
   }
 
   function isConfigured() { return !!FIXED_CLIENT_ID; }
 
-  /* ---------------- 權杖持久化（避免每次進入頁面都要重新授權） ---------------- */
+  /* ---------------- 權杖持久化 ---------------- */
 
-  var OFF_KEY = 'inspection-gdrive-signedout';
-
-  function isSignedOut() {
-    try { return localStorage.getItem(OFF_KEY) === '1'; } catch (e) { return false; }
-  }
+  function isSignedOut() { return store.get(OFF_KEY, '') === '1'; }
 
   function setSignedOut(v) {
-    try {
-      if (v) localStorage.setItem(OFF_KEY, '1');
-      else localStorage.removeItem(OFF_KEY);
-    } catch (e) {}
+    if (v) store.set(OFF_KEY, '1');
+    else store.remove(OFF_KEY);
   }
 
-  /** 把權杖與到期時間寫進 localStorage */
   function saveToken(resp) {
     var ttl = (resp && resp.expires_in ? Number(resp.expires_in) : 3600) * 1000;
     tokenExpAt = Date.now() + (isFinite(ttl) && ttl > 0 ? ttl : 3600000);
-    try {
-      localStorage.setItem(TOKEN_KEY, JSON.stringify({
-        access_token: resp.access_token,
-        expires_at: tokenExpAt,
-        email: st.email || ''
-      }));
-    } catch (e) {}
+    store.set(TOKEN_KEY, JSON.stringify({
+      access_token: resp.access_token,
+      expires_at: tokenExpAt,
+      email: st.email || ''
+    }));
   }
 
   function clearStoredToken() {
     tokenExpAt = 0;
     accessToken = null;
-    try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    store.remove(TOKEN_KEY);
   }
 
   function tokenFresh() {
@@ -116,11 +134,10 @@
     return true;
   }
 
-  /** 從 localStorage 還原權杖；未過期才採用 */
+  /** 從 localStorage 還原權杖；未過期才採用。同步、零網路。 */
   function restoreToken() {
     if (tokenFresh()) return true;
-    var raw = '';
-    try { raw = localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return false; }
+    var raw = store.get(TOKEN_KEY, '');
     if (!raw) return false;
     var o = null;
     try { o = JSON.parse(raw); } catch (e) { clearStoredToken(); return false; }
@@ -133,30 +150,24 @@
   }
 
   function hasToken() { return tokenFresh(); }
-
   function tokenExpiresAt() { return tokenExpAt; }
-
   function getEmail() { return st.email || ''; }
 
   function setEmail(v) {
     st.email = v || '';
     if (!st.email) return;
+    var raw = store.get(TOKEN_KEY, '');
+    if (!raw) return;
     try {
-      var raw = localStorage.getItem(TOKEN_KEY);
-      if (!raw) return;
       var o = JSON.parse(raw);
       o.email = st.email;
-      localStorage.setItem(TOKEN_KEY, JSON.stringify(o));
+      store.set(TOKEN_KEY, JSON.stringify(o));
     } catch (e) {}
   }
 
-  function getLastSync() {
-    try { return localStorage.getItem(SYNC_KEY) || ''; } catch (e) { return ''; }
-  }
+  function getLastSync() { return store.get(SYNC_KEY, ''); }
 
-  function resetFileId() {
-    try { localStorage.removeItem(FID_KEY); } catch (e) {}
-  }
+  function resetFileId() { store.remove(FID_KEY); }
 
   /* ---------------- GIS 載入 ---------------- */
 
@@ -164,13 +175,28 @@
     if (gisLoading) return gisLoading;
     gisLoading = new Promise(function (res, rej) {
       if (global.google && global.google.accounts && global.google.accounts.oauth2) return res();
+
+      /* 已經有 <script> 標籤（例如頁面自己載入）就不重複插入 */
+      var existing = document.querySelector('script[src="' + GIS_SRC + '"]');
+      if (existing) {
+        existing.addEventListener('load', function () {
+          if (global.google && global.google.accounts && global.google.accounts.oauth2) res();
+          else { gisLoading = null; rej(new Error('Google 登入服務載入不完整')); }
+        });
+        existing.addEventListener('error', function () {
+          gisLoading = null;
+          rej(new Error('無法載入 Google 登入服務（可能被網路或廣告封鎖器阻擋）'));
+        });
+        return;
+      }
+
       var s = document.createElement('script');
       s.src = GIS_SRC;
       s.async = true;
       s.defer = true;
       s.onload = function () {
         if (global.google && global.google.accounts && global.google.accounts.oauth2) res();
-        else rej(new Error('Google 登入服務載入不完整'));
+        else { gisLoading = null; rej(new Error('Google 登入服務載入不完整')); }
       };
       s.onerror = function () {
         gisLoading = null;
@@ -184,10 +210,51 @@
   /* ---------------- 授權 ---------------- */
 
   /**
-   * 向 GIS 取得權杖。
-   * opts.silent = true 時使用 prompt:''（不顯示任何視窗，適用於自動連線／自動續期）。
-   * 失敗時 reject 的 Error 會帶 code：SILENT_FAILED / CONNECT_FAILED。
+   * tokenClient 只建立一次並重複使用。
+   * GIS 的 callback 在建立時綁定，因此把「本次請求的 resolver」放在 pending，
+   * 由固定 callback 轉派給目前等待中的請求。
    */
+  function ensureTokenClient(cid) {
+    if (tokenClient && tokenClientCid === cid) return tokenClient;
+    tokenClient = global.google.accounts.oauth2.initTokenClient({
+      client_id: cid,
+      scope: SCOPE,
+      /* 一律用彈出視窗，避免在沒有 Google session 時把整個頁面導向登入頁 */
+      ux_mode: 'popup',
+      callback: function (resp) { settleToken(resp); },
+      error_callback: function (err) { failToken(err); }
+    });
+    tokenClientCid = cid;
+    return tokenClient;
+  }
+
+  function settleToken(resp) {
+    var p = pending;
+    pending = null;
+    if (!p) return;
+    if (resp && resp.access_token) {
+      accessToken = resp.access_token;
+      saveToken(resp);
+      setSignedOut(false);
+      p.resolve(accessToken);
+    } else {
+      var e = new Error('授權失敗：' + ((resp && resp.error) || '未知錯誤'));
+      e.code = p.silent ? 'SILENT_FAILED' : 'CONNECT_FAILED';
+      p.reject(e);
+    }
+  }
+
+  function failToken(err) {
+    var p = pending;
+    pending = null;
+    if (!p) return;
+    var t = (err && (err.type || err.message)) || '視窗已關閉';
+    var e = new Error(p.silent ? ('需要互動授權（' + t + '）') : ('授權未完成：' + t));
+    e.code = p.silent ? 'SILENT_FAILED' : 'CONNECT_FAILED';
+    e.reason = t;
+    p.reject(e);
+  }
+
   function requestToken(opts) {
     opts = opts || {};
     var silent = !!opts.silent;
@@ -199,44 +266,27 @@
 
     return loadGIS().then(function () {
       return new Promise(function (res, rej) {
-        var settled = false;
-        function done(tok) { if (settled) return; settled = true; res(tok); }
-        function fail(msg, code) {
-          if (settled) return;
-          settled = true;
-          var e = new Error(msg);
-          e.code = code || (silent ? 'SILENT_FAILED' : 'CONNECT_FAILED');
-          rej(e);
+        /* 同時只能有一個請求：舊的視為被取代，避免兩個 Promise 卡住 */
+        if (pending) {
+          var prev = pending;
+          pending = null;
+          var ec = new Error('已由新的授權請求取代');
+          ec.code = prev.silent ? 'SILENT_FAILED' : 'CONNECT_FAILED';
+          try { prev.reject(ec); } catch (e) {}
         }
-
-        tokenClient = global.google.accounts.oauth2.initTokenClient({
-          client_id: cid,
-          scope: SCOPE,
-          /* 一律用彈出視窗，避免在無 Google session 時把整個頁面導向登入頁 */
-          ux_mode: 'popup',
-          callback: function (resp) {
-            if (resp && resp.access_token) {
-              accessToken = resp.access_token;
-              saveToken(resp);
-              setSignedOut(false);
-              done(accessToken);
-            } else {
-              fail('授權失敗：' + ((resp && resp.error) || '未知錯誤'));
-            }
-          },
-          error_callback: function (err) {
-            var t = (err && (err.type || err.message)) || '視窗已關閉';
-            fail(silent ? ('需要互動授權（' + t + '）') : ('授權未完成：' + t));
-          }
-        });
+        pending = { resolve: res, reject: rej, silent: silent };
 
         try {
+          ensureTokenClient(cid);
           /* silent：prompt:'' 不顯示同意畫面、不彈窗，可直接取回或續期權杖 */
           tokenClient.requestAccessToken(
             silent ? { prompt: '' } : { prompt: accessToken ? '' : 'consent' }
           );
         } catch (e) {
-          fail('無法開啟授權視窗：' + (e && e.message ? e.message : e));
+          pending = null;
+          var e2 = new Error('無法開啟授權視窗：' + (e && e.message ? e.message : e));
+          e2.code = silent ? 'SILENT_FAILED' : 'CONNECT_FAILED';
+          rej(e2);
         }
       });
     });
@@ -268,10 +318,7 @@
     });
   }
 
-  /**
-   * 靜默授權：prompt:'' 嘗試直接取回權杖，成功就不必使用者再按一次。
-   * 失敗（需互動／授權已撤銷／瀏覽器阻擋）時 reject，code = 'SILENT_FAILED'。
-   */
+  /** 靜默授權：prompt:'' 嘗試直接取回權杖，成功就不必使用者再按一次 */
   function silentConnect() {
     if (tokenFresh()) return Promise.resolve(accessToken);
     if (isSignedOut()) {
@@ -291,10 +338,7 @@
     });
   }
 
-  /**
-   * 取得可用權杖：記憶體 → localStorage（未過期）→ 靜默續期。
-   * 全部失敗才需要使用者互動。
-   */
+  /** 取得可用權杖：記憶體 → localStorage（未過期）→ 靜默續期。全部失敗才需要互動。 */
   function ensureToken() {
     if (tokenFresh()) return Promise.resolve(accessToken);
     if (restoreToken() && tokenFresh()) {
@@ -310,61 +354,136 @@
     var tok = accessToken;
     clearStoredToken();
     tokenClient = null;
+    tokenClientCid = '';
     setSignedOut(true);
     st.email = '';
     setState('idle', '已中斷連線（資料仍在瀏覽器本機）');
-    if (tok && global.google && global.google.accounts && global.google.accounts.oauth2 &&
-        global.google.accounts.oauth2.revoke) {
+    if (tok && global.google && global.google.accounts &&
+        global.google.accounts.oauth2 && global.google.accounts.oauth2.revoke) {
       try { global.google.accounts.oauth2.revoke(tok, function () {}); } catch (e) {}
     }
   }
 
-  /* ---------------- Drive API ---------------- */
+  /* ---------------- HTTP 核心 ---------------- */
 
-  function api(path, opts) {
-    opts = opts || {};
-    return ensureToken().then(function (tok) {
-      return apiWith(tok, path, opts);
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function isTransient(status) {
+    return status === 408 || status === 429 || status === 500 || status === 502 ||
+           status === 503 || status === 504;
+  }
+
+  function readError(r) {
+    return r.text().then(function (t) {
+      var msg = 'Drive API ' + r.status;
+      try {
+        var j = JSON.parse(t);
+        if (j && j.error && j.error.message) msg += '：' + j.error.message;
+      } catch (e) { if (t) msg += '：' + String(t).slice(0, 160); }
+      var err = new Error(msg);
+      err.status = r.status;
+      return err;
     });
   }
 
-  function apiWith(tok, path, opts) {
+  /**
+   * 單一 HTTP 入口：帶權杖、處理 401、重試暫時性錯誤。
+   * opts: { method, headers, body, silent, retry, raw }
+   *   silent=true → 401 不清權杖（給「順便查一下」的輔助請求）
+   *   raw=true    → 回傳 Response（下載二進位用）
+   */
+  function _request(url, opts) {
     opts = opts || {};
-    var headers = opts.headers || {};
-    headers['Authorization'] = 'Bearer ' + tok;
-    return fetch('https://www.googleapis.com' + path, {
-      method: opts.method || 'GET',
-      headers: headers,
-      body: opts.body
-    }).then(function (r) {
-      if (r.status === 401) {
-        clearStoredToken();
-        setState('expired', '授權已過期，請重新連線');
-        var e401 = new Error('授權已過期，請重新連線');
-        e401.code = 'NEED_INTERACTIVE';
-        throw e401;
+    var attempts = 0;
+    var maxRetry = opts.retry === false ? 0 : RETRY_TIMES;
+
+    function attempt(tok) {
+      attempts++;
+      var headers = {};
+      var k;
+      for (k in (opts.headers || {})) {
+        if (Object.prototype.hasOwnProperty.call(opts.headers, k)) headers[k] = opts.headers[k];
       }
-      if (!r.ok) {
-        return r.text().then(function (t) {
-          var msg = 'Drive API ' + r.status;
-          try {
-            var j = JSON.parse(t);
-            if (j && j.error && j.error.message) msg += '：' + j.error.message;
-          } catch (e) { msg += '：' + String(t).slice(0, 160); }
-          throw new Error(msg);
-        });
-      }
-      if (r.status === 204) return null;
-      return r.json();
-    });
+      if (tok) headers['Authorization'] = 'Bearer ' + tok;
+
+      return fetch(url, {
+        method: opts.method || 'GET',
+        headers: headers,
+        body: opts.body
+      }).then(function (r) {
+        if (r.status === 401) {
+          if (!opts.silent) {
+            /* 只清權杖；不設 signedout，下次進入仍可靜默續期 */
+            clearStoredToken();
+            setState('expired', '授權已過期，請重新連線');
+          }
+          var e401 = new Error('授權已過期，請重新連線');
+          e401.code = 'NEED_INTERACTIVE';
+          e401.status = 401;
+          throw e401;
+        }
+        if (!r.ok) {
+          return readError(r).then(function (err) {
+            if (isTransient(r.status) && attempts <= maxRetry) {
+              return sleep(RETRY_DELAY * attempts).then(function () { return attempt(tok); });
+            }
+            throw err;
+          });
+        }
+        if (opts.raw) return r;
+        if (r.status === 204) return null;
+        var ct = r.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') < 0) {
+          return r.text().then(function (t) {
+            try { return JSON.parse(t); } catch (e) { return t; }
+          });
+        }
+        return r.json();
+      }, function (netErr) {
+        /* 網路層失敗（離線、DNS、CORS 前置失敗）：重試後才放棄 */
+        if (attempts <= maxRetry) {
+          return sleep(RETRY_DELAY * attempts).then(function () { return attempt(tok); });
+        }
+        var e = new Error('網路錯誤：' + ((netErr && netErr.message) || '無法連線'));
+        e.code = 'NETWORK';
+        throw e;
+      });
+    }
+
+    return ensureToken().then(attempt);
+  }
+
+  /** Drive REST 呼叫（path 以 /drive/v3 開頭） */
+  function api(path, opts) {
+    return _request(API_BASE + path, opts);
+  }
+
+  /** 取得檔案二進位內容（批次下載／縮圖用） */
+  function fetchBlob(fileId) {
+    if (!fileId) return Promise.reject(new Error('缺少 Drive 檔案 ID'));
+    return api('/drive/v3/files/' + encodeURIComponent(fileId) + '?alt=media', { raw: true })
+      .then(function (r) { return r.blob(); });
+  }
+
+  /** multipart 上傳（中繼資料 + 檔案） */
+  function uploadMultipart(form, fields) {
+    var url = UPLOAD_BASE + '?uploadType=multipart' +
+      (fields ? ('&fields=' + encodeURIComponent(fields)) : '');
+    return _request(url, { method: 'POST', body: form });
   }
 
   function getUser() {
-    return api('/drive/v3/about?fields=user(displayName,emailAddress,permissionId)&spaces=drive');
+    return api('/drive/v3/about?fields=user(displayName,emailAddress,permissionId)', { silent: true })
+      .then(function (j) { return (j && j.user) || null; })
+      .catch(function () { return null; });
+  }
+
+  function escQ(s) {
+    return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   }
 
   function ensureFolder() {
-    var q = "name='" + FOLDER_NAME + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    var q = "name='" + escQ(FOLDER_NAME) + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
     return api('/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)&spaces=drive')
       .then(function (j) {
         if (j && j.files && j.files.length) return j.files[0].id;
@@ -377,15 +496,14 @@
   }
 
   function ensureFile(folderId) {
-    var cached = null;
-    try { cached = localStorage.getItem(FID_KEY); } catch (e) {}
+    var cached = store.get(FID_KEY, '');
     if (cached) return Promise.resolve(cached);
 
     var q = "name='" + FILE_NAME + "' and '" + folderId + "' in parents and trashed=false";
     return api('/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)')
       .then(function (j) {
         if (j && j.files && j.files.length) {
-          try { localStorage.setItem(FID_KEY, j.files[0].id); } catch (e) {}
+          store.set(FID_KEY, j.files[0].id);
           return j.files[0].id;
         }
         return api('/drive/v3/files', {
@@ -393,7 +511,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: FILE_NAME, parents: [folderId], mimeType: 'application/json' })
         }).then(function (f) {
-          try { localStorage.setItem(FID_KEY, f.id); } catch (e) {}
+          store.set(FID_KEY, f.id);
           return f.id;
         });
       });
@@ -401,114 +519,94 @@
 
   function stamp() {
     st.lastSync = new Date().toISOString();
-    try { localStorage.setItem(SYNC_KEY, st.lastSync); } catch (e) {}
+    store.set(SYNC_KEY, st.lastSync);
+  }
+
+  /** 需要互動時才彈授權：先試既有／靜默權杖，失敗才走 connect() */
+  function withInteractiveFallback(factory) {
+    return ensureToken().catch(function (e) {
+      if (e && (e.code === 'SIGNED_OUT' || e.code === 'NEED_INTERACTIVE' ||
+                e.code === 'SILENT_FAILED' || e.code === 'CONNECT_FAILED')) {
+        return connect();
+      }
+      throw e;
+    }).then(factory);
   }
 
   /** 上傳（覆寫同一份檔案） */
   function save(data) {
-    if (!hasToken()) {
-      return connect().then(function () { return save(data); });
-    }
     setState('syncing', '同步中…');
-    return ensureFolder()
-      .then(function (fid) { return ensureFile(fid); })
-      .then(function (fileId) {
-        return fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
-          method: 'PATCH',
-          headers: {
-            'Authorization': 'Bearer ' + accessToken,
-            'Content-Type': 'application/json; charset=UTF-8'
-          },
-          body: JSON.stringify(data)
-        }).then(function (r) {
-          if (r.status === 401) {
-            clearStoredToken();
-            setState('expired', '授權已過期，請重新連線');
-            throw new Error('授權已過期，請重新連線');
-          }
-          if (!r.ok) {
-            return r.text().then(function (t) {
-              throw new Error('上傳失敗 ' + r.status + '：' + String(t).slice(0, 160));
-            });
-          }
-          return r.json();
+    return withInteractiveFallback(function () {
+      return ensureFolder()
+        .then(ensureFile)
+        .then(function (fileId) {
+          return _request(UPLOAD_BASE + '/' + encodeURIComponent(fileId) + '?uploadType=media', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+            body: JSON.stringify(data)
+          });
         });
-      })
-      .then(function () {
-        stamp();
-        setState('connected', '已存到 Google Drive');
-        return true;
-      })
-      .catch(function (e) {
-        setState('error', e && e.message ? e.message : '同步失敗');
-        throw e;
-      });
+    }).then(function () {
+      stamp();
+      setState('connected', '已存到 Google Drive');
+      return true;
+    }).catch(function (e) {
+      setState('error', e && e.message ? e.message : '同步失敗');
+      throw e;
+    });
   }
 
   /** 下載 */
   function load() {
-    if (!hasToken()) {
-      return connect().then(function () { return load(); });
-    }
     setState('syncing', '讀取中…');
-    return ensureFolder()
-      .then(function (fid) { return ensureFile(fid); })
-      .then(function (fileId) {
-        return fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
-          headers: { 'Authorization': 'Bearer ' + accessToken }
-        }).then(function (r) {
-          if (r.status === 401) {
-            clearStoredToken();
-            setState('expired', '授權已過期，請重新連線');
-            throw new Error('授權已過期，請重新連線');
-          }
-          if (!r.ok) {
-            return r.text().then(function (t) {
-              throw new Error('讀取失敗 ' + r.status + '：' + String(t).slice(0, 160));
-            });
-          }
-          return r.json();
+    return withInteractiveFallback(function () {
+      return ensureFolder()
+        .then(ensureFile)
+        .then(function (fileId) {
+          return api('/drive/v3/files/' + encodeURIComponent(fileId) + '?alt=media');
         });
-      })
-      .then(function (j) {
-        stamp();
-        setState('connected', '已從 Google Drive 載入');
-        return j;
-      })
-      .catch(function (e) {
-        setState('error', e && e.message ? e.message : '讀取失敗');
-        throw e;
-      });
+    }).then(function (j) {
+      stamp();
+      setState('connected', '已從 Google Drive 載入');
+      return j;
+    }).catch(function (e) {
+      setState('error', e && e.message ? e.message : '讀取失敗');
+      throw e;
+    });
   }
 
   /* ---------------- 狀態列 UI ---------------- */
 
   var LABELS = {
-    idle:         { t: '未授權',   c: '#6b7a8d', bg: '#f2f5f9', bd: '#dde4ec' },
-    silent:       { t: '自動連線…', c: '#2c5282', bg: '#eef4fb', bd: '#d3e2f2' },
+    idle:         { t: '未授權',     c: '#6b7a8d', bg: '#f2f5f9', bd: '#dde4ec' },
+    silent:       { t: '自動連線…',  c: '#2c5282', bg: '#eef4fb', bd: '#d3e2f2' },
     expired:      { t: '需重新連線', c: '#c47f17', bg: '#fdf6e7', bd: '#f0dfb8' },
-    unauthorized: { t: '未授權',   c: '#c47f17', bg: '#fdf6e7', bd: '#f0dfb8' },
-    connecting:   { t: '連線中…', c: '#2c5282', bg: '#eef4fb', bd: '#d3e2f2' },
-    syncing:      { t: '同步中…', c: '#2c5282', bg: '#eef4fb', bd: '#d3e2f2' },
-    connected:    { t: '已連線',   c: '#1f7a4d', bg: '#e9f5ee', bd: '#cfe6da' },
-    error:        { t: '同步失敗', c: '#b3261e', bg: '#fdf3f2', bd: '#f0cfcc' }
+    unauthorized: { t: '未授權',     c: '#c47f17', bg: '#fdf6e7', bd: '#f0dfb8' },
+    connecting:   { t: '連線中…',    c: '#2c5282', bg: '#eef4fb', bd: '#d3e2f2' },
+    syncing:      { t: '同步中…',    c: '#2c5282', bg: '#eef4fb', bd: '#d3e2f2' },
+    connected:    { t: '已連線',     c: '#1f7a4d', bg: '#e9f5ee', bd: '#cfe6da' },
+    error:        { t: '同步失敗',   c: '#b3261e', bg: '#fdf3f2', bd: '#f0cfcc' }
   };
 
   function fmtTime(iso) {
     if (!iso) return '—';
     var d = new Date(iso);
     if (isNaN(d.getTime())) return '—';
-    function p(n) { return n < 10 ? '0' + n : '' + n; }
+    var p = (CORE && CORE.pad2) ? CORE.pad2 : function (n) { return n < 10 ? '0' + n : '' + n; };
     return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate()) +
       ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
   }
 
   /**
-   * 把狀態列掛到指定容器。
-   * opts: { onSave, onLoad, settingsHref }
+   * 把狀態列掛到指定容器。opts: { onSave, onLoad, onNeedSetup, settingsHref }
+   * 重複呼叫同一個容器不會重複綁事件（以 data-gd-mounted 標記）。
    */
   function mountStatus(el, opts) {
     if (!el) return;
+    if (typeof el === 'string') el = document.getElementById(el);
+    if (!el) return;
+    if (el.getAttribute('data-gd-mounted') === '1') return;
+    el.setAttribute('data-gd-mounted', '1');
     opts = opts || {};
 
     el.innerHTML =
@@ -598,11 +696,8 @@
   }
 
   if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', injectStyle);
-    } else {
-      injectStyle();
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectStyle);
+    else injectStyle();
   }
 
   /* ---------------- 匯出 ---------------- */
@@ -634,6 +729,12 @@
     load: load,
     resetFileId: resetFileId,
     mountStatus: mountStatus,
-    fmtTime: fmtTime
+    fmtTime: fmtTime,
+    /* 供其他模組共用，避免各自再寫一份 Drive 呼叫 */
+    api: api,
+    fetchBlob: fetchBlob,
+    uploadMultipart: uploadMultipart,
+    escQ: escQ,
+    loadGIS: loadGIS
   };
 })(typeof window !== 'undefined' ? window : this);

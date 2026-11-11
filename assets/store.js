@@ -62,17 +62,23 @@
 
   /* ---------------- 基礎工具 ---------------- */
 
+  /* 共用工具：優先用 assets/core.js（全站同一份），沒有才用本地備援。
+     原本這四個函式在 store.js / 各頁 / gdrive 模組各有一份，行為還略有差異。 */
+  var CORE = global.Core || null;
+
   function uid() {
     return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
   function todayISO() {
+    if (CORE && CORE.todayISO) return CORE.todayISO();
     var d = new Date();
     var m = d.getMonth() + 1, day = d.getDate();
     return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
   }
 
   function isoToSlash(iso) {
+    if (CORE && CORE.isoToSlash) return CORE.isoToSlash(iso);
     if (!iso) return '';
     var p = String(iso).split('-');
     if (p.length !== 3) return iso;
@@ -80,6 +86,7 @@
   }
 
   function esc(s) {
+    if (CORE && CORE.esc) return CORE.esc(s);
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
@@ -233,14 +240,28 @@
     return d;
   }
 
+  /**
+   * 儲存。回傳 true／false。
+   * 原本只吞掉錯誤，使用者完全不知道資料沒存進去（配額爆掉時最常見）。
+   * 現在把失敗原因記在 lastError，讓頁面可以提示。
+   */
+  var lastError = '';
+
   function save(d) {
+    lastError = '';
     try {
       localStorage.setItem(KEY, JSON.stringify(d));
       return true;
     } catch (e) {
+      var quota = /quota|exceed/i.test(String((e && e.name) || '') + String((e && e.message) || ''));
+      lastError = quota
+        ? '瀏覽器本機儲存空間已滿，請先匯出備份並清理舊資料'
+        : ('儲存失敗：' + ((e && e.message) || e));
       return false;
     }
   }
+
+  function getLastError() { return lastError; }
 
   /* ---------------- 聯動核心 ---------------- */
 
@@ -756,6 +777,7 @@
     normalize: normalize,
     load: load,
     save: save,
+    getLastError: getLastError,
     recompute: recompute,
     logPiers: logPiers,
     logPileNos: logPileNos,

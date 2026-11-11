@@ -10,13 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch and apply
+      - name: Apply patches
         run: |
           set -e
-          curl -sSL -o /tmp/watermark.js 'https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/f24fix/watermark.js'
-          curl -sSL -o /tmp/formbuilder.js 'https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/f24fix/formbuilder.js'
-          cp /tmp/watermark.js assets/watermark.js
-          cp /tmp/formbuilder.js form/formbuilder.js
+          git apply --verbose fix.patch
+          git apply --verbose fix2.patch
           node --check assets/watermark.js
           node --check form/formbuilder.js
           git config user.name 'dodafga'
@@ -24,8 +22,8 @@ jobs:
           git add assets/watermark.js form/formbuilder.js
           git commit -m 'fix: F-24-03 查驗單逐段對齊範本 + 浮水印比例依範本量測校正'
           git push
-      - name: Self cleanup
+      - name: Cleanup
         run: |
-          git rm -q .github/workflows/apply-fix.yml
-          git commit -m 'chore: remove one-off workflow'
+          git rm -q fix.patch fix2.patch .github/workflows/apply-fix.yml
+          git commit -m 'chore: remove one-off patch and workflow'
           git push

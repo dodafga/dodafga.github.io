@@ -1,18 +1,23 @@
 /*!
  * store.js — 查驗整合版共用資料層（localStorage + 聯動 + 匯出）
  *
- * 資料結構：
+ * 資料結構（version 2）：
  * {
- *   version: 1,
+ *   version: 2,
  *   piles: [ { pier, pileNo, type, side, plannedStart, plannedEnd,
  *              actualStart, actualEnd, status, inspectStatus, inspectDate, note } ],
- *   logs:  [ { id, date, inspector, supervisor, location, pier } ]
+ *   logs:  [ { id, date, inspector, supervisor, location, pier, piles:[pileNo...] } ]
  * }
  *
+ * 相容性：
+ *   - version 1 的 logs 沒有 piles 陣列 → 自動以 pier 推導（該墩全部樁號）
+ *   - 匯入舊 JSON 亦可正常讀取
+ *
  * 聯動規則（recompute）：
- *   1. 每筆查驗紀錄若有 pier，該墩號下所有樁 → inspectStatus='已查驗'、inspectDate=紀錄日期
- *   2. 多筆紀錄時，以「最新日期」為準
- *   3. 完成狀態由實際日期自動推導（有實際完成→已完成；有實際開始→施作中）
+ *   1. 每筆查驗紀錄若有 piles，只把「該筆列出的樁號」標記為已查驗
+ *   2. 若無 piles 但有 pier（舊資料），則該墩全部樁號標記為已查驗
+ *   3. 多筆紀錄時，以「最新日期」為準
+ *   4. 完成狀態由實際日期自動推導（有實際完成→已完成；有實際開始→施作中）
  *
  * 瀏覽器：window.SuiteStore
  */
@@ -21,8 +26,9 @@
 
   var KEY = 'inspection-suite-data-v1';
   var LEGACY_LOG_KEY = 'inspection-log-rows-v1';
+  var DATA_VERSION = 2;
 
-  /* 墩號定義：沿用「預壘樁進度管控表.xlsx」的墩號、樁數、類型、岸別、預定日期 */
+  /* 樁號定義：沿用「預壘樁進度管控表.xlsx」的樁號、樁數、類型、岸別、預定日期 */
   var PIER_DEFS = [
     { pier: 'PR4',  count: 4, type: 'TYPE A', side: '右岸', start: '2026-10-26', end: '2026-10-27' },
     { pier: 'PR3',  count: 4, type: 'TYPE A', side: '右岸', start: '2026-10-29', end: '2026-10-29' },
@@ -99,10 +105,22 @@
   }
 
   function defaultData() {
-    return { version: 1, piles: defaultPiles(), logs: [] };
+    return { version: DATA_VERSION, piles: defaultPiles(), logs: [] };
   }
 
   /* ---------------- 讀寫 ---------------- */
+
+  /** 把任意來源的 piles 陣列正規化為字串陣列（去重、去空白） */
+  function normPileList(arr) {
+    var out = [], seen = {};
+    (Array.isArray(arr) ? arr : []).forEach(function (v) {
+      var s = String(v == null ? '' : v).trim();
+      if (!s || seen[s]) return;
+      seen[s] = true;
+      out.push(s);
+    });
+    return out;
+  }
 
   function normalize(d) {
     d = d || {};
@@ -136,17 +154,25 @@
 
     var logs = (Array.isArray(d.logs) ? d.logs : []).map(function (l) {
       l = l || {};
+      var list = normPileList(l.piles);
+      var pier = String(l.pier || '');
+      /* 舊資料沒有 piles：若指定了墩號，視為該墩全部樁號（於 recompute 展開） */
+      if (!pier && list.length) {
+        var first = byNo[list[0]];
+        if (first) pier = first.pier;
+      }
       return {
         id: String(l.id || uid()),
         date: String(l.date || ''),
         inspector: String(l.inspector || ''),
         supervisor: String(l.supervisor || ''),
         location: String(l.location || ''),
-        pier: String(l.pier || '')
+        pier: pier,
+        piles: list
       };
     });
 
-    return { version: 1, piles: piles, logs: logs };
+    return { version: DATA_VERSION, piles: piles, logs: logs };
   }
 
   function load() {
@@ -171,7 +197,8 @@
                 inspector: String((r && r.inspector) || ''),
                 supervisor: String((r && r.supervisor) || ''),
                 location: String((r && r.location) || ''),
-                pier: ''
+                pier: String((r && r.pier) || ''),
+                piles: normPileList(r && r.piles)
               };
             });
           }
@@ -195,6 +222,17 @@
 
   /* ---------------- 聯動核心 ---------------- */
 
+  /** 取得某筆紀錄實際涵蓋的樁號清單（含舊資料以墩號推導） */
+  function logPileNos(d, l) {
+    if (!l) return [];
+    if (Array.isArray(l.piles) && l.piles.length) return l.piles.slice();
+    if (l.pier) {
+      return (d.piles || []).filter(function (p) { return p.pier === l.pier; })
+        .map(function (p) { return p.pileNo; });
+    }
+    return [];
+  }
+
   function recompute(d) {
     if (!d) return d;
 
@@ -204,14 +242,17 @@
       p.inspectDate = '';
     });
 
+    var byNo = {};
+    d.piles.forEach(function (p) { byNo[p.pileNo] = p; });
+
     var logs = (d.logs || []).slice().sort(function (a, b) {
       return String(a.date || '').localeCompare(String(b.date || ''));
     });
 
     logs.forEach(function (l) {
-      if (!l.pier) return;
-      d.piles.forEach(function (p) {
-        if (p.pier !== l.pier) return;
+      logPileNos(d, l).forEach(function (no) {
+        var p = byNo[no];
+        if (!p) return;
         p.inspectStatus = '已查驗';
         p.inspectDate = l.date || '';
       });
@@ -244,9 +285,22 @@
     return (d.piles || []).filter(function (p) { return p.pier === pier; });
   }
 
+  /** 某墩的樁號清單（字串陣列），供兩層下拉使用 */
+  function pileNosOf(d, pier) {
+    return pilesOf(d, pier).map(function (p) { return p.pileNo; });
+  }
+
+  /** 某墩相關的查驗紀錄（含 piles 交集者） */
   function logsOf(d, pier) {
-    return (d.logs || []).filter(function (l) { return l.pier === pier; })
-      .sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+    return (d.logs || []).filter(function (l) {
+      if (l.pier === pier) return true;
+      var nos = logPileNos(d, l);
+      for (var i = 0; i < nos.length; i++) {
+        var p = (d.piles || []).filter(function (x) { return x.pileNo === nos[i]; })[0];
+        if (p && p.pier === pier) return true;
+      }
+      return false;
+    }).sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
   }
 
   function summary(d) {
@@ -275,15 +329,59 @@
     };
   }
 
+  /* ---------------- 排序 ---------------- */
+
+  /**
+   * 排序樁位：
+   *   mode='actual'（預設）→ 有實際開始日期者依日期由早到晚排前面，沒有實際日期的排後面
+   *   mode='pier'          → 依墩號（原始順序）、樁號
+   * 兩種模式最後都以墩號、樁號作穩定次要排序。
+   */
+  function sortPiles(piles, mode) {
+    var pierOrder = {};
+    PIER_DEFS.forEach(function (d, i) { pierOrder[d.pier] = i; });
+
+    function pileSeq(no) {
+      var m = String(no).match(/-(\d+)$/);
+      return m ? parseInt(m[1], 10) : 0;
+    }
+
+    var arr = (piles || []).slice();
+
+    if (mode === 'pier') {
+      arr.sort(function (a, b) {
+        var pa = pierOrder[a.pier] == null ? 999 : pierOrder[a.pier];
+        var pb = pierOrder[b.pier] == null ? 999 : pierOrder[b.pier];
+        if (pa !== pb) return pa - pb;
+        return pileSeq(a.pileNo) - pileSeq(b.pileNo);
+      });
+      return arr;
+    }
+
+    /* mode === 'actual' */
+    arr.sort(function (a, b) {
+      var sa = a.actualStart || '';
+      var sb = b.actualStart || '';
+      var ha = !!sa, hb = !!sb;
+      if (ha !== hb) return ha ? -1 : 1;          /* 有實際日期者優先 */
+      if (ha && hb && sa !== sb) return sa < sb ? -1 : 1;  /* 日期早的在前 */
+      var pa = pierOrder[a.pier] == null ? 999 : pierOrder[a.pier];
+      var pb = pierOrder[b.pier] == null ? 999 : pierOrder[b.pier];
+      if (pa !== pb) return pa - pb;
+      return pileSeq(a.pileNo) - pileSeq(b.pileNo);
+    });
+    return arr;
+  }
+
   /* ---------------- JSON 匯出／匯入 ---------------- */
 
   function exportJSON(d) {
     var payload = {
       app: 'inspection-suite',
       kind: 'progress+logs',
-      version: 1,
+      version: DATA_VERSION,
       exportedAt: new Date().toISOString(),
-      data: { version: 1, piles: d.piles, logs: d.logs }
+      data: { version: DATA_VERSION, piles: d.piles, logs: d.logs }
     };
     return JSON.stringify(payload, null, 2);
   }
@@ -444,20 +542,25 @@
 
   var PROGRESS_WIDTHS = [9, 11, 9, 7, 12, 12, 12, 12, 10, 10, 12, 22];
 
-  /* 查驗紀錄表 → 列資料（含墩號） */
+  /* 查驗紀錄表 → 列資料（含墩號、樁號） */
   function logRows(d) {
-    var head = ['日期', '查驗人員', '監造派員', '查驗位置', '墩號'];
+    var head = ['日期', '查驗人員', '監造派員', '查驗位置', '墩號', '樁號'];
     var rows = [head];
     (d.logs || []).forEach(function (l) {
-      rows.push([isoToSlash(l.date), l.inspector, l.supervisor, l.location, l.pier]);
+      var nos = logPileNos(d, l);
+      rows.push([
+        isoToSlash(l.date), l.inspector, l.supervisor, l.location,
+        l.pier || '', nos.join('、')
+      ]);
     });
     return rows;
   }
 
-  var LOG_WIDTHS = [16, 18, 18, 46, 14];
+  var LOG_WIDTHS = [16, 18, 18, 40, 12, 26];
 
   global.SuiteStore = {
     KEY: KEY,
+    DATA_VERSION: DATA_VERSION,
     PIER_DEFS: PIER_DEFS,
     STATUS_LIST: STATUS_LIST,
     INSPECT_LIST: INSPECT_LIST,
@@ -466,15 +569,19 @@
     isoToSlash: isoToSlash,
     defaultPiles: defaultPiles,
     defaultData: defaultData,
+    normPileList: normPileList,
     normalize: normalize,
     load: load,
     save: save,
     recompute: recompute,
+    logPileNos: logPileNos,
     pierList: pierList,
     pierDef: pierDef,
     pilesOf: pilesOf,
+    pileNosOf: pileNosOf,
     logsOf: logsOf,
     summary: summary,
+    sortPiles: sortPiles,
     exportJSON: exportJSON,
     importJSON: importJSON,
     buildXlsx: buildXlsx,

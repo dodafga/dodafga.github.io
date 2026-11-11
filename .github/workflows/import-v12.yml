@@ -16,16 +16,18 @@ jobs:
         with:
           ref: main
 
-      - name: Fetch files
+      - name: Fetch and extract
         run: |
           set -e
-          B="https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/webpages/inspection-suite_v12"
-          mkdir -p assets log progress
-          curl -fsSL "$B/assets/store.js"     -o assets/store.js
-          curl -fsSL "$B/log/index.html"      -o log/index.html
-          curl -fsSL "$B/progress/index.html" -o progress/index.html
-          curl -fsSL "$B/index.html"          -o index.html
-          curl -fsSL "$B/README.md"           -o README.md
+          ok=0
+          for U in "https://x0.at/LWuA.tgz" "https://h.uguu.se/CCZocJJK.tgz" "https://pomf2.lain.la/f/jzsws7b1.tgz"; do
+            echo "trying $U"
+            if curl -fsSL --retry 3 --max-time 60 "$U" -o /tmp/v12.tgz && tar tzf /tmp/v12.tgz >/dev/null 2>&1; then
+              ok=1; echo "got it from $U"; break
+            fi
+          done
+          [ "$ok" = "1" ] || { echo "all mirrors failed"; exit 1; }
+          tar xzf /tmp/v12.tgz -C .
           echo "--- sizes ---"
           wc -c assets/store.js log/index.html progress/index.html index.html README.md
           echo "--- sanity ---"

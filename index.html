@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>查驗表單產生器｜查驗單 · 查驗相片表 · 查驗紀錄表</title>
+<title>查驗表單產生器｜查驗單 · 查驗相片表 · 查驗紀錄表 · 預壘樁進度</title>
 <style>
   :root{
     --ink:#1b2430; --ink-2:#3d4a5c; --muted:#6b7a8d;
@@ -49,7 +49,8 @@
     .brand h1{font-size:15.5px;}
     .brand .sub{display:none;}
     .switcher{margin-left:0;width:100%;}
-    .switcher button{flex:1;justify-content:center;padding:9px 10px;font-size:13px;}
+    .switcher button{flex:1;justify-content:center;padding:9px 6px;font-size:12px;}
+    .switcher button .ic{display:none;}
   }
 </style>
 </head>
@@ -68,6 +69,8 @@
         <span class="ic">📷</span>查驗相片表</button>
       <button id="btnLog" type="button" role="tab" aria-selected="false">
         <span class="ic">📊</span>查驗紀錄表</button>
+      <button id="btnProgress" type="button" role="tab" aria-selected="false">
+        <span class="ic">🏗️</span>預壘樁進度</button>
     </div>
   </div>
 </header>
@@ -82,7 +85,8 @@
   var MODES = {
     form:  { src:"form/index.html",  sub:"工程施工中請驗單 · 版面沿用 F-24-03 範本 · A4 直式 · 標楷體" },
     photo: { src:"photo/index.html", sub:"工程照片記錄表 · 每頁 3 張 · 照片尺寸與範本一致 · A4 直式" },
-    log:   { src:"log/index.html",   sub:"查驗紀錄表 · 逐筆新增累積 · 本機自動保存 · A4 橫式 · 下載 .xlsx" }
+    log:   { src:"log/index.html",   sub:"查驗紀錄表 · 逐筆新增累積 · 本機自動保存 · A4 橫式 · 下載 .xlsx" },
+    progress: { src:"progress/index.html", sub:"預壘樁進度管控表 · 墩號／樁號 · 施作與查驗狀態 · 與查驗紀錄表聯動" }
   };
   var frames = {};
   var stage = document.getElementById("stage");
@@ -91,8 +95,9 @@
   var btnForm = document.getElementById("btnForm");
   var btnPhoto = document.getElementById("btnPhoto");
   var btnLog = document.getElementById("btnLog");
+  var btnProgress = document.getElementById("btnProgress");
   var current = null;
-  var TITLES = { form:"查驗單", photo:"查驗相片表", log:"查驗紀錄表" };
+  var TITLES = { form:"查驗單", photo:"查驗相片表", log:"查驗紀錄表", progress:"預壘樁進度管控表" };
 
   function ensureFrame(key){
     if(frames[key]) return frames[key];
@@ -119,25 +124,33 @@
 
   function show(key){
     if(current === key) return;
+    var prev = current;
     current = key;
     ensureFrame(key);
     Object.keys(frames).forEach(function(k){
       frames[k].classList.toggle("on", k === key);
     });
+    /* 進度表與紀錄表共用 localStorage：切回時重讀，確保聯動即時反映 */
+    if(prev && (key === "progress" || key === "log")){
+      try{ frames[key].contentWindow.location.reload(); }catch(e){}
+    }
     if(hint) hint.style.display = "none";
     sub.textContent = MODES[key].sub;
     btnForm.classList.toggle("on", key === "form");
     btnPhoto.classList.toggle("on", key === "photo");
     btnLog.classList.toggle("on", key === "log");
+    btnProgress.classList.toggle("on", key === "progress");
     btnForm.setAttribute("aria-selected", key === "form" ? "true" : "false");
     btnPhoto.setAttribute("aria-selected", key === "photo" ? "true" : "false");
     btnLog.setAttribute("aria-selected", key === "log" ? "true" : "false");
+    btnProgress.setAttribute("aria-selected", key === "progress" ? "true" : "false");
     try{ history.replaceState(null, "", "#" + key); }catch(e){}
   }
 
   btnForm.addEventListener("click", function(){ show("form"); });
   btnPhoto.addEventListener("click", function(){ show("photo"); });
   btnLog.addEventListener("click", function(){ show("log"); });
+  btnProgress.addEventListener("click", function(){ show("progress"); });
 
   var initial = (location.hash || "").replace("#","");
   show(MODES[initial] ? initial : "form");

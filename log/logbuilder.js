@@ -30,7 +30,7 @@
 
   var INSPECTORS  = ['乘恩', '順昔', '火木', '佩璇'];
   var SUPERVISORS = ['振源', '旭程', '慧欣'];
-  var HEADERS     = ['日期', '查驗人員', '監造派員', '查驗位置'];
+  var HEADERS     = ['日期', '查驗人員', '監造派員', '查驗位置', '墩號'];
 
   var FIXED_PROJECT    = '布袋商港聯外道路新闢工程';
   var FIXED_CONTRACTOR = '義力營造股份有限公司';
@@ -70,10 +70,11 @@
         date:       String(r.date || '').trim(),
         inspector:  String(r.inspector || '').trim(),
         supervisor: String(r.supervisor || '').trim(),
-        location:   String(r.location || '').trim()
+        location:   String(r.location || '').trim(),
+        pier:       String(r.pier || '').trim()
       });
     });
-    if (!out.length) out.push({ date: '', inspector: '', supervisor: '', location: '' });
+    if (!out.length) out.push({ date: '', inspector: '', supervisor: '', location: '', pier: '' });
     return out;
   }
 
@@ -93,6 +94,7 @@
       add(r.inspector);
       add(r.supervisor);
       add(r.location);
+      add(r.pier);
     });
 
     var xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
@@ -119,7 +121,7 @@
       ' mc:Ignorable="x14ac"' +
       ' xmlns:x14ac="http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac">');
     out.push('<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>');
-    out.push('<dimension ref="A1:D' + last + '"/>');
+    out.push('<dimension ref="A1:E' + last + '"/>');
     out.push('<sheetViews><sheetView tabSelected="1" workbookViewId="0">' +
       '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' +
       '<selection pane="bottomLeft" activeCell="A2" sqref="A2"/>' +
@@ -131,13 +133,14 @@
       '<col min="1" max="1" width="16" customWidth="1"/>' +
       '<col min="2" max="3" width="18" customWidth="1"/>' +
       '<col min="4" max="4" width="46" customWidth="1"/>' +
+      '<col min="5" max="5" width="14" customWidth="1"/>' +
       '</cols>');
 
     out.push('<sheetData>');
 
     /* 標題列：s=1（深藍底白字粗體置中）、列高 26.1 */
-    out.push('<row r="1" spans="1:4" ht="26.1" customHeight="1" x14ac:dyDescent="0.25">');
-    ['A', 'B', 'C', 'D'].forEach(function (col, i) {
+    out.push('<row r="1" spans="1:5" ht="26.1" customHeight="1" x14ac:dyDescent="0.25">');
+    ['A', 'B', 'C', 'D', 'E'].forEach(function (col, i) {
       out.push('<c r="' + col + '1" s="1" t="s"><v>' + sstMap[HEADERS[i]] + '</v></c>');
     });
     out.push('</row>');
@@ -145,7 +148,7 @@
     /* 資料列：列高 21.95；A s=2（日期格式）、B/C s=3（置中）、D s=4（靠左） */
     rows.forEach(function (r, i) {
       var rn = i + 2;
-      out.push('<row r="' + rn + '" spans="1:4" ht="21.95" customHeight="1" x14ac:dyDescent="0.25">');
+      out.push('<row r="' + rn + '" spans="1:5" ht="21.95" customHeight="1" x14ac:dyDescent="0.25">');
 
       var serial = excelSerial(r.date);
       if (serial != null) {
@@ -170,6 +173,12 @@
         out.push('<c r="D' + rn + '" s="4" t="s"><v>' + sstMap[r.location] + '</v></c>');
       } else {
         out.push('<c r="D' + rn + '" s="4"/>');
+      }
+
+      if (r.pier && sstMap[r.pier] != null) {
+        out.push('<c r="E' + rn + '" s="3" t="s"><v>' + sstMap[r.pier] + '</v></c>');
+      } else {
+        out.push('<c r="E' + rn + '" s="3"/>');
       }
 
       out.push('</row>');
@@ -202,7 +211,7 @@
     return String(xml).replace(
       /(<definedName name="_xlnm\.Print_Area"[^>]*>)[^<]*(<\/definedName>)/g,
       function (m, open, close) {
-        return open + SHEET_NAME + '!$A$1:$D$' + last + close;
+        return open + SHEET_NAME + '!$A$1:$E$' + last + close;
       }
     );
   }

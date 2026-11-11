@@ -119,10 +119,11 @@
     text-align:center;height:30px;}
   .paper td.c{text-align:center;}
   .paper td.l{text-align:left;}
-  .paper col.c1{width:16%;}
-  .paper col.c2{width:18%;}
-  .paper col.c3{width:18%;}
-  .paper col.c4{width:48%;}
+  .paper col.c1{width:15%;}
+  .paper col.c2{width:16%;}
+  .paper col.c3{width:16%;}
+  .paper col.c4{width:41%;}
+  .paper col.c5{width:12%;}
   .paper .pfoot{margin-top:10px;font-size:9.5pt;color:#666;text-align:right;}
 
   .note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:12px;
@@ -205,6 +206,10 @@
               <label for="inLocation">查驗位置</label>
               <input type="text" id="inLocation" placeholder="例：PR1-2、4、6、8">
             </div>
+            <div class="field">
+              <label for="inPier">墩號 <span class="hint">選填 · 會同步進度管控表</span></label>
+              <select id="inPier"></select>
+            </div>
             <div class="btnrow">
               <button class="btn btn-primary" id="btnAdd" type="button">＋ 新增紀錄</button>
               <button class="btn btn-ghost" id="btnResetEntry" type="button">清空欄位</button>
@@ -231,6 +236,7 @@
                   <th>查驗人員</th>
                   <th>監造派員</th>
                   <th>查驗位置</th>
+                  <th>墩號</th>
                   <th class="c">操作</th>
                 </tr>
               </thead>
@@ -279,6 +285,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="../assets/jszip.min.js"></script>
+<script src="../assets/store.js"></script>
 <script src="logbuilder.js"></script>
 <script>
 (function(){
@@ -291,7 +298,9 @@
   var FIXED_CONTRACTOR = LB.FIXED_CONTRACTOR || '義力營造股份有限公司';
   var FIXED_SITE       = LB.FIXED_SITE       || '王振國';
 
-  var STORE_KEY = 'inspection-log-rows-v1';
+  var S = window.SuiteStore || null;
+  var PIERS = (S && S.pierList) ? S.pierList() : [];
+  var STORE_KEY = S ? S.KEY : 'inspection-log-rows-v1';
 
   var state = { rows: [] };
   var tplBuffer = null;
@@ -327,12 +336,43 @@
 
   /* ---------- 本機保存 ---------- */
   function save(){
+    if (S) {
+      var d = S.load();
+      d.logs = state.rows.map(function(r){
+        return {
+          id:         r.id || S.uid(),
+          date:       r.date || '',
+          inspector:  r.inspector || '',
+          supervisor: r.supervisor || '',
+          location:   r.location || '',
+          pier:       r.pier || ''
+        };
+      });
+      S.recompute(d);
+      S.save(d);
+      return;
+    }
     try{
       localStorage.setItem(STORE_KEY, JSON.stringify(state.rows));
     }catch(e){ /* 私密模式或額度已滿：靜默失敗，不影響操作 */ }
   }
 
   function load(){
+    if (S) {
+      try{
+        var d = S.load();
+        return (d.logs || []).map(function(r){
+          return {
+            id:         String(r.id || ''),
+            date:       String(r.date || ''),
+            inspector:  String(r.inspector || ''),
+            supervisor: String(r.supervisor || ''),
+            location:   String(r.location || ''),
+            pier:       String(r.pier || '')
+          };
+        });
+      }catch(e){ return null; }
+    }
     try{
       var raw = localStorage.getItem(STORE_KEY);
       if (!raw) return null;
@@ -344,7 +384,8 @@
           date:       String(r.date || ''),
           inspector:  String(r.inspector || ''),
           supervisor: String(r.supervisor || ''),
-          location:   String(r.location || '')
+          location:   String(r.location || ''),
+          pier:       String(r.pier || '')
         };
       });
     }catch(e){ return null; }
@@ -375,10 +416,12 @@
   /* ---------- 資料操作 ---------- */
   function addRow(data){
     state.rows.push({
+      id:         (S ? S.uid() : ''),
       date:       (data && data.date) || '',
       inspector:  (data && data.inspector) || '',
       supervisor: (data && data.supervisor) || '',
-      location:   (data && data.location) || ''
+      location:   (data && data.location) || '',
+      pier:       (data && data.pier) || ''
     });
     save();
     render();
@@ -444,6 +487,19 @@
       tdLoc.appendChild(inLoc);
       tr.appendChild(tdLoc);
 
+      /* 墩號 */
+      var tdPier = document.createElement('td');
+      var selPier = document.createElement('select');
+      fillSelect(selPier, PIERS, '—');
+      selPier.value = r.pier || '';
+      selPier.addEventListener('change', function(){
+        r.pier = selPier.value;
+        save();
+        renderPreview();
+      });
+      tdPier.appendChild(selPier);
+      tr.appendChild(tdPier);
+
       /* 刪除 */
       var tdOp = document.createElement('td');
       tdOp.className = 'c';
@@ -467,15 +523,16 @@
     h += '<div class="ptitle">' + escHtml(FIXED_PROJECT) + '</div>';
     h += '<div class="psub">查驗紀錄表</div>';
     h += '<table>';
-    h += '<colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>';
-    h += '<thead><tr><th>日期</th><th>查驗人員</th><th>監造派員</th><th>查驗位置</th></tr></thead>';
+    h += '<colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"></colgroup>';
+    h += '<thead><tr><th>日期</th><th>查驗人員</th><th>監造派員</th><th>查驗位置</th><th>墩號</th></tr></thead>';
     h += '<tbody>';
 
     if (!state.rows.length) {
       h += '<tr><td class="c" style="color:#9aa6b4;">—</td>' +
            '<td class="c" style="color:#9aa6b4;">—</td>' +
            '<td class="c" style="color:#9aa6b4;">—</td>' +
-           '<td class="l" style="color:#9aa6b4;">尚無資料</td></tr>';
+           '<td class="l" style="color:#9aa6b4;">尚無資料</td>' +
+           '<td class="c" style="color:#9aa6b4;">—</td></tr>';
     } else {
       state.rows.forEach(function(r){
         h += '<tr>' +
@@ -483,6 +540,7 @@
           '<td class="c">' + escHtml(r.inspector) + '</td>' +
           '<td class="c">' + escHtml(r.supervisor) + '</td>' +
           '<td class="l">' + escHtml(r.location) + '</td>' +
+          '<td class="c">' + escHtml(r.pier || '') + '</td>' +
           '</tr>';
       });
     }
@@ -529,10 +587,10 @@
   /* ---------- 範例 / 清除 ---------- */
   function fillSample(){
     state.rows = [
-      { date:'2026-11-05', inspector:'乘恩', supervisor:'旭程', location:'PR1-2、4、6、8' },
-      { date:'2026-11-06', inspector:'乘恩', supervisor:'旭程', location:'PR1-1、3、5、7、9、PR10-8' },
-      { date:'2026-11-07', inspector:'順昔', supervisor:'旭程', location:'PR' },
-      { date:'2026-11-08', inspector:'順昔', supervisor:'旭程', location:'' }
+      { id:(S?S.uid():''), date:'2026-11-05', inspector:'乘恩', supervisor:'旭程', location:'PR1-2、4、6、8', pier:'PR1' },
+      { id:(S?S.uid():''), date:'2026-11-06', inspector:'乘恩', supervisor:'旭程', location:'PR1-1、3、5、7、9、PR10-8', pier:'PR10' },
+      { id:(S?S.uid():''), date:'2026-11-07', inspector:'順昔', supervisor:'旭程', location:'PR', pier:'PR2' },
+      { id:(S?S.uid():''), date:'2026-11-08', inspector:'順昔', supervisor:'旭程', location:'', pier:'' }
     ];
     save();
     render();
@@ -555,6 +613,7 @@
 
   fillSelect($('inInspector'), INSPECTORS, '— 請選擇 —');
   fillSelect($('inSupervisor'), SUPERVISORS, '— 請選擇 —');
+  fillSelect($('inPier'), PIERS, '— 不指定 —');
   $('inDate').value = todayISO();
 
   $('btnAdd').addEventListener('click', function(){
@@ -562,17 +621,18 @@
     var ins = $('inInspector').value;
     var sup = $('inSupervisor').value;
     var loc = $('inLocation').value.trim();
+    var pier = $('inPier').value;
 
     if (!d) { toast('請填寫查驗日期', true); $('inDate').focus(); return; }
     if (!ins) { toast('請選擇查驗人員', true); $('inInspector').focus(); return; }
     if (!sup) { toast('請選擇監造人員', true); $('inSupervisor').focus(); return; }
 
-    addRow({ date:d, inspector:ins, supervisor:sup, location:loc });
+    addRow({ date:d, inspector:ins, supervisor:sup, location:loc, pier:pier });
 
     /* 新增後保留日期與人員，只清空位置，方便連續輸入 */
     $('inLocation').value = '';
     $('inLocation').focus();
-    toast('已新增第 ' + state.rows.length + ' 筆紀錄');
+    toast('已新增第 ' + state.rows.length + ' 筆紀錄' + (pier ? '（' + pier + ' 已同步至進度表）' : ''));
   });
 
   $('btnResetEntry').addEventListener('click', function(){
@@ -580,6 +640,7 @@
     $('inInspector').value = '';
     $('inSupervisor').value = '';
     $('inLocation').value = '';
+    $('inPier').value = '';
     $('inDate').focus();
   });
 

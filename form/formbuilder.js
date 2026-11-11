@@ -172,6 +172,89 @@
     return p;
   }
 
+  /**
+   * 保留範本該段的「全部 run 結構」（run 數量、順序、每個 run 的 rPr 一律不動），
+   * 只把新文字放進第一個 run，其餘 run 的文字清空。
+   *
+   * 為什麼這樣做：Word 的格式來自每個 run 的 rPr。只要 run 清單與 rPr 與範本逐項相同，
+   * 輸出的字型／字級／字元間距／kern／ligatures 就必然與範本一致（0 差異），
+   * 而空 run 在 Word 中不佔寬度、不影響版面。
+   *
+   * @param {Element} p    目標段落（通常是範本段落的 clone）
+   * @param {string} text  新文字；含 \n 時以 w:br 在同一段落內換行
+   */
+  function setTextKeepRuns(p, text) {
+    var rs = kids(p, 'r'), i, j;
+    if (!rs.length) {
+      var r0 = p.ownerDocument.createElementNS(W_NS, 'w:r');
+      p.appendChild(r0);
+      rs = [r0];
+    }
+    /* 先把所有 run 的 w:t 清空（保留 rPr 與其他子節點結構） */
+    for (i = 0; i < rs.length; i++) {
+      var ts = kids(rs[i], 't');
+      for (j = 0; j < ts.length; j++) {
+        if (ts[j].parentNode === rs[i]) rs[i].removeChild(ts[j]);
+      }
+    }
+    /* 文字全部放進第一個 run，換行用 w:br */
+    var host = rs[0];
+    var segs = String(text == null ? '' : text).split(/\r?\n/);
+    for (i = 0; i < segs.length; i++) {
+      if (i > 0) host.appendChild(p.ownerDocument.createElementNS(W_NS, 'w:br'));
+      var t = p.ownerDocument.createElementNS(W_NS, 'w:t');
+      t.textContent = segs[i];
+      t.setAttributeNS(XML_NS, 'xml:space', 'preserve');
+      host.appendChild(t);
+    }
+    return p;
+  }
+
+  /**
+   * 保留範本該段全部 run 的 rPr，但把文字「分兩個 run」寫入：
+   *   標籤（label）→ 第一個 run（範本為 Times New Roman）
+   *   資料（value）→ 第一個 ascii 字型為「標楷體」的 run（範本為標楷體）
+   * 其餘 run 的文字清空（rPr 保留，不佔寬度）。
+   *
+   * 為什麼需要分開：F-24-03 的「查驗位置:」「查驗內容:」是「標籤 Times + 資料標楷體」
+   * 的雙字型結構。若把整串文字塞進第一個 run，中文會用 Times 渲染，
+   * 字形與範本不同（實測 PDF 疊圖差 6,124 像素）。
+   */
+  function setTextSplitRuns(p, label, value) {
+    var rs = kids(p, 'r'), i, j;
+    if (!rs.length) {
+      p.appendChild(p.ownerDocument.createElementNS(W_NS, 'w:r'));
+      rs = kids(p, 'r');
+    }
+    for (i = 0; i < rs.length; i++) {
+      var ts = kids(rs[i], 't');
+      for (j = 0; j < ts.length; j++) {
+        if (ts[j].parentNode === rs[i]) rs[i].removeChild(ts[j]);
+      }
+    }
+    function put(run, text) {
+      if (!run) return;
+      var segs = String(text == null ? '' : text).split(/\r?\n/), k;
+      for (k = 0; k < segs.length; k++) {
+        if (k > 0) run.appendChild(p.ownerDocument.createElementNS(W_NS, 'w:br'));
+        var t = p.ownerDocument.createElementNS(W_NS, 'w:t');
+        t.textContent = segs[k];
+        t.setAttributeNS(XML_NS, 'xml:space', 'preserve');
+        run.appendChild(t);
+      }
+    }
+    /* 資料 run：優先找 ascii=標楷體 的 run，找不到就用最後一個 run */
+    var dataRun = null;
+    for (i = 0; i < rs.length; i++) {
+      if (runAsciiFont(rs[i]) === '\u6a19\u6977\u9ad4') { dataRun = rs[i]; break; }
+    }
+    if (!dataRun) dataRun = rs[rs.length - 1];
+    put(rs[0], label);
+    if (dataRun !== rs[0]) put(dataRun, value);
+    else put(rs[0], String(label || '') + String(value == null ? '' : value));
+    return p;
+  }
+
   /** 清掉某段的全部 run */
   function clearRuns(p) {
     var rs = kids(p, 'r'), i;
@@ -385,9 +468,9 @@
        兩者以「半形空格」相接（不是全形空格），讓「壹.二.43 預壘樁，280kgf/cm²」
        讀起來是同一句話；全形空格則保留給「契約 → 單元位置」的欄位分界。
        舊版單一欄位 data.contract 仍保留為相容後援，避免舊呼叫端壞掉。 */
-    var no = splitClean(data.itemNo).join('\u3000');
-    var name = splitClean(data.itemName).join('\u3000');
-    var c = splitClean(data.contract).join('\u3000');
+    var no = splitClean(data.itemNo).join('　');
+    var name = splitClean(data.itemName).join('　');
+    var c = splitClean(data.contract).join('　');
     if (!no && !name && c) { name = c; }
     var contract = [no, name].filter(function (s) { return s; }).join(' ');
 
@@ -398,7 +481,7 @@
       return data.itemUnit == null ? '' : String(data.itemUnit);
     }
 
-    var head = [contract, u].filter(function (s) { return s; }).join('\u3000');
+    var head = [contract, u].filter(function (s) { return s; }).join('　');
     if (d) head = head ? head + '\uff0c' + d : d;
     return head;
   }
@@ -728,30 +811,19 @@
        （12pt／標楷體／行距 240 auto／left 2127 right 10 hanging 567）。
        使用者輸入什麼就原樣輸出：不加標籤、不補空白、不補標點；
        換行以 w:br 保留在同一段落內，段落數不變。 */
-    var p3 = clearRuns(paras[3].cloneNode(true));
+    var p3 = paras[3].cloneNode(true);
     /* 移除範本該段的自動編號（numId=3 → 會自動印出「（一）」）。
        合併成單一段落後只會剩下一個孤零零的「（一）」，且使用者要求「不自動加標籤」，
        因此拿掉 numPr；ind（left 2127 / right 10 / hanging 567）與 spacing、字級、字型全部保留。 */
-    var p3Pr = first(p3, 'pPr');
-    if (p3Pr) {
-      var p3Num = first(p3Pr, 'numPr');
-      if (p3Num) p3Pr.removeChild(p3Num);
-    }
-    String(composeItem(data)).split(/\r?\n/).forEach(function (ln, idx) {
-      if (idx > 0) {
-        var prevRuns = kids(p3, 'r');
-        if (prevRuns.length) {
-          prevRuns[prevRuns.length - 1].appendChild(p3.ownerDocument.createElementNS(W_NS, 'w:br'));
-        }
-      }
-      appendRun(p3, kaiSrc, ln);
-    });
+    /* 範本第 4 段帶 numPr(numId=3) → Word 自動印出「(一)」。
+       必須保留，否則輸出的 (一) 會消失（與範本不一致）。 */
+    /* 保留範本該段 8 個 run 的 rPr（含 hint 差異），文字整段放進第一個 run。 */
+    setTextKeepRuns(p3, composeItem(data));
     out.push(p3);
 
     /* ---- [05] 三、預定抽(查)驗日期：範本該段西文為 Times → 沿用 ---- */
-    out.push(setTextWithRun(paras[4].cloneNode(true),
-      '預定抽 (查)驗日期：' + rocDateTime(data.date, data.time),
-      pickRun(paras[4], 'Times New Roman')));
+    out.push(setTextKeepRuns(paras[4].cloneNode(true),
+      '預定抽 (查)驗日期：' + rocDateTime(data.date, data.time)));
 
     /* ---- [05] 四、請驗項目(應填樁號里程或尺寸長度)： ---- */
     out.push(paras[5]);
@@ -773,26 +845,25 @@
     var lineKai = pickRun(baseLine, '標楷體');
     var lineTimes = pickRun(baseLine, 'Times New Roman');
 
-    function mkSlot(label, value) {
-      var p = clearRuns(baseLine.cloneNode(true));
-      if (label) appendRun(p, lineTimes, label);
-      var segs = String(value == null ? '' : value).split('\n');
-      var wrote = false;
-      segs.forEach(function (seg, i) {
-        if (i > 0) {
-          var rs0 = kids(p, 'r');
-          if (rs0.length) rs0[rs0.length - 1].appendChild(p.ownerDocument.createElementNS(W_NS, 'w:br'));
-        }
-        if (seg) { appendRun(p, lineKai, seg); wrote = true; }
-      });
-      if (!wrote) appendRun(p, lineKai, '');
+    function mkSlot(base, label, value) {
+      /* 保留範本該段全部 run 的 rPr（標籤 run 用 Times、資料 run 用標楷體），
+         文字（標籤 + 資料）整段放進第一個 run；多行以 w:br 換行。
+         注意：範本第 7 段有 5 個 run、第 8 段有 6 個 run，兩段結構不同，
+         因此各自以「自己那一段」為母版，run 清單與 rPr 才能逐項相同。 */
+      var p = base.cloneNode(true);
+      setTextSplitRuns(p, label, value);
       if (data.autoNum === false) stripNumbering(p);
       return p;
     }
 
     /* 固定兩列：(一) 位置 → (二) 內容。兩段永遠存在，段落數不隨輸入行數改變。 */
-    out.push(mkSlot('查驗位置：', alloc.posHead));
-    out.push(mkSlot('查驗內容：', alloc.descHead));
+    /* 範本第 7 段為「查驗位置: 」（半形冒號 + 一個空白），第 8 段為「查驗內容:」（半形冒號、無空白）。
+       先前用全形「：」，與範本不符。 */
+    /* 範本第 7 段：run0='查驗位置'(Times) run1=':'(Times) run2=' '(標楷體) run3='P'...
+       → 冒號後的空白屬於「標楷體資料 run」，因此空白要放在 value 前面，不能留在 label。
+       範本第 8 段：run0='查驗內容' run1=':' run2='預壘樁'... → 冒號後無空白。 */
+    out.push(mkSlot(paras[6], '查驗位置:', ' ' + String(alloc.posHead == null ? '' : alloc.posHead)));
+    out.push(mkSlot(paras[7], '查驗內容:', alloc.descHead));
 
     /* ---- [08][09] 空白間隔（照範本保留，位於「五、上列項目」之前） ---- */
     out.push(paras[8]);
@@ -807,9 +878,8 @@
     out.push(paras[13]);
 
     /* ---- [19] 申請日期（範本西文為 Times，sz=28） ---- */
-    out.push(setTextWithRun(paras[14].cloneNode(true),
-      '申請日期： ' + rocDate(data.apply),
-      pickRun(paras[14], 'Times New Roman')));
+    out.push(setTextKeepRuns(paras[14].cloneNode(true),
+      '申請日期： ' + rocDate(data.apply)));
 
     /* ---- [20] 承包商（固定；保留範本 2 個 run：標籤 + 名稱） ---- */
     var p20 = paras[15].cloneNode(true), r20 = kids(p20, 'r'), k20;
@@ -824,15 +894,10 @@
 
     /* ---- [21] 工地主任（固定）；尾端空白 run 原樣保留（範本該 run sz=22，
        若併入主 run 會變成 14pt 空白，行高與範本不同） ---- */
-    var p21 = paras[16].cloneNode(true), r21 = kids(p21, 'r'), k21;
-    if (r21.length >= 2) {
-      setTextRunOnly(r21[0], '工地主任(負責人)：' + FIXED_SITE);
-      for (k21 = 1; k21 < r21.length - 1; k21++) {
-        if (r21[k21].parentNode === p21) p21.removeChild(r21[k21]);
-      }
-    } else {
-      setTextWithRun(p21, '工地主任(負責人)：' + FIXED_SITE, pickRun(paras[16], 'Times New Roman'));
-    }
+    /* 保留範本該段全部 8 個 run（含尾端 sz=22 的空白 run），
+       文字整段放進第一個 run，尾端空白由範本 run 結構自然保留。 */
+    var p21 = setTextKeepRuns(paras[16].cloneNode(true),
+      '工地主任(負責人)：' + FIXED_SITE + '   ');
     out.push(p21);
 
     /* ---- [17] 此致（不動） ---- */

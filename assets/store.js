@@ -5,8 +5,11 @@
  * {
  *   version: 3,
  *   piles: [ { pier, pileNo, type, side, plannedStart, plannedEnd,
- *              actualStart, actualEnd, status, inspectStatus, inspectDate,
+ *              workDate, status, inspectStatus, inspectDate,
  *              progressDate, note } ],
+ *
+ *   workDate = 施作日期（單一日期，取代舊版 actualStart／actualEnd）
+ *   舊資料相容：載入時 workDate = actualEnd || actualStart
  *   logs:  [ { id, date, inspector, supervisor, location, pier, piers:[...], piles:[pileNo...] } ]
  * }
  *
@@ -19,9 +22,8 @@
  *   1. 每筆查驗紀錄若有 piles，只把「該筆列出的樁號」標記為已查驗
  *   2. 若無 piles 但有 pier（舊資料），則該墩全部樁號標記為已查驗
  *   3. 多筆紀錄時，以「最新日期」為準
- *   4. 完成狀態優先順序：已查驗 → 已完成；未查驗有實際完成 → 已完成；
- *      未查驗有實際開始 → 施作中；都沒有 → 未施作
- *   5. 進度日期（progressDate）：以查驗日期為基準，沒有查驗才回退實際完成／實際開始
+ *   4. 完成狀態優先順序：已查驗 → 已完成；未查驗但有施作日期 → 施作中；都沒有 → 未施作
+ *   5. 進度日期（progressDate）：以查驗日期為基準，沒有查驗才回退施作日期（workDate）
  *
  * 瀏覽器：window.SuiteStore
  */
@@ -96,8 +98,7 @@
           side: d.side,
           plannedStart: d.start,
           plannedEnd: d.end,
-          actualStart: '',
-          actualEnd: '',
+          workDate: '',
           status: '未施作',
           inspectStatus: '未查驗',
           inspectDate: '',
@@ -146,8 +147,8 @@
         side: String(p.side || def.side || ''),
         plannedStart: String(p.plannedStart || def.plannedStart || ''),
         plannedEnd: String(p.plannedEnd || def.plannedEnd || ''),
-        actualStart: String(p.actualStart || ''),
-        actualEnd: String(p.actualEnd || ''),
+        /* 施作日期：新格式 workDate；舊格式 actualEnd 優先、其次 actualStart */
+        workDate: String(p.workDate || p.actualEnd || p.actualStart || ''),
         status: String(p.status || '未施作'),
         inspectStatus: String(p.inspectStatus || '未查驗'),
         inspectDate: String(p.inspectDate || ''),
@@ -314,20 +315,18 @@
     });
 
     /* 2. 完成狀態判定（優先順序）：
-     *      已查驗            → 已完成（不論實際日期是否填寫）
-     *      未查驗但有實際完成 → 已完成
-     *      未查驗但有實際開始 → 施作中
-     *      都沒有            → 未施作
+     *      已查驗              → 已完成（不論施作日期是否填寫）
+     *      未查驗但有施作日期   → 施作中
+     *      都沒有              → 未施作
      */
     d.piles.forEach(function (p) {
       if (p.inspectStatus === '已查驗') p.status = '已完成';
-      else if (p.actualEnd) p.status = '已完成';
-      else if (p.actualStart) p.status = '施作中';
+      else if (p.workDate) p.status = '施作中';
       else p.status = '未施作';
 
-      /* 3. 實際進度日期：以查驗日期為基準（有查驗就用查驗日期），
-       *    沒有查驗才回退實際完成／實際開始。進度差異與墩彙總都以此為準。 */
-      p.progressDate = p.inspectDate || p.actualEnd || p.actualStart || '';
+      /* 3. 進度日期：以查驗日期為基準（有查驗就用查驗日期），
+       *    沒有查驗才回退施作日期。進度差異與墩彙總都以此為準。 */
+      p.progressDate = p.inspectDate || p.workDate || '';
     });
 
     return d;
@@ -401,9 +400,9 @@
         if (p.inspectStatus === '已查驗') inspected++;
         if (p.status === '已完成') done++;
         else if (p.status === '施作中') doing++;
-        if (p.actualStart) starts.push(p.actualStart);
+        if (p.workDate) starts.push(p.workDate);
         if (p.inspectDate) inspects.push(p.inspectDate);
-        if (p.actualEnd) ends.push(p.actualEnd);
+        if (p.workDate) ends.push(p.workDate);
         if (p.inspectDate) ends.push(p.inspectDate);
       });
 
@@ -514,8 +513,8 @@
 
     /* mode === 'actual' */
     arr.sort(function (a, b) {
-      var sa = a.actualStart || '';
-      var sb = b.actualStart || '';
+      var sa = a.workDate || '';
+      var sb = b.workDate || '';
       var ha = !!sa, hb = !!sb;
       if (ha !== hb) return ha ? -1 : 1;          /* 有實際日期者優先 */
       if (ha && hb && sa !== sb) return sa < sb ? -1 : 1;  /* 日期早的在前 */
@@ -697,13 +696,13 @@
   /* 進度管控表 → 列資料（含「進度日期」：以查驗日期為基準） */
   function progressRows(d) {
     var head = ['墩號', '樁號', '類型', '岸別', '預定開始', '預定完成',
-      '實際開始', '實際完成', '進度日期', '完成狀態', '查驗狀態', '查驗日期', '備註'];
+      '施作日期', '進度日期', '完成狀態', '查驗狀態', '查驗日期', '備註'];
     var rows = [head];
     (d.piles || []).forEach(function (p) {
       rows.push([
         p.pier, p.pileNo, p.type, p.side,
         isoToSlash(p.plannedStart), isoToSlash(p.plannedEnd),
-        isoToSlash(p.actualStart), isoToSlash(p.actualEnd),
+        isoToSlash(p.workDate),
         isoToSlash(p.progressDate),
         p.status, p.inspectStatus, isoToSlash(p.inspectDate), p.note
       ]);
@@ -711,11 +710,11 @@
     return rows;
   }
 
-  var PROGRESS_WIDTHS = [9, 11, 9, 7, 12, 12, 12, 12, 12, 10, 10, 12, 22];
+  var PROGRESS_WIDTHS = [9, 11, 9, 7, 12, 12, 12, 12, 10, 10, 12, 22];
 
   /* 墩號彙總 → 列資料（墩開始時間、整墩結束時間、墩狀態） */
   function pierSummaryRows(d) {
-    var head = ['墩號', '類型', '岸別', '樁數', '已完成', '已查驗', '墩開始時間', '整墩結束時間', '墩狀態'];
+    var head = ['墩號', '類型', '岸別', '樁數', '已完成', '已查驗', '墩開始時間', '墩完成時間', '墩狀態'];
     var rows = [head];
     pierSummary(d).forEach(function (s) {
       rows.push([

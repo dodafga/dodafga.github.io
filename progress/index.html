@@ -236,7 +236,7 @@
       <h2>墩號彙總</h2>
       <span class="tag" id="pierTag">0 墩</span>
       <span class="spacer"></span>
-      <span style="font-size:11.5px;color:var(--muted);">墩開始時間＝最早實際開始（無則最早查驗）　·　整墩結束時間＝全墩完成時最晚實際完成／查驗</span>
+      <span style="font-size:11.5px;color:var(--muted);">墩開始時間＝最早施作日期（無則最早查驗）　·　墩完成時間＝全墩完成時最晚施作／查驗日期</span>
     </div>
     <div class="card-b" style="padding:0;">
       <div class="pierwrap">
@@ -250,7 +250,7 @@
               <th style="width:64px;">已完成</th>
               <th style="width:64px;">已查驗</th>
               <th style="width:118px;">墩開始時間</th>
-              <th style="width:190px;">整墩結束時間</th>
+              <th style="width:190px;">墩完成時間</th>
               <th style="width:88px;">墩狀態</th>
             </tr>
           </thead>
@@ -279,8 +279,7 @@
               <th style="width:56px;">岸別</th>
               <th style="width:126px;">預定開始</th>
               <th style="width:126px;">預定完成</th>
-              <th style="width:126px;">實際開始</th>
-              <th style="width:126px;">實際完成</th>
+              <th style="width:126px;">施作日期</th>
               <th style="width:112px;">進度日期</th>
               <th style="width:96px;">完成狀態</th>
               <th style="width:96px;">查驗狀態</th>
@@ -501,29 +500,18 @@
         tr.appendChild(td);
       });
 
-      /* 實際開始 */
-      var tdAS = document.createElement('td');
-      var inAS = document.createElement('input');
-      inAS.type = 'date';
-      inAS.value = p.actualStart || '';
-      inAS.addEventListener('change', function(){
-        p.actualStart = inAS.value;
+      /* 施作日期（單一日期，取代舊版實際開始／實際完成） */
+      var tdWD = document.createElement('td');
+      var inWD = document.createElement('input');
+      inWD.type = 'date';
+      inWD.value = p.workDate || '';
+      inWD.title = '施作日期（有查驗紀錄時，進度以查驗日期為準）';
+      inWD.addEventListener('change', function(){
+        p.workDate = inWD.value;
         persist(); renderStats(); renderPiers(); renderTable();
       });
-      tdAS.appendChild(inAS);
-      tr.appendChild(tdAS);
-
-      /* 實際完成 */
-      var tdAE = document.createElement('td');
-      var inAE = document.createElement('input');
-      inAE.type = 'date';
-      inAE.value = p.actualEnd || '';
-      inAE.addEventListener('change', function(){
-        p.actualEnd = inAE.value;
-        persist(); renderStats(); renderPiers(); renderTable();
-      });
-      tdAE.appendChild(inAE);
-      tr.appendChild(tdAE);
+      tdWD.appendChild(inWD);
+      tr.appendChild(tdWD);
 
       /* 進度日期（以查驗日期為基準，唯讀） */
       var tdPD = document.createElement('td');
@@ -532,7 +520,7 @@
       tdPD.style.fontSize = '12px';
       tdPD.style.fontWeight = p.progressDate ? '700' : '400';
       tdPD.style.color = p.progressDate ? (p.inspectDate ? '#2F5597' : '#1f7a4d') : '#9aa6b4';
-      tdPD.title = p.inspectDate ? '依查驗日期' : (p.progressDate ? '依實際日期' : '尚無進度');
+      tdPD.title = p.inspectDate ? '依查驗日期' : (p.progressDate ? '依施作日期' : '尚無進度');
       tr.appendChild(tdPD);
 
       /* 完成狀態 */
@@ -615,7 +603,7 @@
            '<div class="v" style="color:#2F5597;">' + sum.startText + '</div></div>';
       h += '<div class="ditem" style="background:' + (sum.allDone ? '#e9f5ee' : '#fdf6e7') +
            ';border-color:' + (sum.allDone ? '#cfe6da' : '#f0dfb8') + ';">' +
-           '<div class="k">整墩結束時間</div>' +
+           '<div class="k">墩完成時間</div>' +
            '<div class="v" style="color:' + (sum.allDone ? '#1f7a4d' : '#c47f17') + ';font-size:12.5px;">' +
            sum.endText + '</div></div>';
       h += '<div class="ditem"><div class="k">墩狀態</div><div class="v">' + statusPill(sum.status) + '</div></div>';
@@ -756,7 +744,7 @@
     var n = 0;
     data.piles.forEach(function(p){
       if (p.status === '未施作' && p.plannedStart && p.plannedStart <= t) {
-        p.actualStart = t; n++;
+        p.workDate = t; n++;
       }
     });
     if (!n) { toast('沒有需要開工的樁（已開工或尚未到預定開始日）'); return; }
@@ -765,9 +753,9 @@
   });
 
   $('btnResetAll').addEventListener('click', function(){
-    if (!window.confirm('確定要清除所有「實際開始／實際完成／備註」嗎？\n查驗紀錄不會被刪除。')) return;
+    if (!window.confirm('確定要清除所有「施作日期／備註」嗎？\n查驗紀錄不會被刪除。')) return;
     data.piles.forEach(function(p){
-      p.actualStart = ''; p.actualEnd = ''; p.note = '';
+      p.workDate = ''; p.note = '';
     });
     persist(); render();
     toast('已重設進度（查驗紀錄保留）');

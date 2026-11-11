@@ -1,1 +1,34 @@
-$(cat /workspace/ios_fix/.github/workflows/ios-safari-fix.yml)
+name: ios-safari-fix
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ios-safari-fix.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply iOS Safari fixes
+        run: |
+          set -e
+          python3 .github/apply_ios_fix.py .
+      - name: Verify syntax
+        run: |
+          set -e
+          node --check assets/store.js
+          echo "store.js OK"
+      - name: Remove helper files
+        run: |
+          git rm -f .github/workflows/ios-safari-fix.yml .github/apply_ios_fix.py
+      - name: Commit and push
+        run: |
+          git config user.name 'dodafga'
+          git config user.email 'dodafga@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(ios): 修正 iOS Safari 上查驗紀錄表／進度表載入緩慢與畫面出不來的問題'
+          git push origin HEAD:main

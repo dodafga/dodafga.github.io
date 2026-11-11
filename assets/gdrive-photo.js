@@ -239,6 +239,50 @@
     });
   }
 
+  /* ---------------- 相片前置處理（壓縮 + 浮水印） ---------------- */
+
+  /**
+   * 把原始檔壓成 JPEG（長邊 ≤ maxEdge、quality 0.88），並依需要壓上歸檔日期浮水印。
+   * 浮水印會壓進實際輸出的 JPEG，上傳到 Drive 的檔案本身就帶浮水印。
+   *
+   * opts: { date:'YYYY-MM-DD', watermark:true, maxEdge:2000, quality:0.88, detect:true }
+   * 回傳 Promise<{ blob, applied, detected, width, height, box }>
+   *
+   * 若瀏覽器不支揵 canvas 或解碼失敗，會退回原檔（不中斷上傳）。
+   */
+  function preparePhotoBlob(file, opts) {
+    opts = opts || {};
+    var WM = global.PhotoWatermark;
+    if (!WM) return Promise.resolve({ blob: file, applied: false, detected: false, fallback: true });
+
+    return WM.loadImageFromBlob(file).then(function (img) {
+      var r;
+      try {
+        r = WM.render(img, {
+          maxEdge: opts.maxEdge || 2000,
+          date: opts.date,
+          watermark: opts.watermark !== false,
+          detect: opts.detect !== false
+        });
+      } finally {
+        try { img.release(); } catch (e) {}
+      }
+      return WM.toBlob(r.canvas, opts.quality == null ? 0.88 : opts.quality).then(function (blob) {
+        return {
+          blob: blob,
+          applied: r.applied,
+          detected: r.detected,
+          width: r.width,
+          height: r.height,
+          box: r.box
+        };
+      });
+    }).catch(function () {
+      /* 解碼／畫布失敗：退回原檔，讓上傳照常進行 */
+      return { blob: file, applied: false, detected: false, fallback: true };
+    });
+  }
+
   /* ---------------- 併入 window.GDrive ---------------- */
 
   var merged = {};
@@ -256,6 +300,7 @@
   merged.ensurePhotoDateFolder = ensurePhotoDateFolder;
   merged.uploadPhoto     = uploadPhoto;
   merged.fetchFile       = fetchFile;
+  merged.preparePhotoBlob = preparePhotoBlob;
   merged.friendlyError   = friendlyError;
 
   global.GDrivePhoto = merged;

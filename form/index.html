@@ -434,40 +434,6 @@ PR1-5（0K+154）"></textarea>
           </div>
 
           <div class="field">
-            <label>查驗基本資料 <span class="hint">（與下方附件表單共用同一份資料，改這裡兩邊同步）</span></label>
-            <div class="row2">
-              <div class="field" style="margin-bottom:0;">
-                <label for="fInspector">查驗人員</label>
-                <select id="fInspector"></select>
-              </div>
-              <div class="field" style="margin-bottom:0;">
-                <label for="fSupervisor">監造人員</label>
-                <select id="fSupervisor"></select>
-              </div>
-            </div>
-            <div class="row2" style="margin-top:9px;">
-              <div class="field" style="margin-bottom:0;">
-                <label for="fPier">墩號 <span class="hint">可多選</span></label>
-                <div class="pilepick">
-                  <select id="fPier"></select>
-                  <button class="btn btn-ghost btn-sm" id="btnAddPier" type="button">＋ 加入</button>
-                </div>
-              </div>
-              <div class="field" style="margin-bottom:0;">
-                <label for="fPile">樁號 <span class="hint">依墩號分組</span></label>
-                <div class="pilepick">
-                  <select id="fPile" disabled></select>
-                  <button class="btn btn-ghost btn-sm" id="btnAddPile" type="button" disabled>＋ 加入</button>
-                </div>
-              </div>
-            </div>
-            <div class="chips" id="sharedChips"></div>
-            <div style="font-size:11.5px;color:#6b7a8d;margin-top:7px;line-height:1.6;">
-              這些欄位會一併寫入附件表單的共用區塊，也會隨紀錄一起存檔；附件區塊以唯讀方式顯示，避免重複填寫。
-            </div>
-          </div>
-
-          <div class="field">
             <label>附件表單 <span class="hint">（勾選後接在查驗單後面，另起一頁，合併成同一份 Word）</span></label>
             <label class="chk" style="margin-bottom:9px;">
               <input type="checkbox" id="fAttach"> 加入附件表單（依「活頁簿1」格式）
@@ -476,15 +442,6 @@ PR1-5（0K+154）"></textarea>
               <div class="field">
                 <label for="fAttTitle">附件表單標題</label>
                 <input type="text" id="fAttTitle" placeholder="例：預壘樁工程-布袋港">
-              </div>
-
-              <div class="sharedbox">
-                <div class="sharedhead">
-                  <span>共用欄位（唯讀）</span>
-                  <span class="lk">與查驗單同步</span>
-                  <button class="btn btn-ghost btn-sm" id="btnBackToForm" type="button" style="margin-left:auto;">↩ 回查驗單修改</button>
-                </div>
-                <div class="sharedgrid" id="sharedGrid"></div>
               </div>
 
               <div class="colhead">
@@ -500,7 +457,8 @@ PR1-5（0K+154）"></textarea>
               <div style="font-size:11.5px;color:#6b7a8d;margin-top:8px;line-height:1.6;">
                 <b>欄位：</b>契約項次／項目及說明／單位／查驗數量／監造覆核，與參考檔「活頁簿1」一致；
                 表頭 14pt、內容 12pt、標楷體、細框線、置中，標題 16pt 置中。<br>
-                <b>施工單位／監造單位</b>已改為共用欄位，直接沿用查驗單的承包商與監造人員，不再重複填寫。
+                <b>第一列自動帶入：</b>「契約項次」與「項目及說明」直接取自查驗單上方的契約項次與契約名稱，
+                不需要重複填寫；第二列起可自由新增。
               </div>
             </div>
           </div>
@@ -560,7 +518,6 @@ PR1-5（0K+154）"></textarea>
 <div class="toast" id="toast"></div>
 
 <script src="../assets/jszip.min.js"></script>
-<script src="../assets/store.js"></script>
 <script src="../assets/gdrive.js"></script>
 <script src="formbuilder.js"></script>
 <script>
@@ -580,18 +537,11 @@ PR1-5（0K+154）"></textarea>
     date:"", time:"10:30",
     pos:"", desc:"", autoNum:true,
     apply:"",
-    /* v16：與附件表單共用的查驗基本資料 */
-    inspector:"", supervisor:"",
-    piers:[], piles:[],
     attach:{ enabled:false, title:"", rows:[], contractor:"", supervisor:"" }
   };
 
   /* v16：表單草稿（重新整理後仍保留） */
   var DRAFT_KEY = "inspection-form-draft-v1";
-  var S = window.SuiteStore || null;
-  var PIERS = (S && S.pierList) ? S.pierList() : [];
-  var INSPECTORS  = (window.FormBuilder && window.FormBuilder.INSPECTORS)  || ['乘恩','順昔','火木','佩璇'];
-  var SUPERVISORS = (window.FormBuilder && window.FormBuilder.SUPERVISORS) || ['振源','旭程','慧欣'];
 
   function lines(v){
     return String(v || "").split(/\r?\n/)
@@ -757,14 +707,10 @@ PR1-5（0K+154）"></textarea>
       h += '<div class="att-page">';
       h += '<p class="att-title">' + esc(state.attach.title || "預壘樁工程-布袋港") + '</p>';
 
-      /* v16：共用欄位（唯讀，與查驗單同一份資料） */
+      /* 共用欄位（唯讀）：只保留查驗單本身就有的資料 */
       h += '<table class="att-shared"><tr>' +
            '<td class="l">工程名稱：' + esc(FIXED_PROJECT) + '</td>' +
            '<td class="l">查驗日期：' + esc(state.date ? rocDate(state.date) : "") + '</td></tr>' +
-           '<tr><td class="l">查驗人員：' + esc(state.inspector || "") + '</td>' +
-           '<td class="l">監造人員：' + esc(state.supervisor || "") + '</td></tr>' +
-           '<tr><td class="l">墩號：' + esc(state.piers.join("、")) + '</td>' +
-           '<td class="l">樁號：' + esc(state.piles.join("、")) + '</td></tr>' +
            '<tr><td class="l" colspan="2">查驗位置：' + esc(posLines().join("、")) + '</td></tr>' +
            '</table>';
 
@@ -773,8 +719,12 @@ PR1-5（0K+154）"></textarea>
            '<col style="width:14.05%"><col style="width:15.86%"></colgroup>';
       h += '<tr class="att-head">' +
            '<td>契約項次</td><td>項目及說明</td><td>單位</td><td>查驗數量</td><td>監造覆核</td></tr>';
-      var arows = state.attach.rows.length ? state.attach.rows : [{no:"",desc:"",unit:"",qty:"",check:""}];
-      arows.forEach(function(r){
+      /* 第一列固定帶入查驗單的契約項次與契約名稱 */
+      h += '<tr>' +
+           '<td class="c">' + esc(state.itemNo || "") + '</td>' +
+           '<td class="l">' + esc(state.itemName || "") + '</td>' +
+           '<td class="c"></td><td class="c"></td><td class="c"></td></tr>';
+      state.attach.rows.forEach(function(r){
         h += '<tr>' +
              '<td class="c">' + esc(r.no || "") + '</td>' +
              '<td class="l">' + esc(r.desc || "").replace(/\n/g,"<br>") + '</td>' +
@@ -784,7 +734,7 @@ PR1-5（0K+154）"></textarea>
       });
       h += '<tr class="att-foot">' +
            '<td class="l" colspan="2">施工單位：' + esc(FIXED_CONTRACTOR) + '</td>' +
-           '<td class="l" colspan="3">監造單位：' + esc(state.supervisor || "") + '</td></tr>';
+           '<td class="l" colspan="3">監造單位：' + esc(state.attach.supervisor || "") + '</td></tr>';
       h += '</table></div>';
     }
 
@@ -847,10 +797,7 @@ PR1-5（0K+154）"></textarea>
     state.pos = $("fPos").value;
     state.desc = $("fDesc").value;
     state.autoNum = $("fAutoNum").checked;
-    if($("fInspector"))  state.inspector  = $("fInspector").value;
-    if($("fSupervisor")) state.supervisor = $("fSupervisor").value;
     updateItemsCnt();
-    renderShared();
     renderPreview();
     saveDraft();
   }
@@ -911,13 +858,8 @@ PR1-5（0K+154）"></textarea>
         title: state.attach.title,
         rows: state.attach.rows,
         contractor: FIXED_CONTRACTOR,
-        supervisor: state.supervisor || ""
-      } : null,
-      /* v16：共用欄位（與附件表單同一份） */
-      inspector: state.inspector,
-      supervisor: state.supervisor,
-      piers: state.piers.slice(),
-      piles: state.piles.slice()
+        supervisor: state.attach.supervisor || ""
+      } : null
     };
   }
 
@@ -981,18 +923,7 @@ PR1-5（0K+154）"></textarea>
     $("fUnit").value = $("fPos").value;
     $("fAutoNum").checked = true;
 
-    /* v16：共用欄位範例 */
-    if($("fInspector"))  $("fInspector").value  = "乘恩";
-    if($("fSupervisor")) $("fSupervisor").value = "旭程";
-    state.inspector = "乘恩";
-    state.supervisor = "旭程";
-    state.piers = ["PR1"];
-    state.piles = ["PR1-1", "PR1-7", "PR1-5"];
-    renderSharedChips();
-    refreshPileSelect();
-
     syncFromInputs();
-    renderShared();
     toast("已填入範例資料");
   }
 
@@ -1072,7 +1003,6 @@ PR1-5（0K+154）"></textarea>
       state.attach.enabled = cb.checked;
       $("attachBox").style.display = cb.checked ? "block" : "none";
       if(cb.checked && !state.attach.rows.length) addAttRow();
-      renderShared();
       renderPreview();
       saveDraft();
     });
@@ -1094,27 +1024,10 @@ PR1-5（0K+154）"></textarea>
       if(!state.attach.title) state.attach.title = "預壘樁工程-布袋港";
       $("fAttTitle").value = state.attach.title;
       renderAttRows();
-      renderShared();
       renderPreview();
       saveDraft();
       toast("已填入附件表單範例列");
     });
-
-    var back = $("btnBackToForm");
-    if(back) back.addEventListener("click", function(){
-      var el = $("fInspector");
-      if(el){ el.scrollIntoView({behavior:"smooth", block:"center"}); el.focus(); }
-      toast("共用欄位請在上方「查驗基本資料」修改");
-    });
-  }
-
-  /* ---------------- v16：共用欄位（查驗單 ⇄ 附件表單） ----------------
-     同一份 state（inspector / supervisor / piers / piles / date / location），
-     附件區塊只做唯讀呈現，避免兩套欄位重複填寫。 */
-
-  function pierOfPile(no){
-    var m = String(no || "").match(/^(.+)-\d+$/);
-    return m ? m[1] : "";
   }
 
   function uniq(arr){
@@ -1127,119 +1040,6 @@ PR1-5（0K+154）"></textarea>
     return out;
   }
 
-  function pileNosOfPier(pier){
-    if(!S) return [];
-    return S.pileNosOf(S.load(), pier);
-  }
-
-  function renderSharedChips(){
-    var box = $("sharedChips");
-    if(!box) return;
-    box.innerHTML = "";
-
-    function chip(label, cls, onRemove){
-      var c = document.createElement("span");
-      c.className = "chip" + (cls ? " " + cls : "");
-      c.textContent = label;
-      var x = document.createElement("button");
-      x.type = "button";
-      x.textContent = "×";
-      x.title = "移除 " + label;
-      x.addEventListener("click", onRemove);
-      c.appendChild(x);
-      box.appendChild(c);
-    }
-
-    state.piers.forEach(function(p){
-      chip(p, "pier", function(){
-        state.piers = state.piers.filter(function(v){ return v !== p; });
-        state.piles = state.piles.filter(function(no){ return pierOfPile(no) !== p; });
-        renderSharedChips(); refreshPileSelect(); renderShared(); renderPreview(); saveDraft();
-      });
-    });
-    state.piles.forEach(function(no){
-      chip(no, "", function(){
-        state.piles = state.piles.filter(function(v){ return v !== no; });
-        renderSharedChips(); refreshPileSelect(); renderShared(); renderPreview(); saveDraft();
-      });
-    });
-  }
-
-  function refreshPileSelect(){
-    var sel = $("fPile"), btn = $("btnAddPile");
-    if(!sel) return;
-    sel.innerHTML = "";
-    if(!state.piers.length){
-      sel.disabled = true; if(btn) btn.disabled = true;
-      var o = document.createElement("option");
-      o.value = ""; o.textContent = "— 請先加入墩號 —";
-      sel.appendChild(o);
-      return;
-    }
-    var o0 = document.createElement("option");
-    o0.value = ""; o0.textContent = "— 選擇樁號 —";
-    sel.appendChild(o0);
-    var any = false;
-    state.piers.forEach(function(p){
-      var nos = pileNosOfPier(p);
-      if(!nos.length) return;
-      var og = document.createElement("optgroup");
-      og.label = p;
-      nos.forEach(function(no){
-        var op = document.createElement("option");
-        op.value = no;
-        op.textContent = no + (state.piles.indexOf(no) >= 0 ? "（已加入）" : "");
-        og.appendChild(op);
-        any = true;
-      });
-      sel.appendChild(og);
-    });
-    sel.disabled = !any;
-    if(btn) btn.disabled = !any;
-  }
-
-  function addPier(){
-    var v = $("fPier").value;
-    if(!v){ toast("請先選擇墩號", true); return; }
-    if(state.piers.indexOf(v) >= 0){ toast(v + " 已在清單中", true); return; }
-    state.piers.push(v);
-    renderSharedChips(); refreshPileSelect(); renderShared(); renderPreview(); saveDraft();
-    $("fPier").value = "";
-  }
-
-  function addPile(){
-    var no = $("fPile").value;
-    if(!no){ toast("請先選擇樁號", true); return; }
-    if(state.piles.indexOf(no) >= 0){ toast(no + " 已在清單中", true); return; }
-    state.piles.push(no);
-    renderSharedChips(); refreshPileSelect(); renderShared(); renderPreview(); saveDraft();
-    $("fPile").value = "";
-  }
-
-  /* 附件區塊的唯讀共用欄位 */
-  function renderShared(){
-    var grid = $("sharedGrid");
-    if(!grid) return;
-
-    var rows = [
-      { k:"工程名稱", v: FIXED_PROJECT },
-      { k:"承包商",   v: FIXED_CONTRACTOR },
-      { k:"工地主任", v: FIXED_SITE },
-      { k:"查驗日期", v: state.date ? rocDate(state.date) : "（未填）" },
-      { k:"查驗人員", v: state.inspector || "（未選）" },
-      { k:"監造人員", v: state.supervisor || "（未選）" },
-      { k:"墩號",     v: state.piers.length ? state.piers.join("、") : "（未指定）" },
-      { k:"樁號",     v: state.piles.length ? state.piles.join("、") : "（未指定）" },
-      { k:"查驗位置", v: posLines().join("、") || "（未填）", full:true }
-    ];
-
-    grid.innerHTML = rows.map(function(r){
-      return '<div class="si' + (r.full ? ' full' : '') + '">' +
-        '<span class="k">' + esc(r.k) + '</span>' +
-        '<span class="v">' + esc(r.v) + '</span></div>';
-    }).join("");
-  }
-
   /* ---------------- v16：表單草稿（localStorage） ---------------- */
 
   function saveDraft(){
@@ -1249,8 +1049,6 @@ PR1-5（0K+154）"></textarea>
         unit: state.unit, detail: state.detail,
         date: state.date, time: state.time, apply: state.apply,
         pos: state.pos, desc: state.desc, autoNum: state.autoNum,
-        inspector: state.inspector, supervisor: state.supervisor,
-        piers: state.piers, piles: state.piles,
         attach: state.attach
       }));
     }catch(e){}
@@ -1271,10 +1069,6 @@ PR1-5（0K+154）"></textarea>
       if(d[k] != null) state[k] = String(d[k]);
     });
     if(d.autoNum != null) state.autoNum = !!d.autoNum;
-    state.inspector  = String(d.inspector || "");
-    state.supervisor = String(d.supervisor || "");
-    state.piers = uniq(d.piers);
-    state.piles = uniq(d.piles);
     if(d.attach && typeof d.attach === "object"){
       state.attach = {
         enabled: !!d.attach.enabled,
@@ -1296,8 +1090,6 @@ PR1-5（0K+154）"></textarea>
     if($("fPos")) $("fPos").value = state.pos;
     if($("fDesc")) $("fDesc").value = state.desc;
     if($("fAutoNum")) $("fAutoNum").checked = state.autoNum;
-    if($("fInspector")) $("fInspector").value = state.inspector;
-    if($("fSupervisor")) $("fSupervisor").value = state.supervisor;
     if($("fAttach")) $("fAttach").checked = state.attach.enabled;
     if($("attachBox")) $("attachBox").style.display = state.attach.enabled ? "block" : "none";
     if($("fAttTitle")) $("fAttTitle").value = state.attach.title;
@@ -1317,8 +1109,6 @@ PR1-5（0K+154）"></textarea>
           unit: state.unit, detail: state.detail,
           date: state.date, time: state.time, apply: state.apply,
           pos: state.pos, desc: state.desc, autoNum: state.autoNum,
-          inspector: state.inspector, supervisor: state.supervisor,
-          piers: state.piers, piles: state.piles,
           attach: state.attach
         }
       }
@@ -1340,10 +1130,7 @@ PR1-5（0K+154）"></textarea>
       if(!window.confirm("將以雲端草稿覆蓋目前表單內容，確定要載入嗎？")) return;
       applyDraft(draft);
       syncFromInputs();
-      renderSharedChips();
-      refreshPileSelect();
       renderAttRows();
-      renderShared();
       renderPreview();
       saveDraft();
       toast("已從 Google Drive 載入查驗單草稿");
@@ -1359,14 +1146,7 @@ PR1-5（0K+154）"></textarea>
       $(id).addEventListener("change", syncFromInputs);
     });
 
-    /* v16：共用欄位（查驗人員／監造人員） */
-    if($("fInspector"))  $("fInspector").addEventListener("change", syncFromInputs);
-    if($("fSupervisor")) $("fSupervisor").addEventListener("change", syncFromInputs);
-    if($("btnAddPier"))  $("btnAddPier").addEventListener("click", addPier);
-    if($("fPier"))       $("fPier").addEventListener("change", function(){ if(this.value) addPier(); });
-    if($("btnAddPile"))  $("btnAddPile").addEventListener("click", addPile);
-    if($("fPile"))       $("fPile").addEventListener("change", function(){ if(this.value) addPile(); });
-
+    /* 契約項次與契約名稱：直接帶入附件表單第一列 */
     $("fItemNo").addEventListener("input", syncFromInputs);
     $("fItemName").addEventListener("input", syncFromInputs);
     /* v4：單元位置與查驗位置雙向同步（仍可各自手動修改） */
@@ -1420,15 +1200,7 @@ PR1-5（0K+154）"></textarea>
       $("fTime").value = "10:30";
       $("fApply").value = todayISO();
       $("fAutoNum").checked = true;
-      /* v16：共用欄位一併清空 */
-      if($("fInspector"))  $("fInspector").value = "";
-      if($("fSupervisor")) $("fSupervisor").value = "";
-      state.inspector = ""; state.supervisor = "";
-      state.piers = []; state.piles = [];
-      renderSharedChips();
-      refreshPileSelect();
       syncFromInputs();
-      renderShared();
       toast("已清除表單");
     });
 
@@ -1457,23 +1229,15 @@ PR1-5（0K+154）"></textarea>
     state.apply = t;
     state.date = t;
 
-    /* v16：共用欄位下拉 */
-    if($("fInspector"))  fillSelect($("fInspector"),  INSPECTORS,  "— 請選擇 —");
-    if($("fSupervisor")) fillSelect($("fSupervisor"), SUPERVISORS, "— 請選擇 —");
-    if($("fPier"))       fillSelect($("fPier"), PIERS, "— 選擇墩號 —");
-
     renderSaved();
     bind();
     bindAttach();
 
-    /* v16：還原草稿（若有） */
+    /* 還原草稿（若有） */
     var draft = loadDraft();
     if(draft) applyDraft(draft);
 
-    renderSharedChips();
-    refreshPileSelect();
     renderAttRows();
-    renderShared();
     syncFromInputs();
     refit();
     if(document.fonts && document.fonts.ready){ document.fonts.ready.then(refit); }

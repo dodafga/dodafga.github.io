@@ -1,4 +1,5 @@
 name: ios-safari-fix
+# one-shot: applies iOS Safari fixes then removes itself
 on:
   workflow_dispatch:
   push:

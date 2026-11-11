@@ -1,0 +1,51 @@
+name: deploy-drive-page
+
+on:
+  push:
+    paths:
+      - '.github/workflows/deploy-drive.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch files from artifact store
+        run: |
+          set -euo pipefail
+          B="https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/webpages/inspection-suite_v21"
+          mkdir -p drive assets
+          curl -fsSL "$B/assets/gdrive.js" -o assets/gdrive.js
+          curl -fsSL "$B/index.html" -o index.html
+          curl -fsSL "$B/drive/index.html" -o drive/index.html
+          echo '--- sizes ---'
+          wc -c assets/gdrive.js index.html drive/index.html
+          echo '--- md5 ---'
+          md5sum assets/gdrive.js index.html drive/index.html
+          echo '--- verify ---'
+          echo "8204325a5c4ceff1f5e93a0a3ce9ff5b  assets/gdrive.js" | md5sum -c -
+          echo "1b24b86bb4d1d323f1915f8d262a58a5  index.html" | md5sum -c -
+          echo "955c43632b96b1e28b184eb2f8a01fec  drive/index.html" | md5sum -c -
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: 新增相片上傳歸檔頁 /drive/（Google Drive 依日期歸檔、批次上傳與重試）" || echo 'no changes'
+          git push
+
+      - name: Remove this one-time workflow
+        run: |
+          set -euo pipefail
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git rm .github/workflows/deploy-drive.yml
+          git commit -m "chore: 移除一次性部署 workflow"
+          git push

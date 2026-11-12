@@ -1,1 +1,1120 @@
-__HTML__
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>預壘樁進度管控表｜墩號 · 樁號 · 查驗聯動</title>
+<style>
+  :root{
+    --ink:#1b2430; --ink-2:#3d4a5c; --muted:#6b7a8d;
+    --line:#d8dee7; --line-2:#e8edf3; --bg:#eef1f5; --card:#fff;
+    --steel:#1f3a5f; --steel-2:#2c5282;
+    --amber:#c47f17; --amber-bg:#fdf6e7;
+    --ok:#1f7a4d; --ok-bg:#e9f5ee; --danger:#b3261e; --danger-bg:#fdf3f2;
+    --blue:#2F5597; --orange:#C55A11; --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+  body{
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+    font-size:15px;line-height:1.6;
+  }
+  header{background:var(--steel);color:#fff;padding:18px 22px 16px;border-bottom:3px solid var(--amber);}
+  .hwrap{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .logo{width:38px;height:38px;flex:0 0 38px;border-radius:8px;background:var(--amber);color:#1b2430;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;}
+  h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.3px;}
+  .sub{font-size:12.5px;color:#b9c8da;margin-top:2px;}
+  .hmeta{margin-left:auto;font-size:12px;color:#b9c8da;text-align:right;line-height:1.5;}
+  .hmeta b{color:#fff;font-weight:600;}
+
+  .wrap{max-width:1600px;margin:0 auto;padding:20px 22px 70px;}
+
+  /* 統計卡 */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;
+    box-shadow:0 1px 2px rgba(27,36,48,.05);}
+  .stat .k{font-size:11.5px;color:var(--muted);font-weight:600;letter-spacing:.2px;}
+  .stat .v{font-size:24px;font-weight:800;line-height:1.25;margin-top:3px;font-variant-numeric:tabular-nums;}
+  .stat .u{font-size:12px;font-weight:600;color:var(--muted);margin-left:2px;}
+  .stat.ok .v{color:var(--ok);}
+  .stat.warn .v{color:var(--amber);}
+  .stat.bad .v{color:var(--danger);}
+  .stat.blue .v{color:var(--blue);}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:0 1px 2px rgba(27,36,48,.05);margin-bottom:16px;}
+  .card-h{padding:13px 16px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .card-h h2{font-size:14.5px;margin:0;font-weight:700;}
+  .card-h .tag{font-size:11px;background:var(--amber-bg);color:var(--amber);
+    border:1px solid #f0dfb8;padding:1px 7px;border-radius:20px;font-weight:600;}
+  .card-h .tag.ok{background:var(--ok-bg);color:var(--ok);border-color:#cfe6da;}
+  .card-h .spacer{margin-left:auto;}
+  .card-b{padding:16px;}
+
+  .btn{font-family:inherit;font-size:13.5px;font-weight:600;padding:9px 15px;border-radius:8px;
+    border:1px solid transparent;cursor:pointer;transition:.15s;display:inline-flex;
+    align-items:center;justify-content:center;gap:7px;white-space:nowrap;}
+  .btn-primary{background:var(--steel);color:#fff;}
+  .btn-primary:hover{background:var(--steel-2);}
+  .btn-amber{background:var(--amber);color:#fff;}
+  .btn-amber:hover{background:#a86b10;}
+  .btn-ghost{background:#fff;color:var(--ink-2);border-color:var(--line);}
+  .btn-ghost:hover{background:#f5f8fb;border-color:#c3cedb;}
+  .btn-danger{background:#fff;color:var(--danger);border-color:#f0cfcc;}
+  .btn-danger:hover{background:var(--danger-bg);}
+  .btn-sm{font-size:12px;padding:6px 11px;border-radius:6px;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+
+  /* 工具列 */
+  .toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;}
+  .toolbar .grow{flex:1;min-width:0;}
+  input[type=text],input[type=date],select{
+    padding:8px 11px;font-size:13.5px;border:1px solid var(--line);border-radius:7px;
+    background:#fcfdfe;color:var(--ink);font-family:inherit;line-height:1.5;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--steel-2);background:#fff;
+    box-shadow:0 0 0 3px rgba(44,82,130,.12);}
+  select{appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7a8d'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;padding-right:26px;cursor:pointer;}
+
+  /* 表格 */
+  .tblwrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;max-height:70vh;}
+  table.prog{width:100%;border-collapse:separate;border-spacing:0;min-width:1080px;font-size:13px;}
+  table.prog thead th{position:sticky;top:0;z-index:3;background:var(--blue);color:#fff;
+    font-size:12px;font-weight:700;padding:9px 8px;text-align:center;white-space:nowrap;
+    border-right:1px solid rgba(255,255,255,.18);}
+  table.prog thead th:last-child{border-right:none;}
+  table.prog tbody td{padding:5px 6px;border-bottom:1px solid var(--line-2);
+    border-right:1px solid var(--line-2);vertical-align:middle;background:#fff;}
+  table.prog tbody td:last-child{border-right:none;}
+  table.prog tbody tr:hover td{background:#fafcfe;}
+  table.prog tbody tr.pier-start td{border-top:2px solid #c3cedb;}
+  table.prog td.c{text-align:center;}
+  table.prog td.pier{font-weight:800;color:var(--blue);font-size:13.5px;text-align:center;
+    background:#f4f7fc;cursor:pointer;position:relative;}
+  table.prog td.pier:hover{background:#e8effa;text-decoration:underline;}
+  table.prog td.pile{font-weight:600;text-align:center;font-variant-numeric:tabular-nums;}
+  table.prog td input[type=date]{width:100%;min-width:118px;font-size:12px;padding:5px 6px;}
+  table.prog td input[type=text]{width:100%;min-width:90px;font-size:12px;padding:5px 6px;}
+  table.prog td select{width:100%;min-width:82px;font-size:12px;padding:5px 22px 5px 6px;}
+
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
+    white-space:nowrap;line-height:1.5;}
+  .pill.s0{background:#eef1f5;color:var(--muted);border:1px solid var(--line);}
+  .pill.s1{background:var(--amber-bg);color:var(--amber);border:1px solid #f0dfb8;}
+  .pill.s2{background:var(--ok-bg);color:var(--ok);border:1px solid #cfe6da;}
+  .pill.i0{background:#f7f9fc;color:var(--muted);border:1px solid var(--line-2);}
+  .pill.i1{background:#e8effa;color:var(--blue);border:1px solid #c9d9f0;}
+  .pill.i2{background:#fdf1e0;color:#9a5f0c;border:1px solid #f0dcb8;}
+  .pill.late{background:var(--danger-bg);color:var(--danger);border:1px solid #f0cfcc;}
+
+  .empty{text-align:center;padding:30px 12px;color:var(--muted);font-size:13px;}
+
+  /* 墩彙總表 */
+  table.piers{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:900px;}
+  table.piers thead th{position:sticky;top:0;z-index:3;background:var(--steel);color:#fff;
+    font-size:11.5px;font-weight:700;padding:8px 7px;text-align:center;white-space:nowrap;
+    border-right:1px solid rgba(255,255,255,.18);}
+  table.piers thead th:last-child{border-right:none;}
+  table.piers tbody td{padding:6px 7px;border-bottom:1px solid var(--line-2);
+    border-right:1px solid var(--line-2);vertical-align:middle;background:#fff;text-align:center;}
+  table.piers tbody td:last-child{border-right:none;}
+  table.piers tbody tr:hover td{background:#fafcfe;}
+  table.piers td.pier{font-weight:800;color:var(--blue);cursor:pointer;background:#f4f7fc;}
+  table.piers td.pier:hover{background:#e8effa;text-decoration:underline;}
+  table.piers td.date{font-variant-numeric:tabular-nums;font-size:12px;}
+  table.piers td.date.has{font-weight:700;color:var(--blue);}
+  table.piers td.date.ongoing{color:var(--amber);font-weight:600;font-size:11.5px;}
+  table.piers td.num{font-variant-numeric:tabular-nums;font-weight:600;}
+  .pierwrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;max-height:46vh;}
+
+  /* 墩號詳情面板 */
+  .drawer-mask{position:fixed;inset:0;background:rgba(27,36,48,.42);opacity:0;pointer-events:none;
+    transition:opacity .2s;z-index:60;}
+  .drawer-mask.on{opacity:1;pointer-events:auto;}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,94vw);background:#fff;
+    box-shadow:-6px 0 24px rgba(27,36,48,.18);transform:translateX(102%);transition:transform .24s;
+    z-index:61;display:flex;flex-direction:column;}
+  .drawer.on{transform:translateX(0);}
+  .drawer-h{padding:16px 18px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:10px;
+    background:var(--steel);color:#fff;flex:0 0 auto;}
+  .drawer-h h3{margin:0;font-size:16px;font-weight:700;}
+  .drawer-h .x{margin-left:auto;background:rgba(255,255,255,.14);border:none;color:#fff;
+    width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:17px;line-height:1;}
+  .drawer-h .x:hover{background:rgba(255,255,255,.26);}
+  .drawer-b{padding:16px 18px 30px;overflow:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto;}
+  .dsec{margin-bottom:18px;}
+  .dsec h4{font-size:12.5px;color:var(--muted);font-weight:700;margin:0 0 8px;
+    letter-spacing:.4px;text-transform:uppercase;}
+  .dgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .ditem{background:#f7f9fc;border:1px solid var(--line-2);border-radius:7px;padding:8px 11px;}
+  .ditem .k{font-size:11px;color:var(--muted);font-weight:600;}
+  .ditem .v{font-size:13.5px;font-weight:700;margin-top:1px;}
+  .logitem{border:1px solid var(--line-2);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#fff;}
+  .logitem .lt{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+  .logitem .ld{font-weight:800;color:var(--blue);font-size:13.5px;font-variant-numeric:tabular-nums;}
+  .logitem .lm{font-size:11.5px;color:var(--muted);margin-left:auto;}
+  .logitem .ll{font-size:12.5px;color:var(--ink-2);}
+  .logitem .ll b{color:var(--ink);font-weight:600;}
+
+  .note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:12px;
+    background:#f7f9fc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
+  .note b{color:var(--ink-2);}
+
+  /* 材料管控 */
+  .matgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px;}
+  /* 水泥／濕細沙：固定同一列並排兩格，不上下堆疊 */
+  .matpair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  .matcard{border:1px solid var(--line);border-radius:9px;padding:12px 14px;background:#fbfcfe;}
+  .matcard .mk{font-size:11.5px;color:var(--muted);font-weight:700;letter-spacing:.2px;}
+  .matcard .mv{font-size:21px;font-weight:800;line-height:1.3;margin-top:2px;font-variant-numeric:tabular-nums;}
+  .matcard .mu{font-size:11.5px;font-weight:600;color:var(--muted);margin-left:2px;}
+  .matcard .ms{font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums;}
+  .matcard.cement{border-color:#d9e2ee;background:#f6f9fd;}
+  .matcard.cement .mv{color:var(--steel-2);}
+  .matcard.sand{border-color:#f0e2c8;background:#fdfaf3;}
+  .matcard.sand .mv{color:var(--amber);}
+  .matcard.total{border-color:#cfe6da;background:#f4fbf7;}
+  .matcard.total .mv{color:var(--ok);}
+  .matcard.design{border-color:#e2e6ec;background:#f8f9fb;}
+  .matcard.design .mv{color:var(--ink-2);}
+  .matcard.inspect{border-color:#c9d9f0;background:#f2f7fd;}
+  .matcard.inspect .mv{color:var(--blue);}
+
+  .matbar{height:9px;border-radius:20px;background:#e6ebf2;overflow:hidden;margin-top:9px;}
+  .matbar > i{display:block;height:100%;border-radius:20px;background:var(--ok);transition:width .3s;}
+  .matbar.over > i{background:var(--amber);}
+  .matbar.under > i{background:var(--steel-2);}
+
+  .matform{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;
+    background:#f7f9fc;border:1px solid var(--line-2);border-radius:9px;padding:12px 13px;}
+  .matform .fld{display:flex;flex-direction:column;gap:4px;}
+  .matform .fld label{font-size:11px;color:var(--muted);font-weight:700;}
+  .matform .fld input,.matform .fld select{min-width:0;}
+  .matform .fld input[type=number]{width:110px;}
+  .matform .fld input[type=date]{width:150px;}
+  .matform .fld input[type=text]{width:190px;}
+
+  table.mats{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:640px;}
+  table.mats thead th{position:sticky;top:0;z-index:3;background:var(--steel);color:#fff;
+    font-size:11.5px;font-weight:700;padding:8px 7px;text-align:center;white-space:nowrap;
+    border-right:1px solid rgba(255,255,255,.18);}
+  table.mats thead th:last-child{border-right:none;}
+  table.mats tbody td{padding:6px 7px;border-bottom:1px solid var(--line-2);
+    border-right:1px solid var(--line-2);vertical-align:middle;background:#fff;text-align:center;}
+  table.mats tbody td:last-child{border-right:none;}
+  table.mats tbody tr:hover td{background:#fafcfe;}
+  table.mats td.num{font-variant-numeric:tabular-nums;font-weight:600;}
+  table.mats td.left{text-align:left;}
+  .matwrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;max-height:44vh;}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:11px 20px;border-radius:9px;font-size:13.5px;
+    opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.err{background:var(--danger);}
+
+  @media (max-width:720px){
+    .wrap{padding:14px 12px 60px;}
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .stat .v{font-size:20px;}
+    .dgrid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="logo">樁</div>
+    <div>
+      <h1>預壘樁進度管控表</h1>
+      <div class="sub">布袋商港聯外道路新闢工程 · 墩號／樁號 · 進度以查驗日期為基準 · 與查驗紀錄表聯動</div>
+    </div>
+    <div class="hmeta">
+      全案 <b>121 支</b> · 19 個墩號<br>
+      資料存於本機瀏覽器
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="stats" id="stats"></div>
+
+  <div class="card">
+    <div class="card-h">
+      <h2>篩選與工具</h2>
+      <span class="tag" id="filterTag">全部</span>
+      <span class="spacer"></span>
+      <div class="toolbar">
+        <select id="fSide">
+          <option value="">全部岸別</option>
+          <option value="右岸">右岸</option>
+          <option value="左岸">左岸</option>
+          <option value="復舊">復舊</option>
+        </select>
+        <select id="fStatus">
+          <option value="">全部完成狀態</option>
+          <option value="未施作">未施作</option>
+          <option value="施作中">施作中</option>
+          <option value="已完成">已完成</option>
+        </select>
+        <select id="fInspect">
+          <option value="">全部查驗狀態</option>
+          <option value="未查驗">未查驗</option>
+          <option value="已查驗">已查驗</option>
+        </select>
+        <input type="text" id="fSearch" placeholder="搜尋墩號／樁號…" style="width:150px;">
+        <select id="fSort" title="排序方式">
+          <option value="actual">排序：實際施作（早→晚）</option>
+          <option value="inspect">排序：查驗日期（新→舊）</option>
+          <option value="pier">排序：墩號順序</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="btnClearFilter" type="button">清除篩選</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <h2>墩號彙總</h2>
+      <span class="tag" id="pierTag">0 墩</span>
+      <span class="spacer"></span>
+      <span style="font-size:11.5px;color:var(--muted);">墩開始時間＝最早施作日期（無則最早查驗）　·　墩完成時間＝全墩完成時最晚施作／查驗日期</span>
+    </div>
+    <div class="card-b" style="padding:0;">
+      <div class="pierwrap">
+        <table class="piers" id="pierTable">
+          <thead>
+            <tr>
+              <th style="width:74px;">墩號</th>
+              <th style="width:74px;">類型</th>
+              <th style="width:56px;">岸別</th>
+              <th style="width:56px;">樁數</th>
+              <th style="width:64px;">已完成</th>
+              <th style="width:64px;">已查驗</th>
+              <th style="width:118px;">墩開始時間</th>
+              <th style="width:190px;">墩完成時間</th>
+              <th style="width:88px;">墩狀態</th>
+            </tr>
+          </thead>
+          <tbody id="pierBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <h2>樁位明細</h2>
+      <span class="tag ok" id="rowTag">0 支</span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" id="btnFillToday" type="button">今日開工</button>
+      <button class="btn btn-ghost btn-sm" id="btnResetAll" type="button">重設進度</button>
+    </div>
+    <div class="card-b" style="padding:0;">
+      <div class="tblwrap">
+        <table class="prog" id="progTable">
+          <thead>
+            <tr>
+              <th style="width:74px;">墩號</th>
+              <th style="width:88px;">樁號</th>
+              <th style="width:74px;">類型</th>
+              <th style="width:56px;">岸別</th>
+              <th style="width:126px;">預定開始</th>
+              <th style="width:126px;">預定完成</th>
+              <th style="width:150px;">施作查驗日期</th>
+              <th style="width:96px;">完成狀態</th>
+              <th style="width:96px;">查驗狀態</th>
+              <th style="width:150px;">備註</th>
+            </tr>
+          </thead>
+          <tbody id="progBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="emptyHint" style="display:none;">目前篩選條件下沒有資料</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <h2>材料管控</h2>
+      <span class="tag" id="matTag">0 筆</span>
+      <span class="spacer"></span>
+      <span style="font-size:11.5px;color:var(--muted);">設計 6 方／支　·　水泥 0.8 m³＝1 T　·　濕細沙 0.59 m³＝1 T</span>
+    </div>
+    <div class="card-b">
+      <div class="matgrid" id="matStats"></div>
+
+      <div class="matform">
+        <div class="fld">
+          <label for="matDate">進料日期</label>
+          <input type="date" id="matDate">
+        </div>
+        <div class="fld">
+          <label for="matType">材料</label>
+          <select id="matType">
+            <option value="cement">水泥</option>
+            <option value="sand">濕細沙</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label for="matTons">噸數（T）</label>
+          <input type="number" id="matTons" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="fld">
+          <label for="matNote">備註</label>
+          <input type="text" id="matNote" placeholder="車次／廠商…">
+        </div>
+        <button class="btn btn-primary" id="btnMatAdd" type="button">＋ 新增進料</button>
+        <button class="btn btn-ghost btn-sm" id="btnMatXlsx" type="button">⬇ 匯出材料 Excel</button>
+      </div>
+
+      <div class="matwrap">
+        <table class="mats" id="matTable">
+          <thead>
+            <tr>
+              <th style="width:120px;">進料日期</th>
+              <th style="width:96px;">材料</th>
+              <th style="width:96px;">噸數（T）</th>
+              <th style="width:110px;">換算方數（m³）</th>
+              <th>備註</th>
+              <th style="width:70px;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="matBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="matEmpty" style="display:none;">尚無進料紀錄，請於上方新增</div>
+
+      <div class="note">
+        <b>換算方式：</b>水泥 1 T ＝ 0.8 m³、濕細沙 1 T ＝ 0.59 m³；兩者換算後相加即為已進料方數。<br>
+        <b>對照基準：</b>全案需求 ＝ 全案樁數 × 6 方／支（目前 <b id="matPileCount">121</b> 支 → <b id="matDesignM3">726</b> m³）；已查驗需求 ＝ 已查驗樁支數 × 6 方／支（目前 <b id="matInspPileCount">0</b> 支 → <b id="matInspDesignM3">0</b> m³）。<br>
+        <b>資料存放：</b>材料紀錄與樁位進度分開儲存於本機瀏覽器，互不影響；匯出 JSON 時會一併帶出（舊版 JSON 沒有此欄位也能正常匯入）。
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>資料備份與匯出</h2><span class="tag">本機儲存 · 可跨裝置</span></div>
+    <div class="card-b">
+      <div class="toolbar">
+        <button class="btn btn-amber" id="btnXlsx" type="button">⬇ 匯出 Excel（進度表＋墩號彙總）</button>
+        <button class="btn btn-ghost" id="btnJson" type="button">⬇ 匯出 JSON（含查驗紀錄）</button>
+        <button class="btn btn-ghost" id="btnImport" type="button">⬆ 匯入 JSON</button>
+        <input type="file" id="fileImport" accept=".json,application/json" style="display:none;">
+      </div>
+      <div class="note">
+        <b>資料存放：</b>所有樁位與查驗紀錄都存在這台裝置的瀏覽器（localStorage），不會上傳到任何伺服器。<br>
+        <b>跨裝置：</b>在 A 裝置按「匯出 JSON」→ 把檔案傳到 B 裝置 → 在 B 裝置按「匯入 JSON」即可完整還原（含查驗紀錄與聯動狀態）。<br>
+        <b>建議：</b>每次收工前匯出一次 JSON 備份，避免清除瀏覽器資料時遺失。
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 墩號詳情 -->
+<div class="drawer-mask" id="mask"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-h">
+    <h3 id="dTitle">墩號</h3>
+    <button class="x" id="dClose" type="button" aria-label="關閉">×</button>
+  </div>
+  <div class="drawer-b" id="dBody"></div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script src="../assets/jszip.min.js"></script>
+<script src="../assets/core.js"></script>
+<script src="../assets/store.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var S = window.SuiteStore;
+
+  /* 共用工具一律取自 assets/core.js（core.js 已在本頁 inline script 之前載入）。
+     本頁原本沒有自己的 pad2 / esc / todayISO，而是繞一層 SuiteStore 的包裝
+     （S.todayISO / S.isoToSlash 內部再轉呼叫 Core），且組 HTML 時完全沒有跳脫。
+     現改為直接呼叫 Core 版本，並補上 Core.esc 供組字串時使用。 */
+  var CORE = window.Core;
+  if (!CORE) { console.error('[progress] assets/core.js 未載入，共用工具無法使用'); }
+  var todayISO   = CORE.todayISO;
+  var isoToSlash = CORE.isoToSlash;
+  var esc        = CORE.esc;
+
+  var data = S.load();
+  var filter = { side:'', status:'', inspect:'', q:'', sort:'actual' };
+
+  function $(id){ return document.getElementById(id); }
+
+  function toast(msg, isErr){
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isErr ? ' err' : '');
+    clearTimeout(t._tm);
+    t._tm = setTimeout(function(){ t.className = 'toast'; }, 3200);
+  }
+
+  function persist(){
+    S.recompute(data);
+    if (!S.save(data)) toast('本機儲存失敗（可能為隱私模式或空間已滿）', true);
+  }
+
+  /* 表格內每一格輸入都會呼叫 persist()，而 persist() 會 recompute 全部 121 支樁。
+     在 iPhone 上連續輸入時會累積成明顯卡頓，這裡把「重算＋寫入」合併到同一輪
+     事件迴圈只做一次（畫面仍即時更新，資料不會遺失）。 */
+  var persistQueued = false;
+  function persistSoon(){
+    if (persistQueued) return;
+    persistQueued = true;
+    var run = function(){ persistQueued = false; persist(); };
+    if (typeof Promise !== 'undefined') Promise.resolve().then(run);
+    else setTimeout(run, 0);
+  }
+
+  /* ---------- 統計 ---------- */
+  function renderStats(){
+    var s = S.summary(data);
+    var diffCls = s.diff < 0 ? 'bad' : (s.diff > 0 ? 'ok' : '');
+    var diffTxt = (s.diff > 0 ? '+' : '') + s.diff;
+    var html = '';
+    html += '<div class="stat blue"><div class="k">全案樁數</div><div class="v">' + s.total + '<span class="u">支</span></div></div>';
+    html += '<div class="stat ok"><div class="k">已完成</div><div class="v">' + s.done + '<span class="u">支</span></div></div>';
+    html += '<div class="stat warn"><div class="k">施作中</div><div class="v">' + s.doing + '<span class="u">支</span></div></div>';
+    html += '<div class="stat"><div class="k">未施作</div><div class="v">' + s.notStarted + '<span class="u">支</span></div></div>';
+    html += '<div class="stat blue"><div class="k">已查驗</div><div class="v">' + s.inspected + '<span class="u">支</span></div></div>';
+    html += '<div class="stat ' + diffCls + '"><div class="k">進度差異（實際－預定）</div><div class="v">' + diffTxt + '<span class="u">支</span></div></div>';
+    $('stats').innerHTML = html;
+    $('stats').title = '實際完成 ' + s.progressed + ' 支（以查驗日期為基準）－ 已到預定完成日 ' + s.plannedToDate + ' 支';
+  }
+
+  /* ---------- 篩選 ---------- */
+  function match(p){
+    if (filter.side && p.side !== filter.side) return false;
+    if (filter.status && p.status !== filter.status) return false;
+    if (filter.inspect && p.inspectStatus !== filter.inspect) return false;
+    if (filter.q){
+      var q = filter.q.toLowerCase();
+      if (String(p.pier).toLowerCase().indexOf(q) < 0 &&
+          String(p.pileNo).toLowerCase().indexOf(q) < 0) return false;
+    }
+    return true;
+  }
+
+  function statusPill(s){
+    var cls = s === '已完成' ? 's2' : (s === '施作中' ? 's1' : 's0');
+    return '<span class="pill ' + cls + '">' + s + '</span>';
+  }
+
+  function inspectPill(p){
+    if (p.inspectStatus === '已查驗') return '<span class="pill i1">已查驗</span>';
+    return '<span class="pill i0">未查驗</span>';
+  }
+
+  /* ---------- 墩彙總 ---------- */
+  function renderPiers(){
+    var body = $('pierBody');
+    body.innerHTML = '';
+    var list = S.pierSummary(data);
+    $('pierTag').textContent = list.length + ' 墩';
+
+    list.forEach(function(s){
+      var tr = document.createElement('tr');
+
+      var tdP = document.createElement('td');
+      tdP.className = 'pier';
+      tdP.textContent = s.pier;
+      tdP.title = '點擊查看 ' + s.pier + ' 的墩彙總與查驗紀錄';
+      tdP.addEventListener('click', function(){ openDrawer(s.pier); });
+      tr.appendChild(tdP);
+
+      var tdT = document.createElement('td');
+      tdT.textContent = s.type;
+      tr.appendChild(tdT);
+
+      var tdS = document.createElement('td');
+      tdS.textContent = s.side;
+      tr.appendChild(tdS);
+
+      var tdC = document.createElement('td');
+      tdC.className = 'num';
+      tdC.textContent = s.count;
+      tr.appendChild(tdC);
+
+      var tdD = document.createElement('td');
+      tdD.className = 'num';
+      tdD.textContent = s.done;
+      tdD.style.color = s.done === s.count ? 'var(--ok)' : '';
+      tr.appendChild(tdD);
+
+      var tdI = document.createElement('td');
+      tdI.className = 'num';
+      tdI.textContent = s.inspected;
+      tdI.style.color = s.inspected ? 'var(--blue)' : '';
+      tr.appendChild(tdI);
+
+      var tdSt = document.createElement('td');
+      tdSt.className = 'date' + (s.start ? ' has' : '');
+      tdSt.textContent = s.startText;
+      tr.appendChild(tdSt);
+
+      var tdEn = document.createElement('td');
+      tdEn.className = 'date' + (s.allDone ? ' has' : ' ongoing');
+      tdEn.textContent = s.endText;
+      tr.appendChild(tdEn);
+
+      var tdStat = document.createElement('td');
+      tdStat.innerHTML = statusPill(s.status);
+      tr.appendChild(tdStat);
+
+      body.appendChild(tr);
+    });
+  }
+
+  /* ---------- 表格 ---------- */
+  function renderTable(){
+    var body = $('progBody');
+    body.innerHTML = '';
+    var rows = S.sortPiles(data.piles.filter(match), filter.sort);
+    $('rowTag').textContent = rows.length + ' 支';
+    $('emptyHint').style.display = rows.length ? 'none' : 'block';
+
+    var lastPier = null;
+    rows.forEach(function(p){
+      var tr = document.createElement('tr');
+      /* 墩號分隔線只在「墩號順序」模式下有意義 */
+      if (filter.sort === 'pier' && lastPier !== null && p.pier !== lastPier) tr.className = 'pier-start';
+      lastPier = p.pier;
+
+      /* 墩號（可點開詳情） */
+      var tdPier = document.createElement('td');
+      tdPier.className = 'pier';
+      tdPier.textContent = p.pier;
+      tdPier.title = '點擊查看 ' + p.pier + ' 的查驗紀錄';
+      tdPier.addEventListener('click', function(){ openDrawer(p.pier); });
+      tr.appendChild(tdPier);
+
+      /* 樁號 */
+      var tdPile = document.createElement('td');
+      tdPile.className = 'pile';
+      tdPile.textContent = p.pileNo;
+      tr.appendChild(tdPile);
+
+      /* 類型 */
+      var tdType = document.createElement('td');
+      tdType.className = 'c';
+      tdType.textContent = p.type;
+      tr.appendChild(tdType);
+
+      /* 岸別 */
+      var tdSide = document.createElement('td');
+      tdSide.className = 'c';
+      tdSide.textContent = p.side;
+      tr.appendChild(tdSide);
+
+      /* 預定開始／完成（唯讀） */
+      ['plannedStart','plannedEnd'].forEach(function(k){
+        var td = document.createElement('td');
+        td.className = 'c';
+        td.textContent = isoToSlash(p[k]) || '—';
+        td.style.color = '#6b7a8d';
+        td.style.fontSize = '12px';
+        tr.appendChild(td);
+      });
+
+      /* 施作查驗日期（合併：有查驗日期以查驗日期為準，唯讀；無查驗才顯示／編輯施作日期） */
+      var tdWD = document.createElement('td');
+      tdWD.className = 'c';
+      if (p.inspectDate) {
+        tdWD.textContent = isoToSlash(p.inspectDate) || '—';
+        tdWD.style.fontSize = '12px';
+        tdWD.style.fontWeight = '700';
+        tdWD.style.color = '#2F5597';
+        tdWD.title = '依查驗日期 ' + (isoToSlash(p.inspectDate) || '') +
+          (p.workDate ? '（施作 ' + isoToSlash(p.workDate) + '）' : '');
+      } else {
+        var inWD = document.createElement('input');
+        inWD.type = 'date';
+        inWD.value = p.workDate || '';
+        inWD.title = p.workDate ? '施作日期（查驗後以查驗日期為準）' : '填寫施作日期';
+        inWD.addEventListener('change', function(){
+          p.workDate = inWD.value;
+          persistSoon(); renderStats(); renderPiers(); renderTable();
+        });
+        tdWD.appendChild(inWD);
+      }
+      tr.appendChild(tdWD);
+
+      /* 完成狀態 */
+      var tdSt = document.createElement('td');
+      tdSt.className = 'c';
+      tdSt.innerHTML = statusPill(p.status);
+      tr.appendChild(tdSt);
+
+      /* 查驗狀態（唯讀，由查驗紀錄表聯動） */
+      var tdIn = document.createElement('td');
+      tdIn.className = 'c';
+      tdIn.innerHTML = inspectPill(p);
+      tr.appendChild(tdIn);
+
+      /* 備註 */
+      var tdNote = document.createElement('td');
+      var inNote = document.createElement('input');
+      inNote.type = 'text';
+      inNote.value = p.note || '';
+      inNote.placeholder = '備註';
+      inNote.addEventListener('input', function(){
+        p.note = inNote.value;
+        persistSoon();
+      });
+      tdNote.appendChild(inNote);
+      tr.appendChild(tdNote);
+
+      body.appendChild(tr);
+    });
+  }
+
+  function render(){
+    renderStats();
+    renderPiers();
+    renderTable();
+    renderMaterials();
+  }
+
+  /* ---------- 材料管控 ---------- */
+  var mats = S.loadMaterials();
+
+  function fmt(n, dp){
+    var v = parseFloat(n);
+    if (!isFinite(v)) v = 0;
+    var s = v.toFixed(dp == null ? 2 : dp);
+    /* 去掉多餘的尾零，但保留至少整數 */
+    if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s;
+  }
+
+  function renderMaterials(){
+    var sum = S.materialSummary(mats, data.piles.length, S.summary(data).inspected);
+    $('matTag').textContent = sum.count + ' 筆';
+    $('matPileCount').textContent = sum.piles;
+    $('matDesignM3').textContent = sum.designM3;
+    $('matInspPileCount').textContent = sum.inspectedPiles;
+    $('matInspDesignM3').textContent = sum.inspectedDesignM3;
+
+    var pct = sum.percent;
+    var barCls = sum.diffM3 > 0 ? 'over' : (sum.diffM3 < 0 ? 'under' : '');
+    var barW = Math.max(0, Math.min(100, pct));
+
+    var iPct = sum.inspectedPercent;
+    var iBarCls = sum.inspectedDiffM3 > 0 ? 'over' : (sum.inspectedDiffM3 < 0 ? 'under' : '');
+    var iBarW = Math.max(0, Math.min(100, iPct));
+
+    /* 水泥／濕細沙：同一列並排兩格 */
+    var h = '<div class="matpair">';
+    sum.byType.forEach(function(t){
+      h += '<div class="matcard ' + t.key + '">' +
+        '<div class="mk">' + esc(t.name) + '（1 T ＝ ' + t.m3PerTon + ' m³）</div>' +
+        '<div class="mv">' + fmt(t.tons) + '<span class="mu">T</span></div>' +
+        '<div class="ms">換算 ' + fmt(t.m3) + ' m³　·　' + t.count + ' 筆</div>' +
+        '</div>';
+    });
+    h += '</div>';
+
+    h += '<div class="matgrid">';
+    h += '<div class="matcard total">' +
+      '<div class="mk">已進料合計</div>' +
+      '<div class="mv">' + fmt(sum.totalM3) + '<span class="mu">m³</span></div>' +
+      '<div class="ms">' + fmt(sum.totalTons) + ' T　·　' + sum.count + ' 筆</div>' +
+      '</div>';
+    h += '<div class="matcard design">' +
+      '<div class="mk">全案需求（' + sum.piles + ' 支 × ' + sum.designM3PerPile + ' 方）</div>' +
+      '<div class="mv">' + fmt(sum.designM3, 0) + '<span class="mu">m³</span></div>' +
+      '<div class="ms">' + (sum.diffM3 >= 0 ? '已達需求，超出 ' + fmt(sum.diffM3) : '尚缺 ' + fmt(-sum.diffM3)) +
+      ' m³　·　達成率 ' + pct + '%</div>' +
+      '<div class="matbar ' + barCls + '"><i style="width:' + barW + '%"></i></div>' +
+      '</div>';
+    h += '<div class="matcard inspect">' +
+      '<div class="mk">已查驗需求（' + sum.inspectedPiles + ' 支 × ' + sum.designM3PerPile + ' 方）</div>' +
+      '<div class="mv">' + fmt(sum.inspectedDesignM3, 0) + '<span class="mu">m³</span></div>' +
+      '<div class="ms">' + (sum.inspectedDiffM3 >= 0 ? '已達需求，超出 ' + fmt(sum.inspectedDiffM3) : '尚缺 ' + fmt(-sum.inspectedDiffM3)) +
+      ' m³　·　達成率 ' + iPct + '%</div>' +
+      '<div class="matbar ' + iBarCls + '"><i style="width:' + iBarW + '%"></i></div>' +
+      '</div>';
+    h += '</div>';
+    $('matStats').innerHTML = h;
+
+    var body = $('matBody');
+    body.innerHTML = '';
+    var list = mats.slice().sort(function(a, b){
+      var c = String(b.date || '').localeCompare(String(a.date || ''));
+      if (c) return c;
+      return String(b.id || '').localeCompare(String(a.id || ''));
+    });
+    $('matEmpty').style.display = list.length ? 'none' : 'block';
+
+    list.forEach(function(m){
+      var def = S.materialDef(m.type) || { name: m.type, m3PerTon: 0 };
+      var tr = document.createElement('tr');
+
+      var tdD = document.createElement('td');
+      tdD.className = 'num';
+      tdD.textContent = isoToSlash(m.date) || '—';
+      tr.appendChild(tdD);
+
+      var tdT = document.createElement('td');
+      tdT.textContent = def.name;
+      tr.appendChild(tdT);
+
+      var tdTon = document.createElement('td');
+      tdTon.className = 'num';
+      tdTon.textContent = fmt(m.tons);
+      tr.appendChild(tdTon);
+
+      var tdM3 = document.createElement('td');
+      tdM3.className = 'num';
+      tdM3.style.color = 'var(--steel-2)';
+      tdM3.textContent = fmt((parseFloat(m.tons) || 0) * def.m3PerTon);
+      tr.appendChild(tdM3);
+
+      var tdN = document.createElement('td');
+      tdN.className = 'left';
+      tdN.textContent = m.note || '';
+      tdN.style.color = m.note ? '' : '#9aa6b4';
+      tr.appendChild(tdN);
+
+      var tdOp = document.createElement('td');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-danger btn-sm';
+      btn.textContent = '刪除';
+      btn.addEventListener('click', function(){
+        if (!window.confirm('確定刪除這筆進料紀錄？\n' + (isoToSlash(m.date) || '—') + '　' +
+            def.name + '　' + fmt(m.tons) + ' T')) return;
+        mats = mats.filter(function(x){ return x.id !== m.id; });
+        if (!S.saveMaterials(mats)) { toast('材料紀錄儲存失敗', true); return; }
+        renderMaterials();
+        toast('已刪除進料紀錄');
+      });
+      tdOp.appendChild(btn);
+      tr.appendChild(tdOp);
+
+      body.appendChild(tr);
+    });
+  }
+
+  function addMaterial(){
+    var date = $('matDate').value;
+    var type = $('matType').value;
+    var tons = parseFloat($('matTons').value);
+    var note = $('matNote').value.trim();
+
+    if (!date) { toast('請選擇進料日期', true); $('matDate').focus(); return; }
+    if (!isFinite(tons) || tons <= 0) { toast('請輸入大於 0 的噸數', true); $('matTons').focus(); return; }
+
+    mats.push({ id: S.uid(), date: date, type: type, tons: tons, note: note });
+    if (!S.saveMaterials(mats)) { toast('材料紀錄儲存失敗（可能空間已滿）', true); return; }
+
+    $('matTons').value = '';
+    $('matNote').value = '';
+    renderMaterials();
+    var def = S.materialDef(type);
+    toast('已新增：' + (def ? def.name : type) + ' ' + fmt(tons) + ' T（' +
+      fmt(tons * (def ? def.m3PerTon : 0)) + ' m³）');
+  }
+
+  function exportMaterialXlsx(){
+    var btn = $('btnMatXlsx');
+    btn.disabled = true;
+    var old = btn.textContent;
+    btn.textContent = '產生中…';
+    var sum = S.materialSummary(mats, data.piles.length, S.summary(data).inspected);
+    var sumRows = [
+      ['項目', '數值', '單位'],
+      ['全案樁數', String(sum.piles), '支'],
+      ['設計方數／支', String(sum.designM3PerPile), 'm³'],
+      ['全案需求方數', String(sum.designM3), 'm³'],
+      ['已進料方數', fmt(sum.totalM3), 'm³'],
+      ['已進料噸數', fmt(sum.totalTons), 'T'],
+      ['差額（已進料－全案需求）', fmt(sum.diffM3), 'm³'],
+      ['全案達成率', String(sum.percent), '%'],
+      ['已查驗樁數', String(sum.inspectedPiles), '支'],
+      ['已查驗需求方數', String(sum.inspectedDesignM3), 'm³'],
+      ['差額（已進料－已查驗需求）', fmt(sum.inspectedDiffM3), 'm³'],
+      ['已查驗達成率', String(sum.inspectedPercent), '%']
+    ];
+    sum.byType.forEach(function(t){
+      sumRows.push([t.name + ' 噸數', fmt(t.tons), 'T']);
+      sumRows.push([t.name + ' 換算方數', fmt(t.m3), 'm³']);
+    });
+
+    S.buildXlsxMulti([
+      { name: '材料進料紀錄', rows: S.materialRows(mats), widths: S.MATERIAL_WIDTHS },
+      { name: '材料統計', rows: sumRows, widths: [24, 16, 10] }
+    ])
+      .then(function(blob){
+        downloadBlob(blob, '材料管控_' + todayISO().replace(/-/g,'') + '.xlsx');
+        toast('已匯出材料 Excel');
+      })
+      .catch(function(e){
+        console.error(e);
+        toast('匯出失敗：' + (e && e.message ? e.message : e), true);
+      })
+      .then(function(){ btn.disabled = false; btn.textContent = old; });
+  }
+
+  /* ---------- 墩號詳情 ---------- */
+  function openDrawer(pier){
+    var def = S.pierDef(pier) || {};
+    var piles = S.pilesOf(data, pier);
+    var logs = S.logsOf(data, pier);
+    var done = piles.filter(function(p){ return p.status === '已完成'; }).length;
+    var inspected = piles.filter(function(p){ return p.inspectStatus === '已查驗'; }).length;
+    var lastDate = piles.reduce(function(a, p){
+      return (p.inspectDate && p.inspectDate > a) ? p.inspectDate : a;
+    }, '');
+
+    /* 墩彙總（墩開始時間、整墩結束時間） */
+    var sum = null;
+    S.pierSummary(data).forEach(function(s){ if (s.pier === pier) sum = s; });
+
+    $('dTitle').textContent = pier + '　墩號詳情';
+
+    var h = '';
+    h += '<div class="dsec"><h4>基本資料</h4><div class="dgrid">';
+    h += '<div class="ditem"><div class="k">墩號</div><div class="v">' + esc(pier) + '</div></div>';
+    h += '<div class="ditem"><div class="k">樁數</div><div class="v">' + piles.length + ' 支</div></div>';
+    h += '<div class="ditem"><div class="k">類型</div><div class="v">' + esc(def.type || '—') + '</div></div>';
+    h += '<div class="ditem"><div class="k">岸別</div><div class="v">' + esc(def.side || '—') + '</div></div>';
+    h += '<div class="ditem"><div class="k">預定期程</div><div class="v" style="font-size:12.5px;">' +
+         (isoToSlash(def.start) || '—') + ' ～ ' + (isoToSlash(def.end) || '—') + '</div></div>';
+    h += '<div class="ditem"><div class="k">完成 / 查驗</div><div class="v">' + done + ' / ' + inspected + ' 支</div></div>';
+    h += '</div></div>';
+
+    /* 墩時間彙總 */
+    if (sum) {
+      h += '<div class="dsec"><h4>墩時間彙總</h4><div class="dgrid">';
+      h += '<div class="ditem" style="background:#eef4fb;border-color:#d3e2f2;">' +
+           '<div class="k">墩開始時間</div>' +
+           '<div class="v" style="color:#2F5597;">' + sum.startText + '</div></div>';
+      h += '<div class="ditem" style="background:' + (sum.allDone ? '#e9f5ee' : '#fdf6e7') +
+           ';border-color:' + (sum.allDone ? '#cfe6da' : '#f0dfb8') + ';">' +
+           '<div class="k">墩完成時間</div>' +
+           '<div class="v" style="color:' + (sum.allDone ? '#1f7a4d' : '#c47f17') + ';font-size:12.5px;">' +
+           sum.endText + '</div></div>';
+      h += '<div class="ditem"><div class="k">墩狀態</div><div class="v">' + statusPill(sum.status) + '</div></div>';
+      h += '<div class="ditem"><div class="k">未完成支數</div><div class="v">' + sum.notDone + ' 支</div></div>';
+      h += '</div></div>';
+    }
+
+    h += '<div class="dsec"><h4>查驗狀態</h4>';
+    if (inspected > 0) {
+      h += '<div class="ditem" style="background:#e8effa;border-color:#c9d9f0;">' +
+           '<div class="k">本墩已查驗</div>' +
+           '<div class="v" style="color:#2F5597;">查驗日期：' + (isoToSlash(lastDate) || '—') + '</div></div>';
+    } else {
+      h += '<div class="ditem"><div class="k">本墩尚未查驗</div>' +
+           '<div class="v" style="color:#6b7a8d;font-weight:600;">請至「查驗紀錄表」新增紀錄並選擇墩號 ' + esc(pier) + '</div></div>';
+    }
+    h += '</div>';
+
+    h += '<div class="dsec"><h4>查驗紀錄（' + logs.length + ' 筆）</h4>';
+    if (!logs.length) {
+      h += '<div class="empty" style="padding:18px 8px;">此墩號尚無查驗紀錄</div>';
+    } else {
+      logs.forEach(function(l){
+        var nos = S.logPileNos ? S.logPileNos(data, l) : (l.piles || []);
+        var lPiers = S.logPiers ? S.logPiers(data, l) : (l.pier ? [l.pier] : []);
+        h += '<div class="logitem">' +
+          '<div class="lt"><span class="ld">' + (isoToSlash(l.date) || '—') + '</span>' +
+          '<span class="lm">' + esc(lPiers.join('、') || '') + '</span></div>' +
+          '<div class="ll"><b>查驗人員：</b>' + esc(l.inspector || '—') +
+          '　<b>監造派員：</b>' + esc(l.supervisor || '—') + '</div>' +
+          '<div class="ll"><b>查驗位置：</b>' + esc((S.composeLocation ? S.composeLocation(data, l) : l.location) || '—') + '</div>' +
+          '<div class="ll"><b>涵蓋墩號：</b>' +
+            (lPiers.length ? lPiers.map(function(p){
+              return '<span class="pill i2" style="margin:1px 3px 1px 0;">' + esc(p) + '</span>';
+            }).join('') : '—') +
+          '</div>' +
+          '<div class="ll"><b>涵蓋樁號：</b>' +
+            (nos.length ? nos.map(function(no){
+              return '<span class="pill i1" style="margin:1px 3px 1px 0;">' + esc(no) + '</span>';
+            }).join('') : '—') +
+          '</div>' +
+          '</div>';
+      });
+    }
+    h += '</div>';
+
+    h += '<div class="dsec"><h4>樁位清單</h4><div class="dgrid">';
+    piles.forEach(function(p){
+      h += '<div class="ditem"><div class="k">' + esc(p.pileNo) +
+           (p.progressDate ? '　<span style="color:#2F5597;font-weight:700;">' + isoToSlash(p.progressDate) + '</span>' : '') +
+           '</div>' +
+           '<div class="v" style="font-size:12.5px;">' + statusPill(p.status) + ' ' + inspectPill(p) + '</div></div>';
+    });
+    h += '</div></div>';
+
+    $('dBody').innerHTML = h;
+    $('drawer').classList.add('on');
+    $('drawer').setAttribute('aria-hidden', 'false');
+    $('mask').classList.add('on');
+  }
+
+  function closeDrawer(){
+    $('drawer').classList.remove('on');
+    $('drawer').setAttribute('aria-hidden', 'true');
+    $('mask').classList.remove('on');
+  }
+
+  /* ---------- 匯出 ---------- */
+  /* 原本自己 createObjectURL / revoke，與 assets/core.js 的 Core.download 重複；
+     改為直接呼叫 Core.download（同樣會 revoke，且少了重複實作）。 */
+  function downloadBlob(blob, filename){
+    CORE.download(filename, blob);
+  }
+
+  function exportXlsx(){
+    var btn = $('btnXlsx');
+    btn.disabled = true;
+    var old = btn.textContent;
+    btn.textContent = '產生中…';
+    S.buildXlsxMulti([
+      { name: '進度管控表', rows: S.progressRows(data), widths: S.PROGRESS_WIDTHS },
+      { name: '墩號彙總', rows: S.pierSummaryRows(data), widths: S.PIER_WIDTHS }
+    ])
+      .then(function(blob){
+        downloadBlob(blob, '預壘樁進度管控表_' + todayISO().replace(/-/g,'') + '.xlsx');
+        toast('已匯出 Excel（含墩號彙總）');
+      })
+      .catch(function(e){
+        console.error(e);
+        toast('匯出失敗：' + (e && e.message ? e.message : e), true);
+      })
+      .then(function(){ btn.disabled = false; btn.textContent = old; });
+  }
+
+  function exportJson(){
+    var txt = S.exportJSON(data);
+    downloadBlob(new Blob([txt], { type:'application/json;charset=utf-8' }),
+      '查驗整合資料_' + todayISO().replace(/-/g,'') + '.json');
+    toast('已匯出 JSON（含查驗紀錄與墩號彙總）');
+  }
+
+  function importJson(file){
+    var fr = new FileReader();
+    fr.onload = function(){
+      try {
+        var d = S.importJSON(String(fr.result));
+        if (!window.confirm('匯入將覆蓋目前所有資料（' + data.piles.length + ' 支樁、' +
+            data.logs.length + ' 筆查驗紀錄）。\n\n檔案內容：' + d.piles.length + ' 支樁、' +
+            d.logs.length + ' 筆查驗紀錄。\n\n確定要匯入嗎？')) return;
+        data = d;
+        persist();
+        /* 匯入檔若含材料紀錄，一併還原 */
+        if (Array.isArray(d.materials)) {
+          mats = S.normalizeMaterials(d.materials);
+          S.saveMaterials(mats);
+        }
+        render();
+        toast('已匯入：' + d.piles.length + ' 支樁、' + d.logs.length + ' 筆查驗紀錄' +
+          (Array.isArray(d.materials) ? '、' + mats.length + ' 筆材料' : ''));
+      } catch (e) {
+        toast('匯入失敗：' + (e && e.message ? e.message : e), true);
+      }
+    };
+    fr.readAsText(file);
+  }
+
+  /* ---------- 事件 ---------- */
+  $('fSide').addEventListener('change', function(){ filter.side = this.value; renderTable(); });
+  $('fStatus').addEventListener('change', function(){ filter.status = this.value; renderTable(); });
+  $('fInspect').addEventListener('change', function(){ filter.inspect = this.value; renderTable(); });
+  $('fSearch').addEventListener('input', function(){ filter.q = this.value.trim(); renderTable(); });
+  $('fSort').addEventListener('change', function(){ filter.sort = this.value; renderTable(); });
+
+  $('btnClearFilter').addEventListener('click', function(){
+    filter = { side:'', status:'', inspect:'', q:'', sort: filter.sort };
+    $('fSide').value = ''; $('fStatus').value = ''; $('fInspect').value = ''; $('fSearch').value = '';
+    renderTable();
+  });
+
+  $('btnFillToday').addEventListener('click', function(){
+    var t = todayISO();
+    var n = 0;
+    data.piles.forEach(function(p){
+      if (p.status === '未施作' && p.plannedStart && p.plannedStart <= t) {
+        p.workDate = t; n++;
+      }
+    });
+    if (!n) { toast('沒有需要開工的樁（已開工或尚未到預定開始日）'); return; }
+    persist(); render();
+    toast('已將 ' + n + ' 支樁設為今日開工');
+  });
+
+  $('btnResetAll').addEventListener('click', function(){
+    if (!window.confirm('確定要清除所有「施作日期／備註」嗎？\n查驗紀錄不會被刪除。')) return;
+    data.piles.forEach(function(p){
+      p.workDate = ''; p.note = '';
+    });
+    persist(); render();
+    toast('已重設進度（查驗紀錄保留）');
+  });
+
+  $('btnXlsx').addEventListener('click', exportXlsx);
+  $('btnJson').addEventListener('click', exportJson);
+  $('btnImport').addEventListener('click', function(){ $('fileImport').click(); });
+  $('fileImport').addEventListener('change', function(){
+    if (this.files && this.files[0]) importJson(this.files[0]);
+    this.value = '';
+  });
+
+  /* 材料管控 */
+  $('btnMatAdd').addEventListener('click', addMaterial);
+  $('btnMatXlsx').addEventListener('click', exportMaterialXlsx);
+  $('matTons').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); addMaterial(); }
+  });
+  $('matNote').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); addMaterial(); }
+  });
+  /* 進料日期預設今天 */
+  $('matDate').value = todayISO();
+
+  $('dClose').addEventListener('click', closeDrawer);
+  $('mask').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') closeDrawer();
+  });
+
+  /* 跨頁籤同步：查驗紀錄表寫入後，切回本頁自動重讀 */
+  /* 原本每次 focus 都對整包資料做兩次 JSON.stringify（65KB 以上）再比對，
+     iOS 上切換 App／分頁時會反覆觸發。改成先比對便宜的簽章，只有真的
+     不同才重讀與重繪。 */
+  function sig(d){
+    return (d.piles ? d.piles.length : 0) + '|' + (d.logs ? d.logs.length : 0) + '|' +
+      (d.logs && d.logs.length ? String(d.logs[d.logs.length - 1].date || '') : '');
+  }
+  var lastSig = sig(data);
+
+  window.addEventListener('storage', function(e){
+    if (e.key === S.KEY) { S.invalidate(); data = S.load(); lastSig = sig(data); render(); }
+  });
+  window.addEventListener('focus', function(){
+    var fresh = S.load();
+    var s = sig(fresh);
+    if (s !== lastSig) { data = fresh; lastSig = s; render(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

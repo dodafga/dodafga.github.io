@@ -2,4 +2,40 @@ name: oneoff-progress
 on:
   push:
     branches: [main]
-    paths: ['.html']
+    paths:
+      - '.github/workflows/oneoff-progress.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: fetch and decode progress/index.html
+        env:
+          SRC: 'https://static.teamily.ai/files/3befecc8-1e2a-481a-9df6-d6151062307b/pp.b64?tk=ZmlsZTozYmVmZWNjOC0xZTJhLTQ4MWEtOWRmNi1kNjE1MTA2MjMwN2I6MTc5NDQ3Nzc0MQ.ZmEzYjk1OGUzOTY3MmI4MjAyNGM2NDYwMGNhZjk1ZDM'
+          WANT: 'b01f980041bb073b266e2a9fff854585'
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --max-time 60 -o /tmp/pp.b64 "$SRC"
+          base64 -d /tmp/pp.b64 | gunzip > progress/index.html
+          echo "bytes: $(wc -c < progress/index.html)"
+          GOT=$(md5sum progress/index.html | cut -d' ' -f1)
+          echo "md5: $GOT"
+          test "$GOT" = "$WANT"
+      - name: commit and push
+        run: |
+          set -euo pipefail
+          git config user.name "dodafga"
+          git config user.email "dodadfa@users.noreply.github.com"
+          git add progress/index.html
+          git commit -m "feat(progress): Google Drive cloud sync + separate cement/sand entry"
+          git push
+      - name: self-remove workflow
+        if: always()
+        run: |
+          git rm -f .github/workflows/oneoff-progress.yml || true
+          git commit -m "chore: remove one-off workflow" || true
+          git push || true

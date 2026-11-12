@@ -1,0 +1,31 @@
+name: apply-attachment
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-attachment.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch files
+        run: |
+          set -e
+          curl -fsSL -o form/formbuilder.js "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/deploy_att/formbuilder.js?tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL2RlcGxveV9hdHQ6MTc5NDQ1Mjg3NQ.NmYxNDNhZDk4NGZhYTgzNGNmMTMyNDNlODRjYTRhMTg"
+          curl -fsSL -o form/index.html "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/deploy_att/index.html?tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL2RlcGxveV9hdHQ6MTc5NDQ1Mjg3NQ.NmYxNDNhZDk4NGZhYTgzNGNmMTMyNDNlODRjYTRhMTg"
+          wc -c form/formbuilder.js form/index.html
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add form/formbuilder.js form/index.html
+          git commit -m "feat(form): attachment block rebuilt from Excel template + photo picker" || echo "no change"
+          git push
+      - name: Cleanup
+        run: |
+          git rm -f .github/workflows/apply-attachment.yml
+          git commit -m "chore: remove one-off workflow"
+          git push

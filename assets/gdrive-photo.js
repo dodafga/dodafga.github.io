@@ -360,7 +360,8 @@
           maxEdge: opts.maxEdge || MAX_EDGE,
           date: opts.date,
           watermark: opts.watermark !== false,
-          detect: opts.detect !== false
+          detect: opts.detect !== false,
+          orient: opts.orient !== false
         });
       } finally {
         try { img.release(); } catch (e) {}
@@ -372,7 +373,9 @@
           detected: r.detected,
           width: r.width,
           height: r.height,
-          box: r.box
+          box: r.box,
+          rotated: r.rotated || 0,
+          orient: r.orient || null
         };
       });
     }).catch(function () {
@@ -397,14 +400,31 @@
       if (WM && WM.loadImageFromBlob) {
         return WM.loadImageFromBlob(blob).then(function (img) {
           try {
-            var s = Math.min(1, edge / Math.max(1, img.width, img.height));
-            var w = Math.max(1, Math.round(img.width * s));
-            var h = Math.max(1, Math.round(img.height * s));
+            /* 縮圖直接反映 Drive 上的歸檔檔（該檔在上傳前已依文字方向轉正）。
+               這裡刻意「不再偵測一次」：對已轉正的成品重複偵測，可能因雜訊
+               得到不同角度而二次旋轉，造成縮圖與實際歸檔方向不一致。 */
+            var angle = 0;
+            var swap = false;
+            var ow = img.width;
+            var oh = img.height;
+            var s = Math.min(1, edge / Math.max(1, ow, oh));
+            var w = Math.max(1, Math.round(ow * s));
+            var h = Math.max(1, Math.round(oh * s));
             var cv = document.createElement('canvas');
             cv.width = w; cv.height = h;
             var ctx = cv.getContext('2d');
             if (!ctx) throw new Error('no-ctx');
-            ctx.drawImage(img.el, 0, 0, w, h);
+            if (angle) {
+              var dw = Math.round(img.width * s);
+              var dh = Math.round(img.height * s);
+              ctx.save();
+              ctx.translate(w / 2, h / 2);
+              ctx.rotate(angle * Math.PI / 180);
+              ctx.drawImage(img.el, -dw / 2, -dh / 2, dw, dh);
+              ctx.restore();
+            } else {
+              ctx.drawImage(img.el, 0, 0, w, h);
+            }
             return cv.toDataURL('image/jpeg', 0.72);
           } finally {
             try { img.release(); } catch (e) {}

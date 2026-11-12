@@ -334,9 +334,22 @@
     var w0 = img.width, h0 = img.height;
     if (!w0 || !h0) throw new Error('圖片尺寸無效');
 
-    var scale = Math.min(1, maxEdge / Math.max(w0, h0));
-    var w = Math.max(1, Math.round(w0 * scale));
-    var h = Math.max(1, Math.round(h0 * scale));
+    /* ---- 1) 文字方向偵測（可關閉：opts.orient === false） ---- */
+    var orient = null;
+    if (opts.orient !== false && global.PhotoOrient) {
+      try { orient = global.PhotoOrient.detect(img.el, w0, h0); }
+      catch (e) { orient = null; }
+    }
+    var angle = (orient && orient.angle) ? orient.angle : 0;
+
+    /* ---- 2) 依角度旋轉 + 縮圖 ---- */
+    var swap = (angle === 90 || angle === 270);
+    var ow = swap ? h0 : w0;
+    var oh = swap ? w0 : h0;
+
+    var scale = Math.min(1, maxEdge / Math.max(ow, oh));
+    var w = Math.max(1, Math.round(ow * scale));
+    var h = Math.max(1, Math.round(oh * scale));
 
     var cv = document.createElement('canvas');
     cv.width = w; cv.height = h;
@@ -346,11 +359,24 @@
     /* 白底（避免 PNG 透明區變黑） */
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img.el, 0, 0, w, h);
 
+    if (angle) {
+      /* 以畫布中心為軸旋轉，再把原圖依縮放後尺寸置中繪製 */
+      var dw = Math.round(w0 * scale);
+      var dh = Math.round(h0 * scale);
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(angle * Math.PI / 180);
+      ctx.drawImage(img.el, -dw / 2, -dh / 2, dw, dh);
+      ctx.restore();
+    } else {
+      ctx.drawImage(img.el, 0, 0, w, h);
+    }
+
+    /* ---- 3) 既有時間戳偵測（在「已轉正」的畫面上做，才不會誤判） ---- */
     var detected = false, box = null;
     if (opts.detect !== false) {
-      var d = detectExisting(img);
+      var d = detectExisting({ el: cv, width: w, height: h });
       detected = !!d.found;
       box = d.box;
     }
@@ -361,7 +387,11 @@
       applied = true;
     }
 
-    return { canvas: cv, width: w, height: h, applied: applied, detected: detected, box: box };
+    return {
+      canvas: cv, width: w, height: h,
+      applied: applied, detected: detected, box: box,
+      rotated: angle, orient: orient
+    };
   }
 
   function toBlob(canvas, quality) {
@@ -398,7 +428,8 @@
       maxEdge: Math.min(opts.maxEdge || MAX_EDGE_DEFAULT, PREVIEW_EDGE),
       date: opts.date,
       watermark: opts.watermark,
-      detect: opts.detect
+      detect: opts.detect,
+      orient: opts.orient
     };
     var r = render(img, previewOpts);
     return {
@@ -406,7 +437,9 @@
       applied: r.applied,
       detected: r.detected,
       width: r.width,
-      height: r.height
+      height: r.height,
+      rotated: r.rotated,
+      orient: r.orient
     };
   }
 

@@ -384,19 +384,24 @@
         });
       } finally { try { img.release(); } catch (e) {} }
       $('prevImg').src = out.url;
+      /* 文字方向自動校正的提示（只在真的轉了才顯示） */
+      var rotNote = '';
+      if (out.rotated) {
+        rotNote = '<br>已偵測到文字方向，<b>自動旋轉 ' + out.rotated + '°</b> 轉正後輸出。';
+      }
       if (out.detected) {
         $('prevTag').textContent = '未壓（已有時間戳）';
         $('prevTag').className = 'tag';
-        $('prevNote').innerHTML = '偵測到照片底部<b>已有相機時間戳</b>，依需求<b>不重複壓</b>，將原樣上傳。';
+        $('prevNote').innerHTML = '偵測到照片底部<b>已有相機時間戳</b>，依需求<b>不重複壓</b>，將原樣上傳。' + rotNote;
       } else if (out.applied) {
         $('prevTag').textContent = '已壓浮水印';
         $('prevTag').className = 'tag ok';
         $('prevNote').innerHTML = '浮水印已壓在<b>右下角</b>，日期 <b>' + esc(dateISO) +
-          '</b>；上傳到 Drive 的 PNG 檔本身就帶此浮水印。';
+          '</b>；上傳到 Drive 的 PNG 檔本身就帶此浮水印。' + rotNote;
       } else {
         $('prevTag').textContent = '未壓浮水印';
         $('prevTag').className = 'tag';
-        $('prevNote').innerHTML = '浮水印開關為<b>關閉</b>，照片將只壓縮並轉存 PNG 後上傳。';
+        $('prevNote').innerHTML = '浮水印開關為<b>關閉</b>，照片將只壓縮並轉存 PNG 後上傳。' + rotNote;
       }
     }).catch(function () {
       $('prevTag').textContent = '無法預覽';

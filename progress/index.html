@@ -214,8 +214,18 @@
   .matentry .fld input[type=date]{width:140px;}
   .matentry .fld.grow{flex:1 1 120px;min-width:110px;}
   .matentry .fld.grow input{width:100%;}
+  /* 窄螢幕仍維持「水泥／濕細沙同一列並排兩格」：只縮小內距與欄位寬度，
+     不改成上下堆疊（原本 max-width:640px 會變成 1fr 單欄，違反並排需求）。 */
   @media (max-width:640px){
-    .matentry{grid-template-columns:1fr;}
+    .matentry{gap:8px;}
+    .matentry .matcard{padding:10px 10px;}
+    .matentry .mk{font-size:11px;margin-bottom:7px;}
+    .matentry .frow{gap:6px;}
+    .matentry .fld input[type=number]{width:100%;}
+    .matentry .fld input[type=date]{width:100%;}
+    .matentry .fld{flex:1 1 100%;min-width:0;}
+    .matentry .fld.grow{flex:1 1 100%;min-width:0;}
+    .matentry .frow .btn{width:100%;}
   }
   .matform .fld input[type=text]{width:190px;}
 
@@ -934,9 +944,11 @@
     var body = $('matBody');
     body.innerHTML = '';
     var list = mats.slice().sort(function(a, b){
-      var c = String(b.date || '').localeCompare(String(a.date || ''));
+      /* 與 Excel 匯出（store.materialRows）一致：日期由舊到新；
+         同日期時依建立順序（id 由舊到新），避免畫面與匯出順序不同。 */
+      var c = String(a.date || '').localeCompare(String(b.date || ''));
       if (c) return c;
-      return String(b.id || '').localeCompare(String(a.id || ''));
+      return String(a.id || '').localeCompare(String(b.id || ''));
     });
     $('matEmpty').style.display = list.length ? 'none' : 'block';
 

@@ -274,14 +274,30 @@
 
   GDrive.onStatus(render);
 
-  $('btnCopyCid').addEventListener('click', function(){
-    var v = GDrive.getClientId();
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(v).then(function(){ toast('已複製 Client ID'); });
-    } else {
-      $('cid').select();
-      try { document.execCommand('copy'); toast('已複製 Client ID'); } catch (e) { toast('複製失敗，請手動選取', true); }
+  /* 複製工具：Safari／未授權時 navigator.clipboard.writeText 會 reject（NotAllowedError），
+     原本沒有 .catch 會變成未捕捉的 Promise rejection（主控台紅字、使用者卻沒有任何提示）。
+     這裡統一改走 copyText()：先試 Clipboard API，失敗再退回 execCommand，最後才提示手動選取。 */
+  function copyText(v, okMsg){
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = v;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.top = '-1000px'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      var ok = false;
+      try { ta.select(); ta.setSelectionRange(0, v.length); ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      toast(ok ? okMsg : '複製失敗，請手動選取', !ok);
     }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        navigator.clipboard.writeText(v).then(function(){ toast(okMsg); }).catch(fallback);
+      } catch (e) { fallback(); }
+    } else fallback();
+  }
+
+  $('btnCopyCid').addEventListener('click', function(){
+    copyText(GDrive.getClientId(), '已複製 Client ID');
   });
 
   $('btnConnect').addEventListener('click', function(){
@@ -323,14 +339,7 @@
     var b = e.target.closest('[data-copy]');
     if (!b) return;
     var v = b.getAttribute('data-copy');
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(v).then(function(){ toast('已複製：' + v); });
-    } else {
-      var ta = document.createElement('textarea');
-      ta.value = v; document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); toast('已複製：' + v); } catch (err) { toast('複製失敗，請手動選取', true); }
-      document.body.removeChild(ta);
-    }
+    copyText(v, '已複製：' + v);
   });
 
   render(GDrive.getStatus());

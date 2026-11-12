@@ -1,0 +1,5 @@
+name: oneoff-progress
+on:
+  push:
+    branches: [main]
+    paths: ['.html']

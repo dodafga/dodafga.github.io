@@ -101,6 +101,20 @@
         </span>
       </div>
 
+      <!-- 文字方向自動轉正開關 -->
+      <div class="wmbar">
+        <span class="lbl">文字方向自動轉正</span>
+        <label class="switch">
+          <input type="checkbox" id="chkOrient" checked>
+          <span class="track"></span>
+          <span class="sw" id="orientState">開啟</span>
+        </label>
+        <span class="wmhint">
+          靠小白板固定的<b>日期字樣</b>（年／月／日）判斷方向，必要時用<b>工程名稱</b>、<b>檢查項目</b>的版面位置輔助
+          · 判斷不出就<b>保持原樣不轉</b>
+        </span>
+      </div>
+
       <div class="drop" id="drop">
         <div class="ic">📷</div>
         <div class="t">點此選取相片、拖曳進來，或用手機直接拍攝</div>
@@ -197,6 +211,7 @@
 <script src="../assets/gdrive.js"></script>
 <script src="../assets/watermark.js"></script>
 <script src="../assets/orient.js"></script>
+<script src="../assets/orient-switch.js"></script>
 <script src="../assets/gdrive-photo.js"></script>
 <script src="../assets/drive-page.js"></script>
 </body>

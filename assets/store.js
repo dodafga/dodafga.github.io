@@ -563,17 +563,161 @@
     return arr;
   }
 
+  /* ---------------- 材料管控 ---------------- */
+
+  /* 材料資料獨立存放於另一個 localStorage 鍵，完全不動 piles／logs 的既有結構，
+     因此已上傳紀錄與舊版 JSON 匯出檔都不受影響。 */
+  var MAT_KEY = 'inspection-materials-v1';
+
+  /* 一支預壘樁的設計方數 */
+  var DESIGN_M3_PER_PILE = 6;
+
+  /* 方數換算：水泥 0.8 m³ = 1 T；濕細沙 0.59 m³ = 1 T */
+  var MATERIAL_DEFS = [
+    { key: 'cement', name: '水泥',   m3PerTon: 0.8  },
+    { key: 'sand',   name: '濕細沙', m3PerTon: 0.59 }
+  ];
+
+  function materialDef(key) {
+    for (var i = 0; i < MATERIAL_DEFS.length; i++) {
+      if (MATERIAL_DEFS[i].key === key) return MATERIAL_DEFS[i];
+    }
+    return null;
+  }
+
+  function materialName(key) {
+    var d = materialDef(key);
+    return d ? d.name : String(key || '');
+  }
+
+  /** 噸數 → 方數（依材料別換算） */
+  function tonsToM3(key, tons) {
+    var d = materialDef(key);
+    var t = parseFloat(tons);
+    if (!d || !isFinite(t)) return 0;
+    return t * d.m3PerTon;
+  }
+
+  function normalizeMaterials(arr) {
+    return (Array.isArray(arr) ? arr : []).map(function (m) {
+      m = m || {};
+      var key = String(m.type || m.material || 'cement');
+      if (!materialDef(key)) key = 'cement';
+      var tons = parseFloat(m.tons);
+      if (!isFinite(tons) || tons < 0) tons = 0;
+      return {
+        id: String(m.id || uid()),
+        date: String(m.date || ''),
+        type: key,
+        tons: tons,
+        note: String(m.note || '')
+      };
+    }).filter(function (m) { return m.tons > 0; });
+  }
+
+  function loadMaterials() {
+    var raw = null;
+    try { raw = localStorage.getItem(MAT_KEY); } catch (e) { raw = null; }
+    if (!raw) return [];
+    var arr = null;
+    try { arr = JSON.parse(raw); } catch (e) { arr = null; }
+    return normalizeMaterials(arr);
+  }
+
+  function saveMaterials(list) {
+    try {
+      localStorage.setItem(MAT_KEY, JSON.stringify(normalizeMaterials(list)));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * 材料統計
+   *   pileCount  = 全案樁數（設計需求方數 = pileCount × 6）
+   *   回傳每種材料的噸數／方數、合計方數、與設計需求的差額與達成率
+   */
+  function materialSummary(list, pileCount) {
+    var byType = {};
+    MATERIAL_DEFS.forEach(function (d) {
+      byType[d.key] = { key: d.key, name: d.name, m3PerTon: d.m3PerTon, tons: 0, m3: 0, count: 0 };
+    });
+
+    var totalTons = 0, totalM3 = 0;
+    (Array.isArray(list) ? list : []).forEach(function (m) {
+      var d = materialDef(m.type);
+      if (!d) return;
+      var t = parseFloat(m.tons) || 0;
+      var v = t * d.m3PerTon;
+      byType[d.key].tons += t;
+      byType[d.key].m3 += v;
+      byType[d.key].count += 1;
+      totalTons += t;
+      totalM3 += v;
+    });
+
+    var piles = parseInt(pileCount, 10);
+    if (!isFinite(piles) || piles < 0) piles = 0;
+    var designM3 = piles * DESIGN_M3_PER_PILE;
+    var diffM3 = totalM3 - designM3;
+    var percent = designM3 > 0 ? Math.round(totalM3 / designM3 * 1000) / 10 : 0;
+
+    return {
+      piles: piles,
+      designM3PerPile: DESIGN_M3_PER_PILE,
+      designM3: designM3,
+      totalTons: Math.round(totalTons * 1000) / 1000,
+      totalM3: Math.round(totalM3 * 1000) / 1000,
+      diffM3: Math.round(diffM3 * 1000) / 1000,
+      percent: percent,
+      count: (Array.isArray(list) ? list : []).length,
+      byType: MATERIAL_DEFS.map(function (d) {
+        var o = byType[d.key];
+        return {
+          key: o.key, name: o.name, m3PerTon: o.m3PerTon, count: o.count,
+          tons: Math.round(o.tons * 1000) / 1000,
+          m3: Math.round(o.m3 * 1000) / 1000
+        };
+      })
+    };
+  }
+
+  /** 材料紀錄 → Excel 列資料 */
+  function materialRows(list) {
+    var head = ['日期', '材料', '噸數', '換算方數', '備註'];
+    var rows = [head];
+    (Array.isArray(list) ? list : []).slice().sort(function (a, b) {
+      return String(a.date || '').localeCompare(String(b.date || ''));
+    }).forEach(function (m) {
+      var d = materialDef(m.type);
+      rows.push([
+        isoToSlash(m.date),
+        d ? d.name : String(m.type || ''),
+        String(m.tons),
+        String(Math.round((parseFloat(m.tons) || 0) * (d ? d.m3PerTon : 0) * 1000) / 1000),
+        m.note || ''
+      ]);
+    });
+    return rows;
+  }
+
+  var MATERIAL_WIDTHS = [14, 12, 10, 12, 30];
+
   /* ---------------- JSON 匯出／匯入 ---------------- */
 
   function exportJSON(d) {
+    var mats = loadMaterials();
     var payload = {
       app: 'inspection-suite',
       kind: 'progress+logs',
       version: DATA_VERSION,
       exportedAt: new Date().toISOString(),
-      data: { version: DATA_VERSION, piles: d.piles, logs: d.logs },
+      /* materials 為新增的選用欄位；舊版程式讀到會忽略，舊檔沒有此欄位也能正常匯入 */
+      data: { version: DATA_VERSION, piles: d.piles, logs: d.logs, materials: mats },
       /* 墩號彙總：墩開始時間、整墩結束時間、墩狀態 */
-      pierSummary: pierSummary(d)
+      pierSummary: pierSummary(d),
+      materialSummary: materialSummary(mats, (d.piles || []).length)
     };
     return JSON.stringify(payload, null, 2);
   }
@@ -584,8 +728,14 @@
     if (!d || (!Array.isArray(d.piles) && !Array.isArray(d.logs))) {
       throw new Error('檔案格式不符：找不到 piles 或 logs');
     }
+    /* 材料為選用欄位：舊檔沒有就維持空清單，不影響匯入 */
+    var mats = null;
+    if (Array.isArray(d.materials)) mats = d.materials;
+    else if (obj && Array.isArray(obj.materials)) mats = obj.materials;
+
     d = normalize(d);
     recompute(d);
+    if (mats) d.materials = normalizeMaterials(mats);
     return d;
   }
 
@@ -819,6 +969,20 @@
     PIER_WIDTHS: PIER_WIDTHS,
     logRows: logRows,
     LOG_WIDTHS: LOG_WIDTHS,
-    invalidate: invalidate
+    invalidate: invalidate,
+
+    /* 材料管控 */
+    MAT_KEY: MAT_KEY,
+    DESIGN_M3_PER_PILE: DESIGN_M3_PER_PILE,
+    MATERIAL_DEFS: MATERIAL_DEFS,
+    materialDef: materialDef,
+    materialName: materialName,
+    tonsToM3: tonsToM3,
+    normalizeMaterials: normalizeMaterials,
+    loadMaterials: loadMaterials,
+    saveMaterials: saveMaterials,
+    materialSummary: materialSummary,
+    materialRows: materialRows,
+    MATERIAL_WIDTHS: MATERIAL_WIDTHS
   };
 })(typeof window !== 'undefined' ? window : this);

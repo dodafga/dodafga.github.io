@@ -166,6 +166,49 @@
     background:#f7f9fc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
   .note b{color:var(--ink-2);}
 
+  /* 材料管控 */
+  .matgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px;}
+  .matcard{border:1px solid var(--line);border-radius:9px;padding:12px 14px;background:#fbfcfe;}
+  .matcard .mk{font-size:11.5px;color:var(--muted);font-weight:700;letter-spacing:.2px;}
+  .matcard .mv{font-size:21px;font-weight:800;line-height:1.3;margin-top:2px;font-variant-numeric:tabular-nums;}
+  .matcard .mu{font-size:11.5px;font-weight:600;color:var(--muted);margin-left:2px;}
+  .matcard .ms{font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums;}
+  .matcard.cement{border-color:#d9e2ee;background:#f6f9fd;}
+  .matcard.cement .mv{color:var(--steel-2);}
+  .matcard.sand{border-color:#f0e2c8;background:#fdfaf3;}
+  .matcard.sand .mv{color:var(--amber);}
+  .matcard.total{border-color:#cfe6da;background:#f4fbf7;}
+  .matcard.total .mv{color:var(--ok);}
+  .matcard.design{border-color:#e2e6ec;background:#f8f9fb;}
+  .matcard.design .mv{color:var(--ink-2);}
+
+  .matbar{height:9px;border-radius:20px;background:#e6ebf2;overflow:hidden;margin-top:9px;}
+  .matbar > i{display:block;height:100%;border-radius:20px;background:var(--ok);transition:width .3s;}
+  .matbar.over > i{background:var(--amber);}
+  .matbar.under > i{background:var(--steel-2);}
+
+  .matform{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;
+    background:#f7f9fc;border:1px solid var(--line-2);border-radius:9px;padding:12px 13px;}
+  .matform .fld{display:flex;flex-direction:column;gap:4px;}
+  .matform .fld label{font-size:11px;color:var(--muted);font-weight:700;}
+  .matform .fld input,.matform .fld select{min-width:0;}
+  .matform .fld input[type=number]{width:110px;}
+  .matform .fld input[type=date]{width:150px;}
+  .matform .fld input[type=text]{width:190px;}
+
+  table.mats{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:640px;}
+  table.mats thead th{position:sticky;top:0;z-index:3;background:var(--steel);color:#fff;
+    font-size:11.5px;font-weight:700;padding:8px 7px;text-align:center;white-space:nowrap;
+    border-right:1px solid rgba(255,255,255,.18);}
+  table.mats thead th:last-child{border-right:none;}
+  table.mats tbody td{padding:6px 7px;border-bottom:1px solid var(--line-2);
+    border-right:1px solid var(--line-2);vertical-align:middle;background:#fff;text-align:center;}
+  table.mats tbody td:last-child{border-right:none;}
+  table.mats tbody tr:hover td{background:#fafcfe;}
+  table.mats td.num{font-variant-numeric:tabular-nums;font-weight:600;}
+  table.mats td.left{text-align:left;}
+  .matwrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;max-height:44vh;}
+
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
     background:var(--ink);color:#fff;padding:11px 20px;border-radius:9px;font-size:13.5px;
     opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:90vw;text-align:center;}
@@ -293,6 +336,65 @@
         </table>
       </div>
       <div class="empty" id="emptyHint" style="display:none;">目前篩選條件下沒有資料</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <h2>材料管控</h2>
+      <span class="tag" id="matTag">0 筆</span>
+      <span class="spacer"></span>
+      <span style="font-size:11.5px;color:var(--muted);">設計 6 方／支　·　水泥 0.8 m³＝1 T　·　濕細沙 0.59 m³＝1 T</span>
+    </div>
+    <div class="card-b">
+      <div class="matgrid" id="matStats"></div>
+
+      <div class="matform">
+        <div class="fld">
+          <label for="matDate">進料日期</label>
+          <input type="date" id="matDate">
+        </div>
+        <div class="fld">
+          <label for="matType">材料</label>
+          <select id="matType">
+            <option value="cement">水泥</option>
+            <option value="sand">濕細沙</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label for="matTons">噸數（T）</label>
+          <input type="number" id="matTons" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="fld">
+          <label for="matNote">備註</label>
+          <input type="text" id="matNote" placeholder="車次／廠商…">
+        </div>
+        <button class="btn btn-primary" id="btnMatAdd" type="button">＋ 新增進料</button>
+        <button class="btn btn-ghost btn-sm" id="btnMatXlsx" type="button">⬇ 匯出材料 Excel</button>
+      </div>
+
+      <div class="matwrap">
+        <table class="mats" id="matTable">
+          <thead>
+            <tr>
+              <th style="width:120px;">進料日期</th>
+              <th style="width:96px;">材料</th>
+              <th style="width:96px;">噸數（T）</th>
+              <th style="width:110px;">換算方數（m³）</th>
+              <th>備註</th>
+              <th style="width:70px;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="matBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="matEmpty" style="display:none;">尚無進料紀錄，請於上方新增</div>
+
+      <div class="note">
+        <b>換算方式：</b>水泥 1 T ＝ 0.8 m³、濕細沙 1 T ＝ 0.59 m³；兩者換算後相加即為已進料方數。<br>
+        <b>對照基準：</b>設計需求方數 ＝ 全案樁數 × 6 方／支（目前 <b id="matPileCount">121</b> 支 → <b id="matDesignM3">726</b> m³）。<br>
+        <b>資料存放：</b>材料紀錄與樁位進度分開儲存於本機瀏覽器，互不影響；匯出 JSON 時會一併帶出（舊版 JSON 沒有此欄位也能正常匯入）。
+      </div>
     </div>
   </div>
 
@@ -591,6 +693,166 @@
     renderStats();
     renderPiers();
     renderTable();
+    renderMaterials();
+  }
+
+  /* ---------- 材料管控 ---------- */
+  var mats = S.loadMaterials();
+
+  function fmt(n, dp){
+    var v = parseFloat(n);
+    if (!isFinite(v)) v = 0;
+    var s = v.toFixed(dp == null ? 2 : dp);
+    /* 去掉多餘的尾零，但保留至少整數 */
+    if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s;
+  }
+
+  function renderMaterials(){
+    var sum = S.materialSummary(mats, data.piles.length);
+    $('matTag').textContent = sum.count + ' 筆';
+    $('matPileCount').textContent = sum.piles;
+    $('matDesignM3').textContent = sum.designM3;
+
+    var pct = sum.percent;
+    var barCls = sum.diffM3 > 0 ? 'over' : (sum.diffM3 < 0 ? 'under' : '');
+    var barW = Math.max(0, Math.min(100, pct));
+
+    var h = '';
+    sum.byType.forEach(function(t){
+      h += '<div class="matcard ' + t.key + '">' +
+        '<div class="mk">' + esc(t.name) + '（1 T ＝ ' + t.m3PerTon + ' m³）</div>' +
+        '<div class="mv">' + fmt(t.tons) + '<span class="mu">T</span></div>' +
+        '<div class="ms">換算 ' + fmt(t.m3) + ' m³　·　' + t.count + ' 筆</div>' +
+        '</div>';
+    });
+    h += '<div class="matcard total">' +
+      '<div class="mk">已進料合計</div>' +
+      '<div class="mv">' + fmt(sum.totalM3) + '<span class="mu">m³</span></div>' +
+      '<div class="ms">' + fmt(sum.totalTons) + ' T　·　' + sum.count + ' 筆</div>' +
+      '</div>';
+    h += '<div class="matcard design">' +
+      '<div class="mk">設計需求（' + sum.piles + ' 支 × ' + sum.designM3PerPile + ' 方）</div>' +
+      '<div class="mv">' + fmt(sum.designM3, 0) + '<span class="mu">m³</span></div>' +
+      '<div class="ms">' + (sum.diffM3 >= 0 ? '已達需求，超出 ' + fmt(sum.diffM3) : '尚缺 ' + fmt(-sum.diffM3)) +
+      ' m³　·　達成率 ' + pct + '%</div>' +
+      '<div class="matbar ' + barCls + '"><i style="width:' + barW + '%"></i></div>' +
+      '</div>';
+    $('matStats').innerHTML = h;
+
+    var body = $('matBody');
+    body.innerHTML = '';
+    var list = mats.slice().sort(function(a, b){
+      var c = String(b.date || '').localeCompare(String(a.date || ''));
+      if (c) return c;
+      return String(b.id || '').localeCompare(String(a.id || ''));
+    });
+    $('matEmpty').style.display = list.length ? 'none' : 'block';
+
+    list.forEach(function(m){
+      var def = S.materialDef(m.type) || { name: m.type, m3PerTon: 0 };
+      var tr = document.createElement('tr');
+
+      var tdD = document.createElement('td');
+      tdD.className = 'num';
+      tdD.textContent = isoToSlash(m.date) || '—';
+      tr.appendChild(tdD);
+
+      var tdT = document.createElement('td');
+      tdT.textContent = def.name;
+      tr.appendChild(tdT);
+
+      var tdTon = document.createElement('td');
+      tdTon.className = 'num';
+      tdTon.textContent = fmt(m.tons);
+      tr.appendChild(tdTon);
+
+      var tdM3 = document.createElement('td');
+      tdM3.className = 'num';
+      tdM3.style.color = 'var(--steel-2)';
+      tdM3.textContent = fmt((parseFloat(m.tons) || 0) * def.m3PerTon);
+      tr.appendChild(tdM3);
+
+      var tdN = document.createElement('td');
+      tdN.className = 'left';
+      tdN.textContent = m.note || '';
+      tdN.style.color = m.note ? '' : '#9aa6b4';
+      tr.appendChild(tdN);
+
+      var tdOp = document.createElement('td');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-danger btn-sm';
+      btn.textContent = '刪除';
+      btn.addEventListener('click', function(){
+        if (!window.confirm('確定刪除這筆進料紀錄？\n' + (isoToSlash(m.date) || '—') + '　' +
+            def.name + '　' + fmt(m.tons) + ' T')) return;
+        mats = mats.filter(function(x){ return x.id !== m.id; });
+        if (!S.saveMaterials(mats)) { toast('材料紀錄儲存失敗', true); return; }
+        renderMaterials();
+        toast('已刪除進料紀錄');
+      });
+      tdOp.appendChild(btn);
+      tr.appendChild(tdOp);
+
+      body.appendChild(tr);
+    });
+  }
+
+  function addMaterial(){
+    var date = $('matDate').value;
+    var type = $('matType').value;
+    var tons = parseFloat($('matTons').value);
+    var note = $('matNote').value.trim();
+
+    if (!date) { toast('請選擇進料日期', true); $('matDate').focus(); return; }
+    if (!isFinite(tons) || tons <= 0) { toast('請輸入大於 0 的噸數', true); $('matTons').focus(); return; }
+
+    mats.push({ id: S.uid(), date: date, type: type, tons: tons, note: note });
+    if (!S.saveMaterials(mats)) { toast('材料紀錄儲存失敗（可能空間已滿）', true); return; }
+
+    $('matTons').value = '';
+    $('matNote').value = '';
+    renderMaterials();
+    var def = S.materialDef(type);
+    toast('已新增：' + (def ? def.name : type) + ' ' + fmt(tons) + ' T（' +
+      fmt(tons * (def ? def.m3PerTon : 0)) + ' m³）');
+  }
+
+  function exportMaterialXlsx(){
+    var btn = $('btnMatXlsx');
+    btn.disabled = true;
+    var old = btn.textContent;
+    btn.textContent = '產生中…';
+    var sum = S.materialSummary(mats, data.piles.length);
+    var sumRows = [
+      ['項目', '數值', '單位'],
+      ['全案樁數', String(sum.piles), '支'],
+      ['設計方數／支', String(sum.designM3PerPile), 'm³'],
+      ['設計需求方數', String(sum.designM3), 'm³'],
+      ['已進料方數', fmt(sum.totalM3), 'm³'],
+      ['已進料噸數', fmt(sum.totalTons), 'T'],
+      ['差額（已進料－設計）', fmt(sum.diffM3), 'm³'],
+      ['達成率', String(sum.percent), '%']
+    ];
+    sum.byType.forEach(function(t){
+      sumRows.push([t.name + ' 噸數', fmt(t.tons), 'T']);
+      sumRows.push([t.name + ' 換算方數', fmt(t.m3), 'm³']);
+    });
+
+    S.buildXlsxMulti([
+      { name: '材料進料紀錄', rows: S.materialRows(mats), widths: S.MATERIAL_WIDTHS },
+      { name: '材料統計', rows: sumRows, widths: [24, 16, 10] }
+    ])
+      .then(function(blob){
+        downloadBlob(blob, '材料管控_' + todayISO().replace(/-/g,'') + '.xlsx');
+        toast('已匯出材料 Excel');
+      })
+      .catch(function(e){
+        console.error(e);
+        toast('匯出失敗：' + (e && e.message ? e.message : e), true);
+      })
+      .then(function(){ btn.disabled = false; btn.textContent = old; });
   }
 
   /* ---------- 墩號詳情 ---------- */
@@ -741,8 +1003,14 @@
             d.logs.length + ' 筆查驗紀錄。\n\n確定要匯入嗎？')) return;
         data = d;
         persist();
+        /* 匯入檔若含材料紀錄，一併還原 */
+        if (Array.isArray(d.materials)) {
+          mats = S.normalizeMaterials(d.materials);
+          S.saveMaterials(mats);
+        }
         render();
-        toast('已匯入：' + d.piles.length + ' 支樁、' + d.logs.length + ' 筆查驗紀錄');
+        toast('已匯入：' + d.piles.length + ' 支樁、' + d.logs.length + ' 筆查驗紀錄' +
+          (Array.isArray(d.materials) ? '、' + mats.length + ' 筆材料' : ''));
       } catch (e) {
         toast('匯入失敗：' + (e && e.message ? e.message : e), true);
       }
@@ -792,6 +1060,18 @@
     if (this.files && this.files[0]) importJson(this.files[0]);
     this.value = '';
   });
+
+  /* 材料管控 */
+  $('btnMatAdd').addEventListener('click', addMaterial);
+  $('btnMatXlsx').addEventListener('click', exportMaterialXlsx);
+  $('matTons').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); addMaterial(); }
+  });
+  $('matNote').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); addMaterial(); }
+  });
+  /* 進料日期預設今天 */
+  $('matDate').value = todayISO();
 
   $('dClose').addEventListener('click', closeDrawer);
   $('mask').addEventListener('click', closeDrawer);

@@ -13,55 +13,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply optimisation
+      - name: Restore baseline then patch
         run: |
-          cat > /tmp/tg.b64 <<'TGEOF'
-ICAvKiDph43nlKjlkIzkuIDpoYbpm6LlsY8gY2FudmFz77ya5q+P5qyh5YG15ris6YO95paw5bu6IGNhbnZhcyDmnIPop7jnmbzphY3nva7oiIcgR1BVIOS4iuWCs+OAgiAqLwogIHZhciBfZ3JheUN2ID0gbnVsbCwgX2dyYXlDdHggPSBudWxsOwoKICBmdW5jdGlvbiB0b0dyYXkoaW1nRWwsIHNyY1csIHNyY0gpIHsKICAgIHZhciB3MCA9IHNyY1cgfHwgaW1nRWwud2lkdGggfHwgaW1nRWwubmF0dXJhbFdpZHRoIHx8IDA7CiAgICB2YXIgaDAgPSBzcmNIIHx8IGltZ0VsLmhlaWdodCB8fCBpbWdFbC5uYXR1cmFsSGVpZ2h0IHx8IDA7CiAgICBpZiAoIXcwIHx8ICFoMCkgcmV0dXJuIG51bGw7CgogICAgdmFyIHMgPSBNYXRoLm1pbigxLCBERVRFQ1RfRURHRSAvIE1hdGgubWF4KHcwLCBoMCkpOwogICAgdmFyIHcgPSBNYXRoLm1heCgxLCBNYXRoLnJvdW5kKHcwICogcykpOwogICAgdmFyIGggPSBNYXRoLm1heCgxLCBNYXRoLnJvdW5kKGgwICogcykpOwoKICAgIHZhciBjdiA9IF9ncmF5Q3YsIGN0eCA9IF9ncmF5Q3R4OwogICAgaWYgKCFjdiB8fCAhY3R4KSB7CiAgICAgIGN2ID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnY2FudmFzJyk7CiAgICAgIGN0eCA9IGN2LmdldENvbnRleHQoJzJkJywgeyB3aWxsUmVhZEZyZXF1ZW50bHk6IHRydWUgfSk7CiAgICAgIGlmICghY3R4KSByZXR1cm4gbnVsbDsKICAgICAgX2dyYXlDdiA9IGN2OyBfZ3JheUN0eCA9IGN0eDsKICAgIH0KICAgIGlmIChjdi53aWR0aCAhPT0gdyB8fCBjdi5oZWlnaHQgIT09IGgpIHsgY3Yud2lkdGggPSB3OyBjdi5oZWlnaHQgPSBoOyB9CgogICAgdmFyIGRhdGE7CiAgICB0cnkgewogICAgICBjdHguY2xlYXJSZWN0KDAsIDAsIHcsIGgpOwogICAgICBjdHguZHJhd0ltYWdlKGltZ0VsLCAwLCAwLCB3LCBoKTsKICAgICAgZGF0YSA9IGN0eC5nZXRJbWFnZURhdGEoMCwgMCwgdywgaCkuZGF0YTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgLyog6Leo57ay5Z+f5ZyW54mH5pyD6K6TIGdldEltYWdlRGF0YSDkuJ/pjK8gKi8KICAgICAgcmV0dXJuIG51bGw7CiAgICB9CgogICAgLyog5Lqu5bqm5Y+q5pyJIDB+MjU177yM55SoIFVpbnQ4Q2xhbXBlZEFycmF5IOecgeS4gOWNiuiomOaGtumrlOOAgiAqLwogICAgdmFyIGdyYXkgPSBuZXcgVWludDhDbGFtcGVkQXJyYXkodyAqIGgpOwogICAgdmFyIGksIHA7CiAgICBmb3IgKGkgPSAwLCBwID0gMDsgaSA8IGdyYXkubGVuZ3RoOyBpKyssIHAgKz0gNCkgewogICAgICBncmF5W2ldID0gKGRhdGFbcF0gKiAyOTkgKyBkYXRhW3AgKyAxXSAqIDU4NyArIGRhdGFbcCArIDJdICogMTE0KSAvIDEwMDA7CiAgICB9CiAgICByZXR1cm4geyBncmF5OiBncmF5LCB3OiB3LCBoOiBoIH07CiAgfQo=
-TGEOF
-          cat > /tmp/cp.b64 <<'CPEOF'
-ICBmdW5jdGlvbiBjb21wb25lbnRzKG1hc2ssIHcsIGgpIHsKICAgIC8qIOS7peOAjOa4uOeoi++8iHJ1bu+8ieOAjeeCuuWWruS9jeWBmiA4IOmAo+mAmuaomeiomO+8jOWGjeeUqCB1bmlvbi1maW5kIOWQiOS9teOAggogICAgICAg5paH5a2X6YGu572p5aSa54K657Sw562G55Wr77yM5ri456iL5pW46YGg5bCR5pa85YOP57Sg5pW477yM5q+U6YCQ5YOP57SgIGZsb29kIGZpbGwg5b+r5LiA5YCL6YeP57Sa44CCICovCiAgICB2YXIgcngwID0gW10sIHJ4MSA9IFtdLCByeSA9IFtdLCBwYXJlbnQgPSBbXTsKICAgIHZhciBwcmV2U3RhcnQgPSAwLCBwcmV2RW5kID0gMDsKICAgIHZhciB4LCB5LCBpLCBzLCBlLCBwLCBxLCBhLCBiOwoKICAgIGZvciAoeSA9IDA7IHkgPCBoOyB5KyspIHsKICAgICAgdmFyIHJvd1N0YXJ0ID0gcngwLmxlbmd0aDsKICAgICAgeCA9IDA7CiAgICAgIHdoaWxlICh4IDwgdykgewogICAgICAgIGlmICghbWFza1t5ICogdyArIHhdKSB7IHgrKzsgY29udGludWU7IH0KICAgICAgICBzID0geDsKICAgICAgICB3aGlsZSAoeCA8IHcgJiYgbWFza1t5ICogdyArIHhdKSB4Kys7CiAgICAgICAgZSA9IHggLSAxOwogICAgICAgIHJ4MC5wdXNoKHMpOyByeDEucHVzaChlKTsgcnkucHVzaCh5KTsgcGFyZW50LnB1c2gocGFyZW50Lmxlbmd0aCk7CiAgICAgIH0KICAgICAgdmFyIHJvd0VuZCA9IHJ4MC5sZW5ndGg7CgogICAgICAvKiDoiIfkuIrkuIDliJfph43nlornmoTmuLjnqIvlkIjkvbXvvIg4IOmAo+mAmu+8muWFgeioseWwjeinku+8jOW3puWPs+WQhOaUvuWvrCAx77yJICovCiAgICAgIHAgPSBwcmV2U3RhcnQ7IHEgPSByb3dTdGFydDsKICAgICAgd2hpbGUgKHAgPCBwcmV2RW5kICYmIHEgPCByb3dFbmQpIHsKICAgICAgICBpZiAocngxW3BdICsgMSA8IHJ4MFtxXSkgeyBwKys7IGNvbnRpbnVlOyB9CiAgICAgICAgaWYgKHJ4MVtxXSArIDEgPCByeDBbcF0pIHsgcSsrOyBjb250aW51ZTsgfQogICAgICAgIGEgPSBwOyB3aGlsZSAocGFyZW50W2FdICE9PSBhKSB7IHBhcmVudFthXSA9IHBhcmVudFtwYXJlbnRbYV1dOyBhID0gcGFyZW50W2FdOyB9CiAgICAgICAgYiA9IHE7IHdoaWxlIChwYXJlbnRbYl0gIT09IGIpIHsgcGFyZW50W2JdID0gcGFyZW50W3BhcmVudFtiXV07IGIgPSBwYXJlbnRbYl07IH0KICAgICAgICBpZiAoYSAhPT0gYikgcGFyZW50W2JdID0gYTsKICAgICAgICBpZiAocngxW3BdIDwgcngxW3FdKSBwKys7IGVsc2UgcSsrOwogICAgICB9CiAgICAgIHByZXZTdGFydCA9IHJvd1N0YXJ0OyBwcmV2RW5kID0gcm93RW5kOwogICAgfQoKICAgIC8qIOiBmuWQiOavj+WAi+aguSAqLwogICAgdmFyIG4gPSByeDAubGVuZ3RoOwogICAgdmFyIGFnZyA9IHt9OwogICAgZm9yIChpID0gMDsgaSA8IG47IGkrKykgewogICAgICBhID0gaTsgd2hpbGUgKHBhcmVudFthXSAhPT0gYSkgeyBwYXJlbnRbYV0gPSBwYXJlbnRbcGFyZW50W2FdXTsgYSA9IHBhcmVudFthXTsgfQogICAgICB2YXIgbyA9IGFnZ1thXTsKICAgICAgaWYgKCFvKSB7CiAgICAgICAgYWdnW2FdID0geyB4MDogcngwW2ldLCB4MTogcngxW2ldLCB5MDogcnlbaV0sIHkxOiByeVtpXSwgYXJlYTogcngxW2ldIC0gcngwW2ldICsgMSwgc3k6IHJ5W2ldICogKHJ4MVtpXSAtIHJ4MFtpXSArIDEpIH07CiAgICAgIH0gZWxzZSB7CiAgICAgICAgaWYgKHJ4MFtpXSA8IG8ueDApIG8ueDAgPSByeDBbaV07CiAgICAgICAgaWYgKHJ4MVtpXSA+IG8ueDEpIG8ueDEgPSByeDFbaV07CiAgICAgICAgaWYgKHJ5W2ldIDwgby55MCkgby55MCA9IHJ5W2ldOwogICAgICAgIGlmIChyeVtpXSA+IG8ueTEpIG8ueTEgPSByeVtpXTsKICAgICAgICB2YXIgbGVuID0gcngxW2ldIC0gcngwW2ldICsgMTsKICAgICAgICBvLmFyZWEgKz0gbGVuOyBvLnN5ICs9IHJ5W2ldICogbGVuOwogICAgICB9CiAgICB9CgogICAgdmFyIG91dCA9IFtdOwogICAgZm9yICh2YXIgayBpbiBhZ2cpIHsKICAgICAgaWYgKCFPYmplY3QucHJvdG90eXBlLmhhc093blByb3BlcnR5LmNhbGwoYWdnLCBrKSkgY29udGludWU7CiAgICAgIHZhciBjID0gYWdnW2tdOwogICAgICBvdXQucHVzaCh7IHgwOiBjLngwLCB5MDogYy55MCwgeDE6IGMueDEsIHkxOiBjLnkxLCBhcmVhOiBjLmFyZWEsIGN5OiBjLnN5IC8gYy5hcmVhIH0pOwogICAgICBpZiAob3V0Lmxlbmd0aCA+PSBNQVhfQ09NUE9ORU5UUykgYnJlYWs7CiAgICB9CiAgICAvKiDkvp3lt6bkuIrop5LmjpLluo/vvIzoiIfoiIrniYjpgJDliJfmjoPmj4/nmoTovLjlh7rkuIDoh7QgKi8KICAgIG91dC5zb3J0KGZ1bmN0aW9uIChtLCBuMikgeyByZXR1cm4gKG0ueTAgLSBuMi55MCkgfHwgKG0ueDAgLSBuMi54MCk7IH0pOwogICAgcmV0dXJuIG91dDsKICB9Cg==
-CPEOF
-          base64 -d /tmp/tg.b64 > /tmp/tg.js
-          base64 -d /tmp/cp.b64 > /tmp/cp.js
-          python3 - <<'PYEOF'
-import io
-src = open('assets/orient.js', encoding='utf-8').read()
-orig_len = len(src)
-togray_new = open('/tmp/tg.js', encoding='utf-8').read()
-comp_new = open('/tmp/cp.js', encoding='utf-8').read()
-
-start = src.find('  function toGray(imgEl, srcW, srcH) {')
-assert start >= 0, 'toGray not found'
-pre = src.rfind('  /* ---------------- \u5f71\u50cf \u2192 \u7070\u968e ---------------- */', 0, start)
-if pre < 0:
-    pre = start
-end_marker = '    return { gray: gray, w: w, h: h };\n  }\n'
-end = src.find(end_marker, start)
-assert end >= 0, 'toGray end not found'
-end += len(end_marker)
-head = src[:pre] + '  /* ---------------- \u5f71\u50cf \u2192 \u7070\u968e ---------------- */\n\n'
-src = head + togray_new + '\n' + src[end:]
-
-start = src.find('  function components(mask, w, h) {')
-assert start >= 0, 'components not found'
-end_marker = '    return out;\n  }\n'
-end = src.find(end_marker, start)
-assert end >= 0, 'components end not found'
-end += len(end_marker)
-src = src[:start] + comp_new + '\n' + src[end:]
-
-old_call = '    var f = uprightFeats(inkUp.mask, inkUp.w, inkUp.h);'
-new_call = ('    /* \u53ea\u53d6\u300c\u5b57\u5143\u6578\u300d\u7576\u8a3a\u65b7\u503c\u3002cent\uff0fflat\uff0fvotes \u662f\u820a\u7248\u5b57\u5f62\u7d71\u8a08\u7684\u6b98\u7559\uff0c\n'
-            '       \u5f9e\u672a\u53c3\u8207\u5224\u65b7\uff08\u5224\u65b7\u53ea\u7528\u7248\u9762\u7d50\u69cb\u8207\u65e5\u671f\u5b57\u6a23\uff09\uff0c\u6545\u4e0d\u518d\u8a08\u7b97\u2014\u2014\n'
-            '       \u539f\u672c\u9019\u88e1\u8981\u8dd1\u4e00\u6b21\u5168\u5716\u5217\u6295\u5f71 + \u5169\u6b21\u6392\u5e8f\uff0c\u662f\u6700\u5927\u7684\u55ae\u4e00\u8017\u6642\u4f86\u6e90\u3002 */\n'
-            '    var f = { glyphs: components(inkUp.mask, inkUp.w, inkUp.h).length, cent: 0, flat: 0, votes: 0 };')
-assert old_call in src, 'uprightFeats call not found'
-src = src.replace(old_call, new_call, 1)
-
-open('assets/orient.js','w',encoding='utf-8').write(src)
-print('orig', orig_len, '-> new', len(src))
-PYEOF
+          git show abca188:assets/orient.js > assets/orient.js
+          curl -fsSL -o /tmp/patch.py "https://static.teamily.ai/files/cf6e37b0-d89c-4636-b283-ffdf86d7413c/patch.py"
+          wc -c /tmp/patch.py
+          python3 /tmp/patch.py
           node -e "new Function(require('fs').readFileSync('assets/orient.js','utf8')); console.log('syntax ok')"
+          grep -c "_grayCv" assets/orient.js
       - name: Commit
         run: |
           git config user.name dodafga

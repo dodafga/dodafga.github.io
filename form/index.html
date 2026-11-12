@@ -1,6 +1,57 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-<head>
+<head><script data-tmly-media-guard="1">(function(){"use strict";
+var T=window.__tmly||(window.__tmly=(function(){
+var o={},n=String(window.name||"");
+if(n.slice(0,5)==="tmly:"){n.slice(5).split("&").forEach(function(kv){
+var i=kv.indexOf("=");if(i>0){o[kv.slice(0,i)]=kv.slice(i+1)}})}
+return o})());
+if(T.presentation!=="preview"){return}
+var K="tmly:media-muted:"+String(location.pathname).replace(/[^/]*$/,"");
+var muted=false;try{muted=localStorage.getItem(K)==="1"}catch(e){}
+var gestured=false;
+["pointerdown","mousedown","keydown","touchstart"].forEach(function(t){
+document.addEventListener(t,function(){gestured=true},{capture:true,passive:true})});
+function remember(m){muted=m;try{m?localStorage.setItem(K,"1"):localStorage.removeItem(K)}catch(e){}}
+function announcePaused(el){try{el.dispatchEvent(new Event("pause"))}catch(e){}}
+function harden(el){
+el.autoplay=false;el.removeAttribute("autoplay");
+if(el.getAttribute("preload")==="auto"){el.setAttribute("preload","none")}
+if(muted){el.muted=true}
+if(!gestured&&!el.paused){try{el.pause()}catch(e){}}}
+var play=HTMLMediaElement.prototype.play;
+HTMLMediaElement.prototype.play=function(){
+if(!gestured){announcePaused(this);
+return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false);this.muted=false}
+return play.apply(this,arguments)};
+var acProtos=[];
+function guardAC(n){
+var N=window[n];if(!N||!N.prototype){return}
+if(acProtos.indexOf(N.prototype)<0){acProtos.push(N.prototype);
+var res=N.prototype.resume;
+if(typeof res==="function"){N.prototype.resume=function(){
+if(!gestured){return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false)}
+return res.apply(this,arguments)}}}
+var W=function(o){var c=arguments.length?new N(o):new N();
+if(!gestured){try{c.suspend()}catch(e){}}return c};
+W.prototype=N.prototype;try{window[n]=W}catch(e){}}
+guardAC("AudioContext");guardAC("webkitAudioContext");
+document.addEventListener("play",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&!gestured){try{el.pause()}catch(err){}}},true);
+document.addEventListener("pause",function(e){
+if(e.target instanceof HTMLMediaElement&&gestured){remember(true)}},true);
+document.addEventListener("volumechange",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&gestured){remember(el.muted||el.volume===0)}},true);
+function sweep(n){if(n&&n.querySelectorAll){var l=n.querySelectorAll("audio,video");
+for(var i=0;i<l.length;i++){harden(l[i])}}}
+new MutationObserver(function(rs){for(var i=0;i<rs.length;i++){var a=rs[i].addedNodes;
+for(var j=0;j<a.length;j++){var n=a[j];
+if(n instanceof HTMLMediaElement){harden(n)}else{sweep(n)}}}})
+.observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener("DOMContentLoaded",function(){sweep(document)});
+sweep(document)})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>查驗單 Word 模板產生器｜工程施工中請驗單</title>
@@ -226,6 +277,27 @@
   .paper .att-shared td.l{text-align:left;}
   .paper .empty{color:#c3ccd8;}
 
+  /* 附件照片挑選（沿用相片表頁的樣式，維持全站一致） */
+  .modal{position:fixed;inset:0;background:rgba(15,23,35,.55);display:none;align-items:center;justify-content:center;z-index:60;padding:18px;}
+  .modal.on{display:flex;}
+  .modal-box{background:#fff;border-radius:12px;width:100%;max-width:760px;max-height:86vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.3);}
+  .modal-h{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line-2);}
+  .modal-h h3{margin:0;font-size:15px;}
+  .modal-b{padding:12px 16px;overflow:auto;flex:1;}
+  .modal-f{display:flex;align-items:center;gap:9px;padding:12px 16px;border-top:1px solid var(--line-2);}
+  .spacer{flex:1;}
+  .pickbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .pickbar input[type=date]{padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:12.5px;}
+  .picklist{display:flex;flex-direction:column;gap:6px;}
+  .prow{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line-2);border-radius:8px;cursor:pointer;background:#fcfdfe;}
+  .prow.on{border-color:var(--amber);background:#fffaf0;}
+  .pthumb{width:44px;height:44px;flex:0 0 44px;border-radius:6px;background:#eef1f5;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;}
+  .pthumb img{width:100%;height:100%;object-fit:cover;}
+  .pmeta{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .pnm{font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pdt{font-size:11.5px;color:var(--muted);}
+  .pickmsg{font-size:12px;color:var(--muted);}
+  .chkbox{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-2);}
   .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,18px);background:#1b2430;
     color:#fff;font-size:13px;padding:10px 18px;border-radius:24px;
     box-shadow:0 6px 22px rgba(27,36,48,.3);opacity:0;pointer-events:none;transition:.22s;
@@ -454,6 +526,15 @@ PR1-5（0K+154）"></textarea>
                 <button class="btn btn-ghost btn-sm" id="btnAttAdd" type="button">＋ 新增一列</button>
                 <button class="btn btn-ghost btn-sm" id="btnAttSample" type="button">填入範例列</button>
               </div>
+              <div class="field" style="margin-top:12px;">
+                <label>附件照片 <span class="hint">（選用；從「相片上傳歸檔」已上傳的照片挑選，會接在附件表格下方）</span></label>
+                <div class="inlineacts" style="margin:0 0 8px;">
+                  <button class="btn btn-ghost btn-sm" id="btnAttPick" type="button">📂 從歸檔照片挑選</button>
+                  <span style="font-size:11.5px;color:#6b7a8d;align-self:center;" id="attPhotoCnt">尚未選擇照片</span>
+                </div>
+                <div id="attPhotoList" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+              </div>
+
               <div style="font-size:11.5px;color:#6b7a8d;margin-top:8px;line-height:1.6;">
                 <b>欄位：</b>契約項次／項目及說明／單位／查驗數量／監造覆核，與參考檔「活頁簿1」一致；
                 表頭 14pt、內容 12pt、標楷體、細框線、置中，標題 16pt 置中。<br>
@@ -515,11 +596,43 @@ PR1-5（0K+154）"></textarea>
   </div>
 </div>
 
+<!-- 從歸檔照片挑選（附件用） -->
+<div class="modal" id="attPickModal">
+  <div class="modal-box">
+    <div class="modal-h">
+      <h3>從歸檔照片挑選</h3>
+      <span class="tag" id="attPickCount">0 張</span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" id="attPickClose" type="button">✕ 關閉</button>
+    </div>
+    <div class="modal-b">
+      <div class="pickbar">
+        <span style="font-size:12.5px;font-weight:600;color:var(--ink-2);">日期</span>
+        <input type="date" id="attPickFrom">
+        <span style="color:var(--muted);">～</span>
+        <input type="date" id="attPickTo">
+        <button class="btn btn-ghost btn-sm" id="attPickClear" type="button">清除</button>
+        <span class="spacer"></span>
+        <label class="chkbox"><input type="checkbox" id="attPickAll"> 全選</label>
+      </div>
+      <div class="picklist" id="attPickList"></div>
+    </div>
+    <div class="modal-f">
+      <span class="pickmsg" id="attPickMsg"></span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" id="attPickCancel" type="button">取消</button>
+      <button class="btn btn-amber" id="attPickAdd" type="button" disabled>加入附件</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="../assets/jszip.min.js"></script>
 <script src="../assets/core.js"></script>
 <script src="../assets/gdrive.js"></script>
+<script src="../assets/watermark.js"></script>
+<script src="../assets/gdrive-photo.js"></script>
 <script src="formbuilder.js"></script>
 <script>
 (function(){
@@ -538,7 +651,7 @@ PR1-5（0K+154）"></textarea>
     date:"", time:"10:30",
     pos:"", desc:"", autoNum:true,
     apply:"",
-    attach:{ enabled:false, title:"", rows:[], contractor:"", supervisor:"" }
+    attach:{ enabled:false, title:"", rows:[], contractor:"", supervisor:"", photos:[] }
   };
 
   /* v16：表單草稿（重新整理後仍保留） */
@@ -859,7 +972,8 @@ PR1-5（0K+154）"></textarea>
         title: state.attach.title,
         rows: state.attach.rows,
         contractor: FIXED_CONTRACTOR,
-        supervisor: state.attach.supervisor || ""
+        supervisor: state.attach.supervisor || "",
+        photos: state.attach.photos || []
       } : null
     };
   }
@@ -876,11 +990,17 @@ PR1-5（0K+154）"></textarea>
     btn.textContent = "產生中…";
 
     loadTemplate().then(function(tpl){
-      return window.FormBuilder.build({
-        JSZip: window.JSZip,
-        templateBuffer: tpl,
-        data: currentData(),
-        outputType: "blob"
+      /* 先把已選的附件照片從 Drive 取回來，再一起產生 docx。
+         沒有選照片時 loadAttachPhotos() 直接回空陣列，輸出與參考檔完全一致。 */
+      return loadAttachPhotos().then(function(photos){
+        var d = currentData();
+        if (photos.length && d.attach) d.attach.photos = photos;
+        return window.FormBuilder.build({
+          JSZip: window.JSZip,
+          templateBuffer: tpl,
+          data: d,
+          outputType: "blob"
+        });
       });
     }).then(function(blob){
       var url = URL.createObjectURL(blob);
@@ -1031,6 +1151,240 @@ PR1-5（0K+154）"></textarea>
     });
   }
 
+  /* ---------------- 附件照片：從歸檔照片挑選 ---------------- */
+  /* 與 photo/index.html 共用同一個歸檔清單（同一個 localStorage key），
+     因此「相片上傳歸檔」上傳過的照片這裡都看得到，不需要重複上傳。 */
+  var ARCHIVE_KEY = "inspection-drive-photo-history";
+  var attPickSel = {};
+  var attPickRecords = [];
+  var attThumbCache = {};
+
+  function loadArchive(){
+    try {
+      var raw = localStorage.getItem(ARCHIVE_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch(e){ return []; }
+  }
+
+  function attPickFiltered(){
+    var a = $("attPickFrom").value, b = $("attPickTo").value;
+    if (a && b && a > b) { var t = a; a = b; b = t; }
+    return attPickRecords.filter(function(r){
+      if (a && (r.date || "") < a) return false;
+      if (b && (r.date || "") > b) return false;
+      return true;
+    });
+  }
+
+  function updateAttPickUI(){
+    var n = Object.keys(attPickSel).length;
+    var btn = $("attPickAdd");
+    btn.disabled = (n === 0);
+    btn.textContent = n ? ("加入附件（" + n + "）") : "加入附件";
+    var list = attPickFiltered();
+    var all = list.length > 0 && list.every(function(r){ return attPickSel[r.id]; });
+    $("attPickAll").checked = all;
+    $("attPickAll").disabled = (list.length === 0);
+  }
+
+  function renderAttPick(){
+    var box = $("attPickList");
+    var list = attPickFiltered();
+    $("attPickCount").textContent = list.length + " 張";
+    if (!attPickRecords.length){
+      box.innerHTML = '<div style="padding:22px;text-align:center;color:#6b7a8d;font-size:12.5px;">尚無歸檔照片。<br>請先到「相片上傳歸檔」上傳照片。</div>';
+      updateAttPickUI(); return;
+    }
+    if (!list.length){
+      box.innerHTML = '<div style="padding:22px;text-align:center;color:#6b7a8d;font-size:12.5px;">此日期區間沒有符合的歸檔照片。</div>';
+      updateAttPickUI(); return;
+    }
+    var html = "";
+    list.forEach(function(r){
+      var on = !!attPickSel[r.id];
+      html += '<label class="prow' + (on ? " on" : "") + '">' +
+        '<input type="checkbox" data-attpick="' + escapeHtml(r.id) + '"' + (on ? " checked" : "") + '>' +
+        '<span class="pthumb" data-atthumb="' + escapeHtml(r.id) + '">🖼</span>' +
+        '<span class="pmeta">' +
+          '<span class="pnm">' + escapeHtml(r.name || "") + '</span>' +
+          '<span class="pdt">' + escapeHtml(r.date || "") +
+            (r.item ? "　" + escapeHtml(r.item) : "") +
+            (r.note ? "　" + escapeHtml(r.note) : "") +
+          '</span>' +
+        '</span>' +
+      '</label>';
+    });
+    box.innerHTML = html;
+    lazyAttThumbs();
+    updateAttPickUI();
+  }
+
+  function lazyAttThumbs(){
+    var els = $("attPickList").querySelectorAll("[data-atthumb]");
+    Array.prototype.forEach.call(els, loadAttThumb);
+  }
+
+  function loadAttThumb(el){
+    var id = el.getAttribute("data-atthumb");
+    if (!id) return;
+    if (attThumbCache[id]) { el.innerHTML = '<img alt="" src="' + attThumbCache[id] + '">'; return; }
+    var GP = window.GDrivePhoto;
+    if (!GP || !GP.makeThumb) return;
+    GP.makeThumb(id, 200).then(function(url){
+      attThumbCache[id] = url;
+      el.innerHTML = '<img alt="" src="' + url + '">';
+    }).catch(function(){ /* 縮圖失敗就保留佔位圖示 */ });
+  }
+
+  function openAttPick(){
+    attPickRecords = loadArchive();
+    attPickSel = {};
+    $("attPickFrom").value = "";
+    $("attPickTo").value = "";
+    $("attPickMsg").textContent = "";
+    $("attPickModal").classList.add("on");
+    renderAttPick();
+  }
+
+  function closeAttPick(){ $("attPickModal").classList.remove("on"); }
+
+  function addAttPicked(){
+    var ids = Object.keys(attPickSel);
+    if (!ids.length) return;
+    var added = 0;
+    ids.forEach(function(id){
+      var rec = attPickRecords.filter(function(r){ return r.id === id; })[0] || {};
+      /* 只存中繼資料；實際圖片位元組在下載 Word 時才向 Drive 取 */
+      var exists = (state.attach.photos || []).some(function(p){ return p.id === id; });
+      if (exists) return;
+      state.attach.photos.push({
+        id: id,
+        name: rec.name || "",
+        date: rec.date || "",
+        item: rec.item || "",
+        note: rec.note || ""
+      });
+      added++;
+    });
+    renderAttPhotos();
+    renderPreview();
+    saveDraft();
+    $("attPickMsg").textContent = "已加入 " + added + " 張";
+    toast("已加入 " + added + " 張附件照片");
+    setTimeout(closeAttPick, 500);
+  }
+
+  function renderAttPhotos(){
+    var box = $("attPhotoList");
+    if (!box) return;
+    var list = state.attach.photos || [];
+    $("attPhotoCnt").textContent = list.length ? ("已選 " + list.length + " 張") : "尚未選擇照片";
+    if (!list.length) { box.innerHTML = ""; return; }
+    var html = "";
+    list.forEach(function(p, i){
+      html += '<span style="position:relative;display:inline-block;">' +
+        '<span class="pthumb" data-atthumb2="' + escapeHtml(p.id) + '" style="width:56px;height:56px;">🖼</span>' +
+        '<button type="button" data-attdel="' + i + '" title="移除" ' +
+          'style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;border:none;' +
+          'background:#b3261e;color:#fff;font-size:11px;line-height:1;cursor:pointer;padding:0;">×</button>' +
+      '</span>';
+    });
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll("[data-atthumb2]"), function(el){
+      var id = el.getAttribute("data-atthumb2");
+      if (attThumbCache[id]) { el.innerHTML = '<img alt="" src="' + attThumbCache[id] + '">'; return; }
+      var GP = window.GDrivePhoto;
+      if (!GP || !GP.makeThumb) return;
+      GP.makeThumb(id, 200).then(function(url){
+        attThumbCache[id] = url;
+        el.innerHTML = '<img alt="" src="' + url + '">';
+      }).catch(function(){});
+    });
+  }
+
+  function bindAttPick(){
+    if (!$("btnAttPick")) return;
+    $("btnAttPick").addEventListener("click", openAttPick);
+    $("attPickClose").addEventListener("click", closeAttPick);
+    $("attPickCancel").addEventListener("click", closeAttPick);
+    $("attPickModal").addEventListener("click", function(e){
+      if (e.target === $("attPickModal")) closeAttPick();
+    });
+    $("attPickFrom").addEventListener("change", renderAttPick);
+    $("attPickTo").addEventListener("change", renderAttPick);
+    $("attPickClear").addEventListener("click", function(){
+      $("attPickFrom").value = ""; $("attPickTo").value = ""; renderAttPick();
+    });
+    $("attPickAll").addEventListener("change", function(){
+      var on = $("attPickAll").checked;
+      attPickFiltered().forEach(function(r){
+        if (on) attPickSel[r.id] = true; else delete attPickSel[r.id];
+      });
+      renderAttPick();
+    });
+    /* 勾選：容器上綁一次，用 data-attpick 分派 */
+    $("attPickList").addEventListener("change", function(e){
+      var cb = e.target;
+      if (!cb || !cb.getAttribute || !cb.getAttribute("data-attpick")) return;
+      var id = cb.getAttribute("data-attpick");
+      if (cb.checked) attPickSel[id] = true; else delete attPickSel[id];
+      var row = cb.closest ? cb.closest(".prow") : null;
+      if (row) row.classList.toggle("on", cb.checked);
+      updateAttPickUI();
+    });
+    $("attPickAdd").addEventListener("click", addAttPicked);
+    /* 移除已選照片 */
+    $("attPhotoList").addEventListener("click", function(e){
+      var b = e.target;
+      if (!b || !b.getAttribute || b.getAttribute("data-attdel") == null) return;
+      var i = Number(b.getAttribute("data-attdel"));
+      state.attach.photos.splice(i, 1);
+      renderAttPhotos();
+      renderPreview();
+      saveDraft();
+    });
+  }
+
+  /**
+   * 下載前把已選照片的實際位元組取回來（Drive → Uint8Array）。
+   * 沒有照片時回傳空陣列，輸出與參考檔完全一致。
+   */
+  function loadAttachPhotos(){
+    var list = (state.attach && state.attach.photos) || [];
+    if (!list.length) return Promise.resolve([]);
+    var G = window.GDrive;
+    if (!G || !G.fetchFile) return Promise.resolve([]);
+
+    return Promise.all(list.map(function(p){
+      return G.fetchFile(p.id).then(function(blob){
+        return new Promise(function(res, rej){
+          var fr = new FileReader();
+          fr.onload = function(){
+            var bytes = new Uint8Array(fr.result);
+            /* 取圖片尺寸，讓 Word 依原比例縮放 */
+            var url = URL.createObjectURL(blob);
+            var img = new Image();
+            img.onload = function(){
+              var w = img.naturalWidth || 4, h = img.naturalHeight || 3;
+              URL.revokeObjectURL(url);
+              res({ data: bytes, w: w, h: h, ext: "png" });
+            };
+            img.onerror = function(){
+              URL.revokeObjectURL(url);
+              res({ data: bytes, w: 4, h: 3, ext: "png" });
+            };
+            img.src = url;
+          };
+          fr.onerror = function(){ rej(new Error("讀取失敗")); };
+          fr.readAsArrayBuffer(blob);
+        });
+      }).catch(function(){ return null; });
+    })).then(function(arr){
+      return arr.filter(function(x){ return !!x; });
+    });
+  }
+
   function uniq(arr){
     var out = [], seen = {};
     (arr || []).forEach(function(v){
@@ -1076,7 +1430,10 @@ PR1-5（0K+154）"></textarea>
         title: String(d.attach.title || ""),
         rows: Array.isArray(d.attach.rows) ? d.attach.rows : [],
         contractor: String(d.attach.contractor || ""),
-        supervisor: String(d.attach.supervisor || "")
+        supervisor: String(d.attach.supervisor || ""),
+        /* 照片只還原中繼資料（id/name/date），實際位元組在下載時才向 Drive 取，
+           避免把大圖塞進 localStorage 造成配額爆掉。 */
+        photos: Array.isArray(d.attach.photos) ? d.attach.photos : []
       };
     }
 
@@ -1233,6 +1590,8 @@ PR1-5（0K+154）"></textarea>
     renderSaved();
     bind();
     bindAttach();
+    bindAttPick();
+    renderAttPhotos();
 
     /* 還原草稿（若有） */
     var draft = loadDraft();

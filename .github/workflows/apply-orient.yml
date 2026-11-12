@@ -1,0 +1,37 @@
+name: apply-orient
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-orient.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and extract
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 -o /tmp/site.tgz "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/orient-deploy/site.tgz?tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL29yaWVudC1kZXBsb3k6MTc5NDQ2NDgwNA.NzFiMjk0OTIwNDdmY2ZmYjFhNjhkNjM5NTNkYTBkYzg"
+          ls -la /tmp/site.tgz
+          tar xzf /tmp/site.tgz -C "$GITHUB_WORKSPACE"
+          echo '--- files:'
+          ls -la assets/orient.js assets/orient-ref/ drive/index.html form/index.html photo/index.html
+          node -c assets/orient.js && echo SYNTAX_OK
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name 'dodafga'
+          git config user.email 'canon8741311@gmail.com'
+          git add -A
+          if git diff --cached --quiet; then echo 'no changes'; else
+            git commit -m 'feat(photo): 照片文字方向自動轉正（軸向→日期字樣→版面結構）'
+            git push
+          fi
+      - name: Remove this workflow
+        run: |
+          git rm -q .github/workflows/apply-orient.yml || true
+          git commit -m 'chore: remove one-off workflow' || true
+          git push || true

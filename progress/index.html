@@ -198,6 +198,25 @@
   .matform .fld input,.matform .fld select{min-width:0;}
   .matform .fld input[type=number]{width:110px;}
   .matform .fld input[type=date]{width:150px;}
+
+  /* 進料填寫：水泥／濕細沙各自獨立一格，同一列並排 */
+  .matentry{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+  .matentry .matcard{padding:12px 14px;}
+  .matentry .mk{font-size:12px;color:var(--ink-2);font-weight:800;margin-bottom:9px;
+    display:flex;align-items:center;gap:6px;}
+  .matentry .mk .dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px;}
+  .matentry.cement .mk .dot{background:var(--steel-2);}
+  .matentry.sand .mk .dot{background:var(--amber);}
+  .matentry .frow{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;}
+  .matentry .fld{display:flex;flex-direction:column;gap:4px;}
+  .matentry .fld label{font-size:11px;color:var(--muted);font-weight:700;}
+  .matentry .fld input[type=number]{width:100px;}
+  .matentry .fld input[type=date]{width:140px;}
+  .matentry .fld.grow{flex:1 1 120px;min-width:110px;}
+  .matentry .fld.grow input{width:100%;}
+  @media (max-width:640px){
+    .matentry{grid-template-columns:1fr;}
+  }
   .matform .fld input[type=text]{width:190px;}
 
   table.mats{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:640px;}
@@ -351,27 +370,48 @@
     <div class="card-b">
       <div class="matgrid" id="matStats"></div>
 
-      <div class="matform">
-        <div class="fld">
-          <label for="matDate">進料日期</label>
-          <input type="date" id="matDate">
+      <!-- 進料填寫：水泥／濕細沙各自獨立欄位，同一列並排兩格 -->
+      <div class="matentry">
+        <div class="matcard cement">
+          <div class="mk"><span class="dot"></span>水泥進料（1 T ＝ 0.8 m³）</div>
+          <div class="frow">
+            <div class="fld">
+              <label for="cementDate">進料日期</label>
+              <input type="date" id="cementDate">
+            </div>
+            <div class="fld">
+              <label for="cementTons">噸數（T）</label>
+              <input type="number" id="cementTons" min="0" step="0.01" placeholder="0.00">
+            </div>
+            <div class="fld grow">
+              <label for="cementNote">備註</label>
+              <input type="text" id="cementNote" placeholder="車次／廠商…">
+            </div>
+            <button class="btn btn-primary btn-sm" id="btnCementAdd" type="button">＋ 新增水泥</button>
+          </div>
         </div>
-        <div class="fld">
-          <label for="matType">材料</label>
-          <select id="matType">
-            <option value="cement">水泥</option>
-            <option value="sand">濕細沙</option>
-          </select>
+
+        <div class="matcard sand">
+          <div class="mk"><span class="dot"></span>濕細沙進料（1 T ＝ 0.59 m³）</div>
+          <div class="frow">
+            <div class="fld">
+              <label for="sandDate">進料日期</label>
+              <input type="date" id="sandDate">
+            </div>
+            <div class="fld">
+              <label for="sandTons">噸數（T）</label>
+              <input type="number" id="sandTons" min="0" step="0.01" placeholder="0.00">
+            </div>
+            <div class="fld grow">
+              <label for="sandNote">備註</label>
+              <input type="text" id="sandNote" placeholder="車次／廠商…">
+            </div>
+            <button class="btn btn-primary btn-sm" id="btnSandAdd" type="button">＋ 新增濕細沙</button>
+          </div>
         </div>
-        <div class="fld">
-          <label for="matTons">噸數（T）</label>
-          <input type="number" id="matTons" min="0" step="0.01" placeholder="0.00">
-        </div>
-        <div class="fld">
-          <label for="matNote">備註</label>
-          <input type="text" id="matNote" placeholder="車次／廠商…">
-        </div>
-        <button class="btn btn-primary" id="btnMatAdd" type="button">＋ 新增進料</button>
+      </div>
+
+      <div class="toolbar" style="margin-bottom:12px;">
         <button class="btn btn-ghost btn-sm" id="btnMatXlsx" type="button">⬇ 匯出材料 Excel</button>
       </div>
 
@@ -401,8 +441,10 @@
   </div>
 
   <div class="card">
-    <div class="card-h"><h2>資料備份與匯出</h2><span class="tag">本機儲存 · 可跨裝置</span></div>
+    <div class="card-h"><h2>資料備份與匯出</h2><span class="tag" id="gdTag">本機儲存</span></div>
     <div class="card-b">
+      <!-- Google Drive 雲端同步狀態列（自動同步） -->
+      <div id="gdMount" style="margin-bottom:12px;"></div>
       <div class="toolbar">
         <button class="btn btn-amber" id="btnXlsx" type="button">⬇ 匯出 Excel（進度表＋墩號彙總）</button>
         <button class="btn btn-ghost" id="btnJson" type="button">⬇ 匯出 JSON（含查驗紀錄）</button>
@@ -410,9 +452,10 @@
         <input type="file" id="fileImport" accept=".json,application/json" style="display:none;">
       </div>
       <div class="note">
-        <b>資料存放：</b>所有樁位與查驗紀錄都存在這台裝置的瀏覽器（localStorage），不會上傳到任何伺服器。<br>
-        <b>跨裝置：</b>在 A 裝置按「匯出 JSON」→ 把檔案傳到 B 裝置 → 在 B 裝置按「匯入 JSON」即可完整還原（含查驗紀錄與聯動狀態）。<br>
-        <b>建議：</b>每次收工前匯出一次 JSON 備份，避免清除瀏覽器資料時遺失。
+        <b>雲端同步：</b>按上方「☁ 存到 Google Drive」即把樁位進度、查驗紀錄與材料紀錄一起存到雲端；換裝置或換瀏覽器按「⬇ 從 Google Drive 載入」就是同一份資料。<br>
+        <b>自動同步：</b>已授權後，每次修改會自動推上雲端；開啟本頁時也會自動讀取較新的雲端資料。<br>
+        <b>資料存放：</b>未授權時資料只存在這台裝置的瀏覽器（localStorage）。<br>
+        <b>離線備份：</b>仍可用「匯出 JSON」／「匯入 JSON」做完整備份與還原（含材料紀錄，舊版 JSON 沒有此欄位也能正常匯入）。
       </div>
     </div>
   </div>
@@ -434,6 +477,7 @@
 <script src="../assets/jszip.min.js"></script>
 <script src="../assets/core.js"></script>
 <script src="../assets/store.js"></script>
+<script src="../assets/gdrive.js"></script>
 <script>
 (function(){
   'use strict';
@@ -466,6 +510,140 @@
   function persist(){
     S.recompute(data);
     if (!S.save(data)) toast('本機儲存失敗（可能為隱私模式或空間已滿）', true);
+    cloudTouch();
+  }
+
+  /* ---------------- Google Drive 雲端同步 ----------------
+     進度表資料（piles/logs）與材料紀錄（materials）一起存成同一份 JSON，
+     換裝置／換瀏覽器載入即可看到同一份資料。
+     雲端檔案結構與「匯出 JSON」相同（app/kind/version/data），舊檔照樣讀得進來。 */
+  var GD = window.GDrive || null;
+  var cloud = {
+    ready: false,       /* 已跟雲端對過一次 */
+    dirty: false,       /* 本機改過、還沒推上去 */
+    busy: false,
+    timer: null,
+    lastSync: '',
+    lastError: '',
+    loading: false      /* 正在把雲端資料套進畫面，暫停自動推送 */
+  };
+
+  function cloudPayload(){
+    S.recompute(data);
+    var matsForCloud = S.normalizeMaterials(mats);
+    return {
+      app: 'inspection-suite',
+      kind: 'progress+logs',
+      version: S.DATA_VERSION,
+      savedAt: new Date().toISOString(),
+      data: {
+        version: S.DATA_VERSION,
+        piles: data.piles,
+        logs: data.logs,
+        materials: matsForCloud
+      }
+    };
+  }
+
+  /* 把雲端讀回的內容套進本機（含材料），並重畫 */
+  function cloudApply(payload){
+    if (!payload) return false;
+    var d = S.normalize(payload);
+    S.recompute(d);
+    S.save(d);
+    S.invalidate();
+    data = S.load();
+
+    var rm = (payload && Array.isArray(payload.materials)) ? payload.materials : null;
+    if (rm) {
+      mats = S.normalizeMaterials(rm);
+      S.saveMaterials(mats);
+    }
+
+    lastSig = sig(data);
+    render();
+    return true;
+  }
+
+  /* 推送（去抖：連續改動只送最後一次） */
+  function cloudTouch(){
+    if (!GD || !GD.isConfigured || !GD.isConfigured()) return;
+    if (cloud.loading) return;
+    cloud.dirty = true;
+    if (cloud.busy) return;
+    if (cloud.timer) clearTimeout(cloud.timer);
+    cloud.timer = setTimeout(function(){ cloud.timer = null; cloudPush(); }, 1200);
+  }
+
+  function cloudPush(){
+    if (!GD) return Promise.resolve(false);
+    if (cloud.busy) return Promise.resolve(false);
+    cloud.busy = true;
+
+    function done(ok, err){
+      cloud.busy = false;
+      if (ok) {
+        cloud.dirty = false;
+        cloud.lastSync = new Date().toISOString();
+        cloud.lastError = '';
+      } else {
+        cloud.lastError = (err && err.message) ? err.message : String(err || '同步失敗');
+      }
+      cloudBadge();
+    }
+
+    return GD.save(cloudPayload())
+      .then(function(){ done(true); return true; })
+      .catch(function(e){ done(false, e); return false; });
+  }
+
+  /* 頁面開啟時：先嘗試靜默連線讀雲端；沒授權過就維持本機資料不動 */
+  function cloudBoot(){
+    if (!GD || !GD.isConfigured || !GD.isConfigured()) { cloudBadge(); return; }
+    if (!GD.hasToken || !GD.hasToken()) { cloudBadge(); return; }
+
+    cloud.loading = true;
+    GD.load().then(function(j){
+      var payload = (j && j.data) ? j.data : j;
+      if (!payload || (!Array.isArray(payload.piles) && !Array.isArray(payload.logs))) {
+        throw new Error('雲端檔案格式不符');
+      }
+      /* 雲端比本機新才覆蓋，避免把本機剛填的資料洗掉 */
+      var cloudAt = Date.parse((j && j.savedAt) || '') || 0;
+      var localRaw = '';
+      try { localRaw = localStorage.getItem(S.KEY) || ''; } catch (e) {}
+      var localTouched = cloud.dirty || !localRaw;
+
+      if (localTouched || cloudAt >= (GD.getLastSync ? Date.parse(GD.getLastSync() || '') || 0 : 0)) {
+        cloudApply(Array.isArray(payload.materials) ? payload : (j && j.data) || payload);
+      }
+      cloud.ready = true;
+      cloud.lastSync = new Date().toISOString();
+      cloud.lastError = '';
+    }).catch(function(e){
+      cloud.lastError = (e && e.message) ? e.message : '雲端讀取失敗';
+    }).then(function(){
+      cloud.loading = false;
+      cloudBadge();
+    });
+  }
+
+  function cloudBadge(){
+    var el = $('gdTag');
+    if (!el) return;
+    if (!GD || !GD.isConfigured || !GD.isConfigured()) {
+      el.textContent = '本機儲存';
+      el.title = '尚未設定 Google OAuth Client ID，資料只存在這台裝置';
+      return;
+    }
+    if (cloud.busy) { el.textContent = '同步中…'; return; }
+    if (cloud.lastError) { el.textContent = '同步失敗'; el.title = cloud.lastError; return; }
+    if (cloud.lastSync) {
+      el.textContent = '已同步';
+      el.title = '最後同步：' + cloud.lastSync.replace('T', ' ').slice(0, 19);
+      return;
+    }
+    el.textContent = '未同步';
   }
 
   /* 表格內每一格輸入都會呼叫 persist()，而 persist() 會 recompute 全部 121 支樁。
@@ -744,8 +922,10 @@
     h += '<div class="matcard inspect">' +
       '<div class="mk">已查驗需求（' + sum.inspectedPiles + ' 支 × ' + sum.designM3PerPile + ' 方）</div>' +
       '<div class="mv">' + fmt(sum.inspectedDesignM3, 0) + '<span class="mu">m³</span></div>' +
-      '<div class="ms">' + (sum.inspectedDiffM3 >= 0 ? '已達需求，超出 ' + fmt(sum.inspectedDiffM3) : '尚缺 ' + fmt(-sum.inspectedDiffM3)) +
-      ' m³　·　達成率 ' + iPct + '%</div>' +
+      '<div class="ms">' + (sum.inspectedPiles === 0
+        ? '尚無已查驗樁，待查驗後自動計算'
+        : (sum.inspectedDiffM3 >= 0 ? '已達需求，超出 ' + fmt(sum.inspectedDiffM3) : '尚缺 ' + fmt(-sum.inspectedDiffM3)) +
+          ' m³　·　達成率 ' + iPct + '%') + '</div>' +
       '<div class="matbar ' + iBarCls + '"><i style="width:' + iBarW + '%"></i></div>' +
       '</div>';
     h += '</div>';
@@ -801,6 +981,7 @@
         mats = mats.filter(function(x){ return x.id !== m.id; });
         if (!S.saveMaterials(mats)) { toast('材料紀錄儲存失敗', true); return; }
         renderMaterials();
+        cloudTouch();
         toast('已刪除進料紀錄');
       });
       tdOp.appendChild(btn);
@@ -810,23 +991,36 @@
     });
   }
 
-  function addMaterial(){
-    var date = $('matDate').value;
-    var type = $('matType').value;
-    var tons = parseFloat($('matTons').value);
-    var note = $('matNote').value.trim();
+  /* 兩種材料各自獨立填寫：水泥、濕細沙各一組欄位 */
+  var MAT_ENTRY = [
+    { type: 'cement', name: '水泥', dateId: 'cementDate', tonsId: 'cementTons', noteId: 'cementNote' },
+    { type: 'sand',   name: '濕細沙', dateId: 'sandDate',   tonsId: 'sandTons',   noteId: 'sandNote' }
+  ];
 
-    if (!date) { toast('請選擇進料日期', true); $('matDate').focus(); return; }
-    if (!isFinite(tons) || tons <= 0) { toast('請輸入大於 0 的噸數', true); $('matTons').focus(); return; }
+  function addMaterial(type){
+    var ent = null;
+    for (var i = 0; i < MAT_ENTRY.length; i++) {
+      if (MAT_ENTRY[i].type === type) ent = MAT_ENTRY[i];
+    }
+    if (!ent) return;
 
-    mats.push({ id: S.uid(), date: date, type: type, tons: tons, note: note });
+    var dateEl = $(ent.dateId), tonsEl = $(ent.tonsId), noteEl = $(ent.noteId);
+    var date = dateEl.value;
+    var tons = parseFloat(tonsEl.value);
+    var note = noteEl.value.trim();
+
+    if (!date) { toast('請選擇' + ent.name + '進料日期', true); dateEl.focus(); return; }
+    if (!isFinite(tons) || tons <= 0) { toast('請輸入大於 0 的' + ent.name + '噸數', true); tonsEl.focus(); return; }
+
+    mats.push({ id: S.uid(), date: date, type: ent.type, tons: tons, note: note });
     if (!S.saveMaterials(mats)) { toast('材料紀錄儲存失敗（可能空間已滿）', true); return; }
 
-    $('matTons').value = '';
-    $('matNote').value = '';
+    tonsEl.value = '';
+    noteEl.value = '';
     renderMaterials();
-    var def = S.materialDef(type);
-    toast('已新增：' + (def ? def.name : type) + ' ' + fmt(tons) + ' T（' +
+    cloudTouch();
+    var def = S.materialDef(ent.type);
+    toast('已新增' + ent.name + '：' + fmt(tons) + ' T（' +
       fmt(tons * (def ? def.m3PerTon : 0)) + ' m³）');
   }
 
@@ -1024,6 +1218,7 @@
           S.saveMaterials(mats);
         }
         render();
+        cloudTouch();
         toast('已匯入：' + d.piles.length + ' 支樁、' + d.logs.length + ' 筆查驗紀錄' +
           (Array.isArray(d.materials) ? '、' + mats.length + ' 筆材料' : ''));
       } catch (e) {
@@ -1076,17 +1271,62 @@
     this.value = '';
   });
 
-  /* 材料管控 */
-  $('btnMatAdd').addEventListener('click', addMaterial);
+  /* 材料管控：兩種材料各自獨立的填寫與按鈕 */
+  MAT_ENTRY.forEach(function(ent){
+    $(ent.dateId).value = todayISO();
+    $('btn' + ent.type.charAt(0).toUpperCase() + ent.type.slice(1) + 'Add')
+      .addEventListener('click', function(){ addMaterial(ent.type); });
+    $(ent.tonsId).addEventListener('keydown', function(e){
+      if (e.key === 'Enter') { e.preventDefault(); addMaterial(ent.type); }
+    });
+    $(ent.noteId).addEventListener('keydown', function(e){
+      if (e.key === 'Enter') { e.preventDefault(); addMaterial(ent.type); }
+    });
+  });
   $('btnMatXlsx').addEventListener('click', exportMaterialXlsx);
-  $('matTons').addEventListener('keydown', function(e){
-    if (e.key === 'Enter') { e.preventDefault(); addMaterial(); }
-  });
-  $('matNote').addEventListener('keydown', function(e){
-    if (e.key === 'Enter') { e.preventDefault(); addMaterial(); }
-  });
-  /* 進料日期預設今天 */
-  $('matDate').value = todayISO();
+
+  /* Google Drive 雲端同步：狀態列（手動存／載）＋ 開頁自動讀取 */
+  if (GD) {
+    GD.mountStatus($('gdMount'), {
+      onSave: function(){
+        S.recompute(data);
+        cloud.dirty = true;
+        cloudPush().then(function(ok){
+          if (ok) toast('已存到 Google Drive（' + data.piles.length + ' 支樁、' +
+            data.logs.length + ' 筆查驗、' + mats.length + ' 筆材料）');
+          else toast('雲端存檔失敗：' + (cloud.lastError || '未知錯誤'), true);
+        });
+      },
+      onLoad: function(){
+        cloud.loading = true;
+        GD.load().then(function(j){
+          var payload = (j && j.data) ? j.data : j;
+          if (!payload || (!Array.isArray(payload.piles) && !Array.isArray(payload.logs))) {
+            throw new Error('雲端檔案格式不符（找不到 piles 或 logs）');
+          }
+          if (!window.confirm('將以雲端資料覆蓋本機目前內容。\n雲端：' +
+              (payload.logs || []).length + ' 筆查驗、' +
+              (Array.isArray(payload.materials) ? payload.materials.length : 0) + ' 筆材料\n本機：' +
+              data.logs.length + ' 筆查驗、' + mats.length + ' 筆材料\n\n確定要載入嗎？')) {
+            return;
+          }
+          cloudApply(payload);
+          cloud.lastSync = new Date().toISOString();
+          cloud.lastError = '';
+          toast('已從 Google Drive 載入：' + data.logs.length + ' 筆查驗、' + mats.length + ' 筆材料');
+        }).catch(function(e){
+          cloud.lastError = (e && e.message) ? e.message : '雲端載入失敗';
+          toast('雲端載入失敗：' + cloud.lastError, true);
+        }).then(function(){
+          cloud.loading = false;
+          cloudBadge();
+        });
+      },
+      settingsHref: '../settings/index.html'
+    });
+  }
+  cloudBadge();
+  cloudBoot();
 
   $('dClose').addEventListener('click', closeDrawer);
   $('mask').addEventListener('click', closeDrawer);

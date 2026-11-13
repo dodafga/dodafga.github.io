@@ -131,6 +131,15 @@
   table.piers td.date.has{font-weight:700;color:var(--blue);}
   table.piers td.date.ongoing{color:var(--amber);font-weight:600;font-size:11.5px;}
   table.piers td.num{font-variant-numeric:tabular-nums;font-weight:600;}
+  /* 第 4 項：墩號彙總分組標題列 */
+  table.piers tr.pier-group td{background:#eef2f8;border-top:2px solid #c3cedb;
+    border-bottom:1px solid #d8dee7;text-align:left;padding:7px 10px;}
+  table.piers tr.pier-group td .gname{font-size:13px;font-weight:800;color:var(--steel);
+    letter-spacing:.5px;}
+  table.piers tr.pier-group td .gmeta{font-size:11.5px;color:var(--muted);margin-left:10px;
+    font-variant-numeric:tabular-nums;}
+  table.piers tr.pier-group:first-child td{border-top:none;}
+  table.piers td.gempty{color:var(--muted);font-size:12px;padding:10px;background:#fafbfd;}
   .pierwrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;max-height:46vh;}
 
   /* 墩號詳情面板 */
@@ -242,6 +251,20 @@
   table.mats td.left{text-align:left;}
   .matwrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;max-height:44vh;}
 
+  /* 第 3 項：水泥／濕細沙資料表分成兩欄並排 */
+  .matsplit{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .matcol{min-width:0;}
+  .matcol-h{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;
+    color:var(--ink-2);margin-bottom:7px;}
+  .matcol-h .dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px;}
+  .matcol-h .dot.cement{background:var(--steel-2);}
+  .matcol-h .dot.sand{background:var(--amber);}
+  .matcol-h .cnt{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted);}
+  .matsplit table.mats{min-width:0;}
+  @media (max-width:900px){
+    .matsplit{grid-template-columns:1fr;}
+  }
+
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
     background:var(--ink);color:#fff;padding:11px 20px;border-radius:9px;font-size:13.5px;
     opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:90vw;text-align:center;}
@@ -290,8 +313,7 @@
         <select id="fStatus">
           <option value="">全部完成狀態</option>
           <option value="未施作">未施作</option>
-          <option value="施作中">施作中</option>
-          <option value="已完成">已完成</option>
+          <option value="已完成">已施作</option>
         </select>
         <select id="fInspect">
           <option value="">全部查驗狀態</option>
@@ -325,8 +347,7 @@
               <th style="width:74px;">類型</th>
               <th style="width:56px;">岸別</th>
               <th style="width:56px;">樁數</th>
-              <th style="width:64px;">已完成</th>
-              <th style="width:64px;">已查驗</th>
+              <th style="width:64px;">已施作</th>
               <th style="width:118px;">墩開始時間</th>
               <th style="width:190px;">墩完成時間</th>
               <th style="width:88px;">墩狀態</th>
@@ -355,8 +376,6 @@
               <th style="width:88px;">樁號</th>
               <th style="width:74px;">類型</th>
               <th style="width:56px;">岸別</th>
-              <th style="width:126px;">預定開始</th>
-              <th style="width:126px;">預定完成</th>
               <th style="width:150px;">施作查驗日期</th>
               <th style="width:96px;">完成狀態</th>
               <th style="width:96px;">查驗狀態</th>
@@ -425,26 +444,50 @@
         <button class="btn btn-ghost btn-sm" id="btnMatXlsx" type="button">⬇ 匯出材料 Excel</button>
       </div>
 
-      <div class="matwrap">
-        <table class="mats" id="matTable">
-          <thead>
-            <tr>
-              <th style="width:120px;">進料日期</th>
-              <th style="width:96px;">材料</th>
-              <th style="width:96px;">噸數（T）</th>
-              <th style="width:110px;">換算方數（m³）</th>
-              <th>備註</th>
-              <th style="width:70px;">操作</th>
-            </tr>
-          </thead>
-          <tbody id="matBody"></tbody>
-        </table>
+      <!-- 第 3 項：水泥與濕細沙的資料表分成兩欄（兩張表並排，各自獨立） -->
+      <div class="matsplit">
+        <div class="matcol">
+          <div class="matcol-h"><span class="dot cement"></span>水泥進料明細<span class="cnt" id="cementCnt">0 筆</span></div>
+          <div class="matwrap">
+            <table class="mats" id="matTableCement">
+              <thead>
+                <tr>
+                  <th style="width:104px;">進料日期</th>
+                  <th style="width:88px;">方數（m³）</th>
+                  <th style="width:80px;">噸數（T）</th>
+                  <th>備註</th>
+                  <th style="width:60px;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="matBodyCement"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="matEmptyCement" style="display:none;">尚無水泥進料紀錄</div>
+        </div>
+
+        <div class="matcol">
+          <div class="matcol-h"><span class="dot sand"></span>濕細沙進料明細<span class="cnt" id="sandCnt">0 筆</span></div>
+          <div class="matwrap">
+            <table class="mats" id="matTableSand">
+              <thead>
+                <tr>
+                  <th style="width:104px;">進料日期</th>
+                  <th style="width:88px;">方數（m³）</th>
+                  <th style="width:80px;">噸數（T）</th>
+                  <th>備註</th>
+                  <th style="width:60px;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="matBodySand"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="matEmptySand" style="display:none;">尚無濕細沙進料紀錄</div>
+        </div>
       </div>
-      <div class="empty" id="matEmpty" style="display:none;">尚無進料紀錄，請於上方新增</div>
 
       <div class="note">
         <b>換算方式：</b>水泥 1 T ＝ 0.8 m³、濕細沙 1 T ＝ 0.59 m³；兩者換算後相加即為已進料方數。<br>
-        <b>對照基準：</b>全案需求 ＝ 全案樁數 × 6 方／支（目前 <b id="matPileCount">121</b> 支 → <b id="matDesignM3">726</b> m³）；已查驗需求 ＝ 已查驗樁支數 × 6 方／支（目前 <b id="matInspPileCount">0</b> 支 → <b id="matInspDesignM3">0</b> m³）。<br>
+        <b>對照基準：</b>全案需求 ＝ 全案樁數 × 6 方／支（目前 <b id="matPileCount">121</b> 支 → <b id="matDesignM3">726</b> m³）；設計需求 ＝ 已查驗樁支數 × 6 方／支（目前 <b id="matInspPileCount">0</b> 支 → <b id="matInspDesignM3">0</b> m³）。<br>
         <b>資料存放：</b>材料紀錄與樁位進度分開儲存於本機瀏覽器，互不影響；匯出 JSON 時會一併帶出（舊版 JSON 沒有此欄位也能正常匯入）。
       </div>
     </div>
@@ -674,20 +717,26 @@
     var diffCls = s.diff < 0 ? 'bad' : (s.diff > 0 ? 'ok' : '');
     var diffTxt = (s.diff > 0 ? '+' : '') + s.diff;
     var html = '';
+    /* 第 7 項：移除「施作中」統計卡。
+       第 8 項：已完成與已查驗同值，合併為單一「已施作」。 */
     html += '<div class="stat blue"><div class="k">全案樁數</div><div class="v">' + s.total + '<span class="u">支</span></div></div>';
-    html += '<div class="stat ok"><div class="k">已完成</div><div class="v">' + s.done + '<span class="u">支</span></div></div>';
-    html += '<div class="stat warn"><div class="k">施作中</div><div class="v">' + s.doing + '<span class="u">支</span></div></div>';
+    html += '<div class="stat ok"><div class="k">已施作</div><div class="v">' + s.worked + '<span class="u">支</span></div></div>';
     html += '<div class="stat"><div class="k">未施作</div><div class="v">' + s.notStarted + '<span class="u">支</span></div></div>';
-    html += '<div class="stat blue"><div class="k">已查驗</div><div class="v">' + s.inspected + '<span class="u">支</span></div></div>';
     html += '<div class="stat ' + diffCls + '"><div class="k">進度差異（實際－預定）</div><div class="v">' + diffTxt + '<span class="u">支</span></div></div>';
     $('stats').innerHTML = html;
-    $('stats').title = '實際完成 ' + s.progressed + ' 支（以查驗日期為基準）－ 已到預定完成日 ' + s.plannedToDate + ' 支';
+    $('stats').title = '已施作 ' + s.worked + ' 支（已查驗即視為已施作）－ 已到預定完成日 ' + s.plannedToDate + ' 支';
   }
 
   /* ---------- 篩選 ---------- */
   function match(p){
     if (filter.side && p.side !== filter.side) return false;
-    if (filter.status && p.status !== filter.status) return false;
+    /* 第 7、8 項：完成狀態只有「已施作／未施作」兩種。
+       舊資料可能仍是「施作中」，一律歸為「未施作」（未查驗就不算已施作）。 */
+    if (filter.status){
+      var isWorked = p.status === '已完成';
+      if (filter.status === '已完成' && !isWorked) return false;
+      if (filter.status === '未施作' && isWorked) return false;
+    }
     if (filter.inspect && p.inspectStatus !== filter.inspect) return false;
     if (filter.q){
       var q = filter.q.toLowerCase();
@@ -698,8 +747,12 @@
   }
 
   function statusPill(s){
-    var cls = s === '已完成' ? 's2' : (s === '施作中' ? 's1' : 's0');
-    return '<span class="pill ' + cls + '">' + s + '</span>';
+    /* 第 7、8 項：完成狀態只有兩種——「已施作」與「未施作」。
+       已完成與已查驗是同一個數值，一律顯示「已施作」；
+       舊資料可能還帶著「施作中」，在顯示層一併歸為「未施作」（未查驗就不算已施作），
+       資料本身不改寫，維持舊資料相容。 */
+    if (s === '已完成') return '<span class="pill s2">已施作</span>';
+    return '<span class="pill s0">未施作</span>';
   }
 
   function inspectPill(p){
@@ -707,63 +760,83 @@
     return '<span class="pill i0">未查驗</span>';
   }
 
-  /* ---------- 墩彙總 ---------- */
+  /* ---------- 墩彙總（第 4 項：分左岸／右岸／復舊三組） ---------- */
   function renderPiers(){
     var body = $('pierBody');
     body.innerHTML = '';
-    var list = S.pierSummary(data);
-    $('pierTag').textContent = list.length + ' 墩';
+    var groups = S.pierSummaryGroups(data);
+    var totalPiers = 0;
+    groups.forEach(function(g){ totalPiers += g.piers; });
+    $('pierTag').textContent = totalPiers + ' 墩';
 
-    list.forEach(function(s){
-      var tr = document.createElement('tr');
+    groups.forEach(function(g){
+      /* 分組標題列（跨全部欄位） */
+      var trg = document.createElement('tr');
+      trg.className = 'pier-group';
+      var tdg = document.createElement('td');
+      tdg.colSpan = 8;
+      tdg.innerHTML = '<span class="gname">' + esc(g.label) + '</span>' +
+        '<span class="gmeta">' + g.piers + ' 墩　·　' + g.count + ' 支　·　已施作 ' + g.worked + ' 支</span>';
+      trg.appendChild(tdg);
+      body.appendChild(trg);
 
-      var tdP = document.createElement('td');
-      tdP.className = 'pier';
-      tdP.textContent = s.pier;
-      tdP.title = '點擊查看 ' + s.pier + ' 的墩彙總與查驗紀錄';
-      tdP.addEventListener('click', function(){ openDrawer(s.pier); });
-      tr.appendChild(tdP);
+      if (!g.rows.length) {
+        var tre = document.createElement('tr');
+        var tde = document.createElement('td');
+        tde.colSpan = 8;
+        tde.className = 'gempty';
+        tde.textContent = '此岸別尚無墩號';
+        tre.appendChild(tde);
+        body.appendChild(tre);
+        return;
+      }
 
-      var tdT = document.createElement('td');
-      tdT.textContent = s.type;
-      tr.appendChild(tdT);
+      g.rows.forEach(function(s){
+        var tr = document.createElement('tr');
 
-      var tdS = document.createElement('td');
-      tdS.textContent = s.side;
-      tr.appendChild(tdS);
+        var tdP = document.createElement('td');
+        tdP.className = 'pier';
+        tdP.textContent = s.pier;
+        tdP.title = '點擊查看 ' + s.pier + ' 的墩彙總與查驗紀錄';
+        tdP.addEventListener('click', function(){ openDrawer(s.pier); });
+        tr.appendChild(tdP);
 
-      var tdC = document.createElement('td');
-      tdC.className = 'num';
-      tdC.textContent = s.count;
-      tr.appendChild(tdC);
+        var tdT = document.createElement('td');
+        tdT.textContent = s.type;
+        tr.appendChild(tdT);
 
-      var tdD = document.createElement('td');
-      tdD.className = 'num';
-      tdD.textContent = s.done;
-      tdD.style.color = s.done === s.count ? 'var(--ok)' : '';
-      tr.appendChild(tdD);
+        var tdS = document.createElement('td');
+        tdS.textContent = s.side;
+        tr.appendChild(tdS);
 
-      var tdI = document.createElement('td');
-      tdI.className = 'num';
-      tdI.textContent = s.inspected;
-      tdI.style.color = s.inspected ? 'var(--blue)' : '';
-      tr.appendChild(tdI);
+        var tdC = document.createElement('td');
+        tdC.className = 'num';
+        tdC.textContent = s.count;
+        tr.appendChild(tdC);
 
-      var tdSt = document.createElement('td');
-      tdSt.className = 'date' + (s.start ? ' has' : '');
-      tdSt.textContent = s.startText;
-      tr.appendChild(tdSt);
+        /* 第 8 項：只留「已施作」一欄 */
+        var tdW = document.createElement('td');
+        tdW.className = 'num';
+        tdW.textContent = s.worked;
+        tdW.style.color = s.worked === s.count ? 'var(--ok)' : (s.worked ? 'var(--blue)' : '');
+        tr.appendChild(tdW);
 
-      var tdEn = document.createElement('td');
-      tdEn.className = 'date' + (s.allDone ? ' has' : ' ongoing');
-      tdEn.textContent = s.endText;
-      tr.appendChild(tdEn);
+        var tdSt = document.createElement('td');
+        tdSt.className = 'date' + (s.start ? ' has' : '');
+        tdSt.textContent = s.startText;
+        tr.appendChild(tdSt);
 
-      var tdStat = document.createElement('td');
-      tdStat.innerHTML = statusPill(s.status);
-      tr.appendChild(tdStat);
+        var tdEn = document.createElement('td');
+        tdEn.className = 'date' + (s.allDone ? ' has' : ' ongoing');
+        tdEn.textContent = s.endText;
+        tr.appendChild(tdEn);
 
-      body.appendChild(tr);
+        var tdStat = document.createElement('td');
+        tdStat.innerHTML = statusPill(s.status);
+        tr.appendChild(tdStat);
+
+        body.appendChild(tr);
+      });
     });
   }
 
@@ -808,15 +881,7 @@
       tdSide.textContent = p.side;
       tr.appendChild(tdSide);
 
-      /* 預定開始／完成（唯讀） */
-      ['plannedStart','plannedEnd'].forEach(function(k){
-        var td = document.createElement('td');
-        td.className = 'c';
-        td.textContent = isoToSlash(p[k]) || '—';
-        td.style.color = '#6b7a8d';
-        td.style.fontSize = '12px';
-        tr.appendChild(td);
-      });
+      /* 第 5 項：樁位明細不再有「預定開始」「預定完成」兩欄 */
 
       /* 施作查驗日期（合併：有查驗日期以查驗日期為準，唯讀；無查驗才顯示／編輯施作日期） */
       var tdWD = document.createElement('td');
@@ -905,22 +970,35 @@
     var iBarCls = sum.inspectedDiffM3 > 0 ? 'over' : (sum.inspectedDiffM3 < 0 ? 'under' : '');
     var iBarW = Math.max(0, Math.min(100, iPct));
 
-    /* 水泥／濕細沙：同一列並排兩格 */
+    /* 第 1 項：方數顯示大數字、噸數顯示小數字。
+       水泥／濕細沙兩張卡：主數字＝換算方數（m³），下方小字＝噸數（T）。 */
     var h = '<div class="matpair">';
     sum.byType.forEach(function(t){
       h += '<div class="matcard ' + t.key + '">' +
         '<div class="mk">' + esc(t.name) + '（1 T ＝ ' + t.m3PerTon + ' m³）</div>' +
-        '<div class="mv">' + fmt(t.tons) + '<span class="mu">T</span></div>' +
-        '<div class="ms">換算 ' + fmt(t.m3) + ' m³　·　' + t.count + ' 筆</div>' +
+        '<div class="mv">' + fmt(t.m3) + '<span class="mu">m³</span></div>' +
+        '<div class="ms">' + fmt(t.tons) + ' T　·　' + t.count + ' 筆</div>' +
         '</div>';
     });
     h += '</div>';
 
+    /* 第 2 項：全案需求移到最後面。
+       第 3 項：「查驗需求」改名為「設計需求」。
+       第 1 項：每張卡主數字都是方數（大），噸數在小字。 */
     h += '<div class="matgrid">';
     h += '<div class="matcard total">' +
       '<div class="mk">已進料合計</div>' +
       '<div class="mv">' + fmt(sum.totalM3) + '<span class="mu">m³</span></div>' +
       '<div class="ms">' + fmt(sum.totalTons) + ' T　·　' + sum.count + ' 筆</div>' +
+      '</div>';
+    h += '<div class="matcard inspect">' +
+      '<div class="mk">設計需求（' + sum.inspectedPiles + ' 支 × ' + sum.designM3PerPile + ' 方）</div>' +
+      '<div class="mv">' + fmt(sum.inspectedDesignM3, 0) + '<span class="mu">m³</span></div>' +
+      '<div class="ms">' + (sum.inspectedPiles === 0
+        ? '尚無已查驗樁，待查驗後自動計算'
+        : (sum.inspectedDiffM3 >= 0 ? '已達需求，超出 ' + fmt(sum.inspectedDiffM3) : '尚缺 ' + fmt(-sum.inspectedDiffM3)) +
+          ' m³　·　達成率 ' + iPct + '%') + '</div>' +
+      '<div class="matbar ' + iBarCls + '"><i style="width:' + iBarW + '%"></i></div>' +
       '</div>';
     h += '<div class="matcard design">' +
       '<div class="mk">全案需求（' + sum.piles + ' 支 × ' + sum.designM3PerPile + ' 方）</div>' +
@@ -929,77 +1007,84 @@
       ' m³　·　達成率 ' + pct + '%</div>' +
       '<div class="matbar ' + barCls + '"><i style="width:' + barW + '%"></i></div>' +
       '</div>';
-    h += '<div class="matcard inspect">' +
-      '<div class="mk">已查驗需求（' + sum.inspectedPiles + ' 支 × ' + sum.designM3PerPile + ' 方）</div>' +
-      '<div class="mv">' + fmt(sum.inspectedDesignM3, 0) + '<span class="mu">m³</span></div>' +
-      '<div class="ms">' + (sum.inspectedPiles === 0
-        ? '尚無已查驗樁，待查驗後自動計算'
-        : (sum.inspectedDiffM3 >= 0 ? '已達需求，超出 ' + fmt(sum.inspectedDiffM3) : '尚缺 ' + fmt(-sum.inspectedDiffM3)) +
-          ' m³　·　達成率 ' + iPct + '%') + '</div>' +
-      '<div class="matbar ' + iBarCls + '"><i style="width:' + iBarW + '%"></i></div>' +
-      '</div>';
     h += '</div>';
     $('matStats').innerHTML = h;
 
-    var body = $('matBody');
-    body.innerHTML = '';
-    var list = mats.slice().sort(function(a, b){
-      /* 與 Excel 匯出（store.materialRows）一致：日期由舊到新；
-         同日期時依建立順序（id 由舊到新），避免畫面與匯出順序不同。 */
-      var c = String(a.date || '').localeCompare(String(b.date || ''));
-      if (c) return c;
-      return String(a.id || '').localeCompare(String(b.id || ''));
-    });
-    $('matEmpty').style.display = list.length ? 'none' : 'block';
+    /* 第 3 項：水泥與濕細沙各自一張表（兩欄並排），各自排序、各自計數。
+       第 1 項：每列主欄位是方數（m³），噸數在右側小字。 */
+    var TYPES = [
+      { key: 'cement', bodyId: 'matBodyCement', emptyId: 'matEmptyCement', cntId: 'cementCnt' },
+      { key: 'sand',   bodyId: 'matBodySand',   emptyId: 'matEmptySand',   cntId: 'sandCnt' }
+    ];
 
-    list.forEach(function(m){
-      var def = S.materialDef(m.type) || { name: m.type, m3PerTon: 0 };
-      var tr = document.createElement('tr');
+    TYPES.forEach(function(t){
+      var body = $(t.bodyId);
+      if (!body) return;
+      body.innerHTML = '';
 
-      var tdD = document.createElement('td');
-      tdD.className = 'num';
-      tdD.textContent = isoToSlash(m.date) || '—';
-      tr.appendChild(tdD);
-
-      var tdT = document.createElement('td');
-      tdT.textContent = def.name;
-      tr.appendChild(tdT);
-
-      var tdTon = document.createElement('td');
-      tdTon.className = 'num';
-      tdTon.textContent = fmt(m.tons);
-      tr.appendChild(tdTon);
-
-      var tdM3 = document.createElement('td');
-      tdM3.className = 'num';
-      tdM3.style.color = 'var(--steel-2)';
-      tdM3.textContent = fmt((parseFloat(m.tons) || 0) * def.m3PerTon);
-      tr.appendChild(tdM3);
-
-      var tdN = document.createElement('td');
-      tdN.className = 'left';
-      tdN.textContent = m.note || '';
-      tdN.style.color = m.note ? '' : '#9aa6b4';
-      tr.appendChild(tdN);
-
-      var tdOp = document.createElement('td');
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-danger btn-sm';
-      btn.textContent = '刪除';
-      btn.addEventListener('click', function(){
-        if (!window.confirm('確定刪除這筆進料紀錄？\n' + (isoToSlash(m.date) || '—') + '　' +
-            def.name + '　' + fmt(m.tons) + ' T')) return;
-        mats = mats.filter(function(x){ return x.id !== m.id; });
-        if (!S.saveMaterials(mats)) { toast('材料紀錄儲存失敗', true); return; }
-        renderMaterials();
-        cloudTouch();
-        toast('已刪除進料紀錄');
+      var list = mats.filter(function(m){ return m.type === t.key; }).sort(function(a, b){
+        /* 與 Excel 匯出（store.materialRowsByType）一致：日期由舊到新；
+           同日期時依建立順序（id 由舊到新），避免畫面與匯出順序不同。 */
+        var c = String(a.date || '').localeCompare(String(b.date || ''));
+        if (c) return c;
+        return String(a.id || '').localeCompare(String(b.id || ''));
       });
-      tdOp.appendChild(btn);
-      tr.appendChild(tdOp);
 
-      body.appendChild(tr);
+      var cntEl = $(t.cntId);
+      if (cntEl) cntEl.textContent = list.length + ' 筆';
+      var emptyEl = $(t.emptyId);
+      if (emptyEl) emptyEl.style.display = list.length ? 'none' : 'block';
+
+      list.forEach(function(m){
+        var def = S.materialDef(m.type) || { name: m.type, m3PerTon: 0 };
+        var tr = document.createElement('tr');
+
+        var tdD = document.createElement('td');
+        tdD.className = 'num';
+        tdD.textContent = isoToSlash(m.date) || '—';
+        tr.appendChild(tdD);
+
+        /* 方數（主數字，粗體） */
+        var tdM3 = document.createElement('td');
+        tdM3.className = 'num';
+        tdM3.style.color = 'var(--steel-2)';
+        tdM3.style.fontWeight = '800';
+        tdM3.textContent = fmt((parseFloat(m.tons) || 0) * def.m3PerTon);
+        tr.appendChild(tdM3);
+
+        /* 噸數（小字） */
+        var tdTon = document.createElement('td');
+        tdTon.className = 'num';
+        tdTon.style.color = 'var(--muted)';
+        tdTon.style.fontSize = '11.5px';
+        tdTon.textContent = fmt(m.tons);
+        tr.appendChild(tdTon);
+
+        var tdN = document.createElement('td');
+        tdN.className = 'left';
+        tdN.textContent = m.note || '';
+        tdN.style.color = m.note ? '' : '#9aa6b4';
+        tr.appendChild(tdN);
+
+        var tdOp = document.createElement('td');
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-danger btn-sm';
+        btn.textContent = '刪除';
+        btn.addEventListener('click', function(){
+          if (!window.confirm('確定刪除這筆進料紀錄？\n' + (isoToSlash(m.date) || '—') + '　' +
+              def.name + '　' + fmt(m.tons) + ' T')) return;
+          mats = mats.filter(function(x){ return x.id !== m.id; });
+          if (!S.saveMaterials(mats)) { toast('材料紀錄儲存失敗', true); return; }
+          renderMaterials();
+          cloudTouch();
+          toast('已刪除進料紀錄');
+        });
+        tdOp.appendChild(btn);
+        tr.appendChild(tdOp);
+
+        body.appendChild(tr);
+      });
     });
   }
 
@@ -1052,9 +1137,9 @@
       ['差額（已進料－全案需求）', fmt(sum.diffM3), 'm³'],
       ['全案達成率', String(sum.percent), '%'],
       ['已查驗樁數', String(sum.inspectedPiles), '支'],
-      ['已查驗需求方數', String(sum.inspectedDesignM3), 'm³'],
-      ['差額（已進料－已查驗需求）', fmt(sum.inspectedDiffM3), 'm³'],
-      ['已查驗達成率', String(sum.inspectedPercent), '%']
+      ['設計需求方數', String(sum.inspectedDesignM3), 'm³'],
+      ['差額（已進料－設計需求）', fmt(sum.inspectedDiffM3), 'm³'],
+      ['設計需求達成率', String(sum.inspectedPercent), '%']
     ];
     sum.byType.forEach(function(t){
       sumRows.push([t.name + ' 噸數', fmt(t.tons), 'T']);
@@ -1102,7 +1187,7 @@
     h += '<div class="ditem"><div class="k">岸別</div><div class="v">' + esc(def.side || '—') + '</div></div>';
     h += '<div class="ditem"><div class="k">預定期程</div><div class="v" style="font-size:12.5px;">' +
          (isoToSlash(def.start) || '—') + ' ～ ' + (isoToSlash(def.end) || '—') + '</div></div>';
-    h += '<div class="ditem"><div class="k">完成 / 查驗</div><div class="v">' + done + ' / ' + inspected + ' 支</div></div>';
+    h += '<div class="ditem"><div class="k">已施作 / 查驗</div><div class="v">' + done + ' / ' + inspected + ' 支</div></div>';
     h += '</div></div>';
 
     /* 墩時間彙總 */

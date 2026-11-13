@@ -482,6 +482,17 @@
   }
 
   /* ---------- 資料操作 ---------- */
+  /* 第 6 項：查驗紀錄表順序改為日期舊→新（同日依建立順序）。
+     直接就地排序 state.rows，讓畫面、預覽、Excel 匯出、存檔順序完全一致；
+     因為就地排序，renderRows 的索引與 removeRow(i) 仍然對得上。 */
+  function sortRows(){
+    state.rows.sort(function(a, b){
+      var c = String(a.date || '').localeCompare(String(b.date || ''));
+      if (c) return c;
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    });
+  }
+
   function addRow(data){
     state.rows.push({
       id:         (S ? S.uid() : ''),
@@ -492,6 +503,7 @@
       piers:      uniq((data && data.piers) || []),
       piles:      uniq((data && data.piles) || [])
     });
+    sortRows();
     save();
     render();
   }
@@ -551,7 +563,7 @@
       var inDate = document.createElement('input');
       inDate.type = 'date';
       inDate.value = r.date || '';
-      inDate.addEventListener('change', function(){ r.date = inDate.value; save(); renderPreview(); });
+      inDate.addEventListener('change', function(){ r.date = inDate.value; sortRows(); save(); render(); });
       inDate.addEventListener('input',  function(){ r.date = inDate.value; save(); renderPreview(); });
       tdDate.appendChild(inDate);
       tr.appendChild(tdDate);
@@ -913,6 +925,7 @@
       S.recompute(d);
       S.save(d);
       state.rows = load() || [];
+      sortRows();
       render();
       toast('已從 Google Drive 載入 ' + state.rows.length + ' 筆紀錄');
     }).catch(function(e){
@@ -933,6 +946,7 @@
   if (saved && saved.length) {
     state.rows = saved;
   }
+  sortRows();
   render();
 
   /* 跨頁籤同步：進度表改了樁號／查驗狀態後，切回本頁要看到最新內容。
@@ -944,6 +958,7 @@
     var rows = load();
     if (!rows) return;
     state.rows = rows;
+    sortRows();
     render();
   }
   window.addEventListener('storage', function(e){

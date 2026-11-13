@@ -57,7 +57,7 @@
     { pier: 'RC1',  count: 4, type: 'TYPE A', side: '復舊', start: '2026-12-11', end: '2026-12-11' }
   ];
 
-  var STATUS_LIST = ['未施作', '施作中', '已完成'];
+  var STATUS_LIST = ['未施作', '已完成'];  /* 第 7 項：移除「施作中」 */
   var INSPECT_LIST = ['未查驗', '已查驗'];
 
   /* ---------------- 基礎工具 ---------------- */
@@ -351,14 +351,14 @@
       });
     });
 
-    /* 2. 完成狀態判定（優先順序）：
+    /* 2. 完成狀態判定（第 7、8 項：只有「已完成／未施作」兩種，不再有「施作中」）
      *      已查驗              → 已完成（不論施作日期是否填寫）
-     *      未查驗但有施作日期   → 施作中
-     *      都沒有              → 未施作
+     *      未查驗              → 未施作
+     *    已完成與已查驗是同一個數值，畫面統一只顯示「已施作」。
+     *    施作日期 workDate 仍完整保留在資料中，只是不再對應一個獨立狀態。
      */
     d.piles.forEach(function (p) {
       if (p.inspectStatus === '已查驗') p.status = '已完成';
-      else if (p.workDate) p.status = '施作中';
       else p.status = '未施作';
 
       /* 3. 進度日期：以查驗日期為基準（有查驗就用查驗日期），
@@ -433,13 +433,12 @@
       var piles = pilesOf(d, def.pier);
       if (!piles.length) return;
 
-      var inspected = 0, done = 0, doing = 0;
+      /* 第 8 項：已完成＝已查驗，只算一個「已施作」worked */
+      var worked = 0;
       var starts = [], inspects = [], ends = [];
 
       piles.forEach(function (p) {
-        if (p.inspectStatus === '已查驗') inspected++;
-        if (p.status === '已完成') done++;
-        else if (p.status === '施作中') doing++;
+        if (p.inspectStatus === '已查驗' || p.status === '已完成') worked++;
         if (p.workDate) starts.push(p.workDate);
         if (p.inspectDate) inspects.push(p.inspectDate);
         if (p.workDate) ends.push(p.workDate);
@@ -447,19 +446,21 @@
       });
 
       var start = starts.length ? minOf(starts) : minOf(inspects);
-      var allDone = done === piles.length;
+      var allDone = worked === piles.length;
       var end = allDone ? maxOf(ends) : '';
-      var notDone = piles.length - done;
-      var status = allDone ? '已完成' : ((done > 0 || doing > 0) ? '施作中' : '未施作');
+      var notDone = piles.length - worked;
+      /* 第 7 項：不再有「施作中」狀態，只有 已完成／未施作 */
+      var status = allDone ? '已完成' : '未施作';
 
       out.push({
         pier: def.pier,
         type: def.type,
         side: def.side,
         count: piles.length,
-        inspected: inspected,
-        done: done,
-        doing: doing,
+        worked: worked,
+        inspected: worked,
+        done: worked,
+        doing: 0,
         notDone: notDone,
         start: start,
         end: end,
@@ -472,16 +473,41 @@
     return out;
   }
 
+  /* 第 4 項：墩號彙總分為左岸、右岸、復舊三組。
+     回傳 [{ side, label, rows:[pierSummary 項目], count, worked, piers }]，
+     順序固定為 右岸 → 左岸 → 復舊（與 PIER_DEFS 的施工順序一致），空組仍回傳（畫面顯示 0 墩）。 */
+  var SIDE_GROUPS = [
+    { side: '右岸', label: '右岸' },
+    { side: '左岸', label: '左岸' },
+    { side: '復舊', label: '復舊' }
+  ];
+
+  function pierSummaryGroups(d) {
+    var all = pierSummary(d);
+    return SIDE_GROUPS.map(function (g) {
+      var rows = all.filter(function (s) { return s.side === g.side; });
+      var count = 0, worked = 0;
+      rows.forEach(function (s) { count += s.count; worked += s.worked; });
+      return {
+        side: g.side,
+        label: g.label,
+        rows: rows,
+        piers: rows.length,
+        count: count,
+        worked: worked
+      };
+    });
+  }
+
   function summary(d) {
     var total = (d.piles || []).length;
-    var done = 0, doing = 0, inspected = 0, progressed = 0;
+    var worked = 0, progressed = 0;
     var today = todayISO();
     var plannedToDate = 0;
 
     (d.piles || []).forEach(function (p) {
-      if (p.status === '已完成') done++;
-      else if (p.status === '施作中') doing++;
-      if (p.inspectStatus === '已查驗') inspected++;
+      /* 已施作＝已查驗（recompute 已把已查驗判為已完成），兩者同值只算一次 */
+      if (p.inspectStatus === '已查驗' || p.status === '已完成') worked++;
       /* 有實際進度日期（查驗日期優先）者視為已推進 */
       if (p.progressDate) progressed++;
       if (p.plannedEnd && p.plannedEnd <= today) plannedToDate++;
@@ -489,16 +515,17 @@
 
     return {
       total: total,
-      done: done,
-      doing: doing,
-      notStarted: total - done - doing,
-      inspected: inspected,
-      notInspected: total - inspected,
+      worked: worked,
+      done: worked,
+      inspected: worked,
+      doing: 0,
+      notStarted: total - worked,
+      notInspected: total - worked,
       progressed: progressed,
       plannedToDate: plannedToDate,
       /* 進度差異（實際－預定）：以查驗日期為基準的實際完成支數 － 已到預定完成日支數 */
       diff: progressed - plannedToDate,
-      percent: total ? Math.round(done / total * 1000) / 10 : 0
+      percent: total ? Math.round(worked / total * 1000) / 10 : 0
     };
   }
 
@@ -952,13 +979,13 @@
 
   /* 進度管控表 → 列資料（「施作查驗日期」：以查驗日期為準，無查驗才顯示施作日期） */
   function progressRows(d) {
-    var head = ['墩號', '樁號', '類型', '岸別', '預定開始', '預定完成',
+    /* 第 5 項：樁位明細不再有「預定開始」「預定完成」兩欄 */
+    var head = ['墩號', '樁號', '類型', '岸別',
       '施作查驗日期', '完成狀態', '查驗狀態', '備註'];
     var rows = [head];
     (d.piles || []).forEach(function (p) {
       rows.push([
         p.pier, p.pileNo, p.type, p.side,
-        isoToSlash(p.plannedStart), isoToSlash(p.plannedEnd),
         isoToSlash(p.progressDate),
         p.status, p.inspectStatus, p.note
       ]);
@@ -966,28 +993,34 @@
     return rows;
   }
 
-  var PROGRESS_WIDTHS = [9, 11, 9, 7, 12, 12, 14, 10, 12, 22];
+  var PROGRESS_WIDTHS = [9, 11, 9, 7, 14, 10, 12, 22];
 
   /* 墩號彙總 → 列資料（墩開始時間、整墩結束時間、墩狀態） */
   function pierSummaryRows(d) {
-    var head = ['墩號', '類型', '岸別', '樁數', '已完成', '已查驗', '墩開始時間', '墩完成時間', '墩狀態'];
+    /* 第 8 項：已完成／已查驗合併為單一「已施作」 */
+    var head = ['墩號', '類型', '岸別', '樁數', '已施作', '墩開始時間', '墩完成時間', '墩狀態'];
     var rows = [head];
     pierSummary(d).forEach(function (s) {
       rows.push([
-        s.pier, s.type, s.side, s.count, s.done, s.inspected,
+        s.pier, s.type, s.side, s.count, s.worked,
         s.startText, s.endText, s.status
       ]);
     });
     return rows;
   }
 
-  var PIER_WIDTHS = [9, 9, 7, 7, 8, 8, 14, 24, 10];
+  var PIER_WIDTHS = [9, 9, 7, 7, 8, 14, 24, 10];
 
   /* 查驗紀錄表 → 列資料（墩號／樁號已併入查驗位置，不另設欄位） */
   function logRows(d) {
+    /* 第 6 項：查驗紀錄表順序改為日期舊→新（同日依建立順序） */
     var head = ['日期', '查驗人員', '監造派員', '查驗位置'];
     var rows = [head];
-    (d.logs || []).forEach(function (l) {
+    (d.logs || []).slice().sort(function (a, b) {
+      var c = String(a.date || '').localeCompare(String(b.date || ''));
+      if (c) return c;
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    }).forEach(function (l) {
       rows.push([
         isoToSlash(l.date), l.inspector, l.supervisor, composeLocation(d, l)
       ]);
@@ -1024,6 +1057,8 @@
     logsOf: logsOf,
     summary: summary,
     pierSummary: pierSummary,
+    pierSummaryGroups: pierSummaryGroups,
+    SIDE_GROUPS: SIDE_GROUPS,
     sortPiles: sortPiles,
     exportJSON: exportJSON,
     importJSON: importJSON,

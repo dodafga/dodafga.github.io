@@ -17,4 +17,26 @@ jobs:
       - name: Apply
         run: |
           set -e
-          echo placeholder
+          curl -fsSL -o /tmp/all.patch "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/pe-deploy2/all.patch?tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL3BlLWRlcGxveTI6MTc5NDU0MjI4NQ.NTAzOGE4OGY3MTI5NTQ0YmNmNWY2MmU5Y2MyYTg4ZmM"
+          curl -fsSL -o assets/photo-edit.js "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/pe-deploy2/photo-edit.js.txt?tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL3BlLWRlcGxveTI6MTc5NDU0MjI5Mw.YTM4MmMzMzU0Zjk4M2JjNzVkMjJjNjhmNDg3ZmMyOTE"
+          git apply -v /tmp/all.patch
+          echo '--- verify ---'
+          for f in assets/watermark.js assets/gdrive-photo.js assets/drive-page.js assets/photo-edit.js; do echo "$f: $(wc -c < $f)"; done
+          node --check assets/watermark.js
+          node --check assets/gdrive-photo.js
+          node --check assets/drive-page.js
+          node --check assets/photo-edit.js
+          echo "manualAngle=$(grep -c manualAngle assets/watermark.js) data-erase=$(grep -c data-erase assets/drive-page.js) openErase=$(grep -c openEraseDialog assets/drive-page.js)"
+          md5sum assets/watermark.js assets/gdrive-photo.js assets/drive-page.js assets/photo-edit.js
+          git config user.name dodafga
+          git config user.email dodafga@users.noreply.github.com
+          git add -A
+          git commit -m "feat(drive): photo edit - manual rotate 90 and erase signature (independent of auto-orient)"
+          git push
+      - name: Self delete
+        if: always()
+        run: |
+          git pull --rebase || true
+          git rm -f .github/workflows/oneoff-photo-edit.yml || true
+          git commit -m "chore: remove one-off workflow" || true
+          git push || true

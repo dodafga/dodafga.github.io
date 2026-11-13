@@ -1,0 +1,34 @@
+name: applyv10
+on:
+  push:
+    paths:
+      - '.github/workflows/applyv10.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download and extract
+        run: |
+          curl -sSL -o /tmp/s.zip "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/site_v10/site-v10.zip?tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL3NpdGVfdjEwOjE3OTQ1NTQyMTM.ZTk1Y2E5MTI3N2JmNGIzMzU4MjgwMGU4Zjg2YTQ0ODc"
+          ls -la /tmp/s.zip
+          python3 -c "import zipfile;z=zipfile.ZipFile('/tmp/s.zip');print(z.namelist());z.extractall('.')"
+          ls -la assets/store.js assets/orient.js progress/index.html log/index.html
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git rm -f .b64test.txt || true
+          git add -A
+          git commit -m "feat(progress/log/orient): 10 changes" || echo "no changes"
+          git push origin main
+      - name: Self delete
+        run: |
+          git rm -f .github/workflows/applyv10.yml
+          git commit -m "chore: remove one-time workflow"
+          git push origin main

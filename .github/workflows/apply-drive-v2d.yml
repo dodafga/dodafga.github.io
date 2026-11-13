@@ -1,0 +1,50 @@
+name: apply-drive-v2d
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-drive-v2d.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download and diagnose
+        run: |
+          B="https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/r12-deploy"
+          TK="tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL3IxMi1kZXBsb3k6MTc5NDU5ODUwOQ.Zjg0OTdiMjRmMDUyZTBlMmYyNDMzMTk4NmUyNGRiOTY"
+          mkdir -p assets drive
+          {
+            echo "=== download diagnostics ==="
+            for pair in "orient-struct3.js:assets/orient-struct3.js" "drive-v2.css:assets/drive-v2.css" "drive-v2.js:assets/drive-v2.js" "drive-index.html:drive/index.html"; do
+              src="${pair%%:*}"; dst="${pair##*:}"
+              code=$(curl -sL -o "$dst" -w "%{http_code}" "$B/$src?$TK")
+              echo "$src -> $dst  http=$code  bytes=$(wc -c < "$dst" 2>/dev/null)"
+              echo "  first80: $(head -c 80 "$dst" 2>/dev/null | tr -d '\n')"
+            done
+            echo "=== md5 ==="
+            md5sum assets/orient-struct3.js assets/drive-v2.css assets/drive-v2.js drive/index.html 2>&1
+            echo "=== greps ==="
+            grep -c PhotoOrientStruct3 assets/orient-struct3.js 2>&1
+            grep -c buildStations assets/drive-v2.js 2>&1
+            grep -c chkWm2 drive/index.html 2>&1
+            echo "=== node check ==="
+            node --check assets/orient-struct3.js 2>&1; echo "orient rc=$?"
+            node --check assets/drive-v2.js 2>&1; echo "v2 rc=$?"
+          } > _diag.txt 2>&1
+          cat _diag.txt
+
+      - name: Commit
+        run: |
+          git config user.name dodafga
+          git config user.email dodafga@users.noreply.github.com
+          git add -A
+          git commit -m "chore: drive v2 deploy attempt with diagnostics" || true
+          git push origin main || true

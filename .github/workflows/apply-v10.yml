@@ -1,0 +1,33 @@
+name: apply-v10
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v10.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download and unzip
+        run: |
+          curl -sSL -o /tmp/site.zip "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/site_v10/site-v10.zip"
+          ls -la /tmp/site.zip
+          unzip -o /tmp/site.zip -d .
+          ls -la assets/store.js assets/orient.js progress/index.html log/index.html
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add -A
+          git commit -m "feat(progress/log/orient): 10 項修改" || echo "no changes"
+          git push origin main
+      - name: Self delete
+        run: |
+          git rm -f .github/workflows/apply-v10.yml
+          git commit -m "chore: remove one-time workflow"
+          git push origin main

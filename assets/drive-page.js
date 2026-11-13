@@ -376,18 +376,25 @@
     $('prevTag').textContent = '產生中…';
     $('prevTag').className = 'tag';
 
-    WM.loadImageFromBlob(q.file).then(function (img) {
+    WM.loadImageFromBlob(srcBlob(q)).then(function (img) {
       var out;
       try {
         out = WM.previewDataURL(img, {
-          maxEdge: L.MAX_EDGE, date: dateISO, watermark: wmOn, detect: true
+          maxEdge: L.MAX_EDGE, date: dateISO, watermark: wmOn, detect: true,
+          manualAngle: q.manualAngle || 0
         });
       } finally { try { img.release(); } catch (e) {} }
       $('prevImg').src = out.url;
-      /* 文字方向自動校正的提示（只在真的轉了才顯示） */
+      /* 旋轉提示：自動轉正與手動旋轉分開顯示，兩者互不混淆 */
       var rotNote = '';
-      if (out.rotated) {
-        rotNote = '<br>已偵測到文字方向，<b>自動旋轉 ' + out.rotated + '°</b> 轉正後輸出。';
+      if (out.autoRotated) {
+        rotNote += '<br>已偵測到文字方向，<b>自動旋轉 ' + out.autoRotated + '°</b> 轉正後輸出。';
+      }
+      if (out.manualRotated) {
+        rotNote += '<br>已套用<b>手動旋轉 ' + out.manualRotated + '°</b>。';
+      }
+      if (q.edited) {
+        rotNote += '<br>此張已<b>消除簽名</b>，預覽與上傳都用處理後的版本。';
       }
       if (out.detected) {
         $('prevTag').textContent = '未壓（已有時間戳）';
@@ -443,6 +450,9 @@
 
   /* ---------- 佇列 ---------- */
 
+  /** 該張照片目前的工作檔：消除簽名後用處理過的版本，否則用原始檔。 */
+  function srcBlob(q) { return q.edited || q.file; }
+
   function addFiles(fileList) {
     var added = 0;
     for (var i = 0; i < fileList.length; i++) {
@@ -455,7 +465,9 @@
         status: 'wait',
         msg: '',
         result: null,
-        wm: null
+        wm: null,
+        manualAngle: 0,   /* 手動旋轉（與自動轉正獨立） */
+        edited: null      /* 消除簽名後的替代工作檔（PNG blob） */
       });
       added++;
     }
@@ -494,6 +506,15 @@
     return '　<span class="pill wait">未壓浮水印</span>';
   }
 
+  /* 照片編輯狀態（手動旋轉／消除簽名） */
+  function editPill(q) {
+    var bits = [];
+    if (q.manualAngle) bits.push('手動旋轉 ' + q.manualAngle + '°');
+    if (q.edited) bits.push('已消除簽名');
+    if (!bits.length) return '';
+    return '　<span class="pill up">' + bits.join('、') + '</span>';
+  }
+
   function renderQueue() {
     var box = $('queueList');
     if (!queue.length) {
@@ -514,12 +535,14 @@
           '</div>' +
           '<div class="meta">' +
             '<div class="nm">' + esc(q.file.name) + '</div>' +
-            '<div class="dt">' + fmtSize(q.file.size) + '　' + statusPill(q) + wmPill(q) +
+            '<div class="dt">' + fmtSize(q.file.size) + '　' + statusPill(q) + wmPill(q) + editPill(q) +
               (q.msg ? '　<span style="color:#b3261e;">' + esc(q.msg) + '</span>' : '') +
               (q.result ? '　<span style="color:#1f7a4d;">' + esc(q.result.name) + '</span>' : '') +
             '</div>' +
           '</div>' +
           '<div class="acts">' + retry +
+            '<button type="button" data-rot="' + q.key + '" title="手動旋轉 90 度（與自動轉正無關）">↻ 旋轉</button>' +
+            '<button type="button" data-erase="' + q.key + '" title="框選並消除簽名">✎ 消除簽名</button>' +
             '<button type="button" data-remove="' + q.key + '">移除</button>' +
           '</div>' +
         '</div>';
@@ -531,7 +554,7 @@
   /* 佇列事件：容器上綁一次，用 data-* 分派（不再每次重繪都重新綁） */
   C.on('queueList', 'click', function (e) {
     var t = e.target;
-    var el = t.closest ? t.closest('[data-prev],[data-retry],[data-remove]') : null;
+    var el = t.closest ? t.closest('[data-prev],[data-retry],[data-remove],[data-rot],[data-erase]') : null;
     if (!el) return;
 
     var k;
@@ -539,6 +562,27 @@
       previewKey = el.getAttribute('data-prev');
       renderQueue();
       renderPreview();
+      return;
+    }
+    /* 功能 1：手動旋轉 90°（每次 +90°，與自動轉正完全獨立） */
+    if (el.hasAttribute('data-rot')) {
+      if (uploading) { toast('上傳中，請稍候', true); return; }
+      k = el.getAttribute('data-rot');
+      var qr = queue.filter(function (x) { return x.key === k; })[0];
+      if (!qr) return;
+      qr.manualAngle = ((qr.manualAngle || 0) + 90) % 360;
+      renderQueue();
+      renderPreview();
+      toast('已手動旋轉 ' + qr.manualAngle + '°');
+      return;
+    }
+    /* 功能 2：消除簽名 */
+    if (el.hasAttribute('data-erase')) {
+      if (uploading) { toast('上傳中，請稍候', true); return; }
+      k = el.getAttribute('data-erase');
+      var qe = queue.filter(function (x) { return x.key === k; })[0];
+      if (!qe) return;
+      openEraseDialog(qe);
       return;
     }
     if (el.hasAttribute('data-retry')) {
@@ -566,14 +610,33 @@
 
   /* ---------- 上傳 ---------- */
 
-  function prepareBlob(file, dateISO) {
+  function prepareBlob(file, dateISO, manualAngle) {
     var G = window.GDrive;
     if (G && G.preparePhotoBlob) {
       return G.preparePhotoBlob(file, {
-        date: dateISO, watermark: wmOn, maxEdge: L.MAX_EDGE, detect: true
+        date: dateISO, watermark: wmOn, maxEdge: L.MAX_EDGE, detect: true,
+        manualAngle: manualAngle || 0
       });
     }
     return Promise.resolve({ blob: file, applied: false, detected: false });
+  }
+
+  /* 開啟「消除簽名」對話框；完成後把該張的工作檔換成處理後的 PNG */
+  function openEraseDialog(q) {
+    var PE = window.PhotoEdit;
+    if (!PE || !PE.openErase) { toast('照片編輯模組未載入', true); return; }
+    PE.openErase({
+      blob: srcBlob(q),
+      onInfo: function (msg) { toast(msg); },
+      onDone: function (blob) {
+        q.edited = blob;
+        try { URL.revokeObjectURL(q.url); } catch (e) {}
+        q.url = URL.createObjectURL(blob);
+        renderQueue();
+        renderPreview();
+        toast('已消除簽名，預覽與上傳都會用處理後的版本');
+      }
+    });
   }
 
   function runUpload(list) {
@@ -611,7 +674,7 @@
         if (q.status === 'done') { done++; tick(); return; }
         q.status = 'up'; q.msg = '';
         renderQueue();
-        return prepareBlob(q.file, dateISO).then(function (prep) {
+        return prepareBlob(srcBlob(q), dateISO, q.manualAngle).then(function (prep) {
           var name = nextName();
           var desc = [note, item ? ('工項：' + item) : '', '歸檔日期：' + dateISO]
             .filter(Boolean).join('｜');

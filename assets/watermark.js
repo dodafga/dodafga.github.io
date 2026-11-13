@@ -340,7 +340,14 @@
       try { orient = global.PhotoOrient.detect(img.el, w0, h0); }
       catch (e) { orient = null; }
     }
-    var angle = (orient && orient.angle) ? orient.angle : 0;
+    var autoAngle = (orient && orient.angle) ? orient.angle : 0;
+
+    /* ---- 1b) 手動旋轉（與自動轉正完全獨立，兩者相加） ----
+       使用者按「旋轉 90°」時傳入 opts.manualAngle（0/90/180/270）。
+       自動轉正關閉時 autoAngle 為 0，手動旋轉照樣生效。 */
+    var manualAngle = Number(opts.manualAngle) || 0;
+    manualAngle = ((Math.round(manualAngle / 90) * 90) % 360 + 360) % 360;
+    var angle = (autoAngle + manualAngle) % 360;
 
     /* ---- 2) 依角度旋轉 + 縮圖 ---- */
     var swap = (angle === 90 || angle === 270);
@@ -390,7 +397,7 @@
     return {
       canvas: cv, width: w, height: h,
       applied: applied, detected: detected, box: box,
-      rotated: angle, orient: orient
+      rotated: angle, autoRotated: autoAngle, manualRotated: manualAngle, orient: orient
     };
   }
 
@@ -429,7 +436,8 @@
       date: opts.date,
       watermark: opts.watermark,
       detect: opts.detect,
-      orient: opts.orient
+      orient: opts.orient,
+      manualAngle: opts.manualAngle
     };
     var r = render(img, previewOpts);
     return {
@@ -439,6 +447,8 @@
       width: r.width,
       height: r.height,
       rotated: r.rotated,
+      autoRotated: r.autoRotated,
+      manualRotated: r.manualRotated,
       orient: r.orient
     };
   }

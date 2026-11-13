@@ -361,7 +361,8 @@
           date: opts.date,
           watermark: opts.watermark !== false,
           detect: opts.detect !== false,
-          orient: opts.orient !== false
+          orient: opts.orient !== false,
+          manualAngle: opts.manualAngle || 0
         });
       } finally {
         try { img.release(); } catch (e) {}
@@ -375,6 +376,8 @@
           height: r.height,
           box: r.box,
           rotated: r.rotated || 0,
+          autoRotated: r.autoRotated || 0,
+          manualRotated: r.manualRotated || 0,
           orient: r.orient || null
         };
       });

@@ -13,16 +13,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Download and unzip
+      - name: Download and extract
         run: |
-          curl -sSL -o /tmp/site.zip "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/site_v10/site-v10.zip"
-          ls -la /tmp/site.zip
-          unzip -o /tmp/site.zip -d .
-          ls -la assets/store.js assets/orient.js progress/index.html log/index.html
+          python3 - <<'PYEOF'
+import urllib.request, zipfile, io, os, sys
+u = "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/site_v10/site-v10.zip?tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL3NpdGVfdjEwOjE3OTQ1NTM0MTU.NzA4YzdlNzIyODA5YWM0MjI2MzQzODJhNWIwNDFjYzY"
+req = urllib.request.Request(u, headers={'User-Agent':'curl/8'})
+with urllib.request.urlopen(req, timeout=90) as r:
+    data = r.read()
+print("downloaded", len(data))
+z = zipfile.ZipFile(io.BytesIO(data))
+print("names:", z.namelist())
+z.extractall(".")
+for p in ["assets/store.js","assets/orient.js","progress/index.html","log/index.html"]:
+    print(p, os.path.getsize(p))
+PYEOF
       - name: Commit
         run: |
           git config user.name "dodafga"
           git config user.email "dodafga@users.noreply.github.com"
+          git rm -f .b64test.txt || true
           git add -A
           git commit -m "feat(progress/log/orient): 10 項修改" || echo "no changes"
           git push origin main

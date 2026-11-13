@@ -3,19 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>相片上傳歸檔｜Google Drive 依日期歸檔</title>
+<title>照片上傳歸檔｜Google Drive 依日期歸檔</title>
 <link rel="stylesheet" href="../assets/drive-page.css">
+<link rel="stylesheet" href="../assets/photo-edit.css">
 </head>
 <body>
 <header>
   <div class="hwrap">
     <div class="logo">☁</div>
     <div>
-      <h1>相片上傳歸檔</h1>
-      <div class="sub">選取或拍攝相片 → 上傳 Google Drive → 依日期資料夾歸檔</div>
+      <h1>照片上傳歸檔</h1>
+      <div class="sub">選取或拍攝照片 → 上傳 Google Drive → 依日期資料夾歸檔</div>
     </div>
     <div class="hmeta">
-      根資料夾 <b>營建相片</b> ／ 子資料夾 <b>YYYY-MM-DD</b><br>
+      根資料夾 <b>營建照片</b> ／ 子資料夾 <b>YYYY-MM-DD</b><br>
       <a href="../index.html">← 回查驗助手</a>
     </div>
   </div>
@@ -54,7 +55,7 @@
       </div>
 
       <div class="warnbox" id="connWarn" style="display:none;">
-        <b>尚未連線。</b>請按「🔗 連線 Google Drive」並用你的 Google 帳號授權一次，之後就能把相片直接歸檔到自己的雲端硬碟。
+        <b>尚未連線。</b>請按「🔗 連線 Google Drive」並用你的 Google 帳號授權一次，之後就能把照片直接歸檔到自己的雲端硬碟。
         授權只要求 <code>drive.file</code> 權限，只能存取本程式建立的檔案。
       </div>
       <div class="warnbox" id="relinkWarn" style="display:none;">
@@ -96,8 +97,8 @@
           <span class="sw" id="wmState">開啟</span>
         </label>
         <span class="wmhint">
-          壓在相片右下角，樣式 <span class="wmsample">2026-11-11</span>
-          · 相片若已有相機時間戳會<b>自動跳過</b>不重複壓
+          壓在照片右下角，樣式 <span class="wmsample">2026-11-11</span>
+          · 照片若已有相機時間戳會<b>自動跳過</b>不重複壓
         </span>
       </div>
 
@@ -110,14 +111,14 @@
           <span class="sw" id="orientState">開啟</span>
         </label>
         <span class="wmhint">
-          靠小白板固定的<b>日期字樣</b>（年／月／日）判斷方向，必要時用<b>工程名稱</b>、<b>檢查項目</b>的版面位置輔助
+          靠小白板固定的<b>日期字樣</b>（年／月／日）判斷方向，必要時用<b>工程名稱</b>、<b>查驗項目</b>的版面位置輔助
           · 判斷不出就<b>保持原樣不轉</b>
         </span>
       </div>
 
       <div class="drop" id="drop">
         <div class="ic">📷</div>
-        <div class="t">點此選取相片、拖曳進來，或用手機直接拍攝</div>
+        <div class="t">點此選取照片、拖曳進來，或用手機直接拍攝</div>
         <div class="s">支援多選與批次上傳 · 上傳前自動壓縮並轉存 PNG（長邊 ≤2000px）</div>
       </div>
       <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
@@ -145,16 +146,16 @@
         <button class="btn btn-ghost" id="btnCamera" type="button">📷 直接拍攝</button>
         <button class="btn btn-ghost" id="btnClear" type="button">清除佇列</button>
         <span class="spacer"></span>
-        <span class="wmhint" id="uploadHint">請先加入相片</span>
+        <span class="wmhint" id="uploadHint">請先加入照片</span>
       </div>
 
       <div class="list" id="queueList"></div>
 
       <div class="note">
-        <b>資料夾規則：</b><code>營建相片 / YYYY-MM-DD /</code>，資料夾已存在就沿用，不重複建立。<br>
+        <b>資料夾規則：</b><code>營建照片 / YYYY-MM-DD /</code>，資料夾已存在就沿用，不重複建立。<br>
         <b>檔名規則：</b><code>日期_工項或墩號樁號_序號.png</code>；未填工項時為 <code>日期_時間_序號.png</code>。<br>
-        <b>歸檔日期浮水印：</b>上傳前會把歸檔日期壓在相片<b>右下角</b>（橘色粗體＋黑色陰影），<b>壓進實際輸出的 PNG</b>，
-        Drive 上的檔案本身就帶浮水印；相片若已有相機時間戳會<b>自動跳過</b>不重複壓。可用上方開關關閉。
+        <b>歸檔日期浮水印：</b>上傳前會把歸檔日期壓在照片<b>右下角</b>（橘色粗體＋黑色陰影），<b>壓進實際輸出的 PNG</b>，
+        Drive 上的檔案本身就帶浮水印；照片若已有相機時間戳會<b>自動跳過</b>不重複壓。可用上方開關關閉。
       </div>
     </div>
   </div>
@@ -212,6 +213,7 @@
 <script src="../assets/watermark.js"></script>
 <script src="../assets/orient.js"></script>
 <script src="../assets/orient-switch.js"></script>
+<script src="../assets/photo-edit.js"></script>
 <script src="../assets/gdrive-photo.js"></script>
 <script src="../assets/drive-page.js"></script>
 </body>

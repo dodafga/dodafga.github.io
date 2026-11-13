@@ -1,0 +1,30 @@
+name: oneoff-orient-field-ratio
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/oneoff-orient-field-ratio.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and place orient.js
+        run: |
+          curl -sSL -o assets/orient.js "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/orient-field-ratio/orient.js?tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL29yaWVudC1maWVsZC1yYXRpbzoxNzk0NTM4MTQx.Y2RjYWFkNTRkNjM4MmE5ZDExZmQ3OWNhZTNmYzViMmU"
+          wc -c assets/orient.js
+          head -c 60 assets/orient.js
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "132368659+dodafga@users.noreply.github.com"
+          git add assets/orient.js
+          git commit -m "fix(orient): 補回完整 orient.js（欄位比例辨識）" || echo "no change"
+          git push
+      - name: Self-delete workflow
+        run: |
+          git rm -f .github/workflows/oneoff-orient-field-ratio.yml
+          git commit -m "chore: remove oneoff workflow"
+          git push

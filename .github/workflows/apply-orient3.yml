@@ -1,0 +1,44 @@
+name: apply-orient3
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-orient3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download
+        run: |
+          set -e
+          B="https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/r12-deploy"
+          TK="tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL3IxMi1kZXBsb3k6MTc5NDU5OTcyNQ.Mzg1YThlNTIyZGVkMjFiNTY2ZjE1Y2NmMzgwNmViNTc"
+          curl -fsSL -o assets/orient-struct3.js "$B/orient-struct3.js?$TK"
+          wc -c assets/orient-struct3.js
+          md5sum assets/orient-struct3.js
+          node --check assets/orient-struct3.js
+          grep -q PhotoOrientStruct3 assets/orient-struct3.js
+          echo OK
+
+      - name: Commit
+        run: |
+          set -e
+          git config user.name dodafga
+          git config user.email dodafga@users.noreply.github.com
+          git add assets/orient-struct3.js
+          git commit -m "fix(drive): two-stage orientation - stage2 uses inspection-field vertical position" || true
+          git push origin main
+
+      - name: Self-delete
+        run: |
+          git rm -f .github/workflows/apply-orient3.yml .github/workflows/apply-drive-v2d.yml .github/workflows/apply-drive-v2c.yml .github/workflows/apply-drive-v2b.yml .github/workflows/apply-drive-v2.yml || true
+          git commit -m "chore: remove one-time workflows" || true
+          git push origin main || true

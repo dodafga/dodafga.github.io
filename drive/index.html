@@ -1,11 +1,63 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-<head>
+<head><script data-tmly-media-guard="1">(function(){"use strict";
+var T=window.__tmly||(window.__tmly=(function(){
+var o={},n=String(window.name||"");
+if(n.slice(0,5)==="tmly:"){n.slice(5).split("&").forEach(function(kv){
+var i=kv.indexOf("=");if(i>0){o[kv.slice(0,i)]=kv.slice(i+1)}})}
+return o})());
+if(T.presentation!=="preview"){return}
+var K="tmly:media-muted:"+String(location.pathname).replace(/[^/]*$/,"");
+var muted=false;try{muted=localStorage.getItem(K)==="1"}catch(e){}
+var gestured=false;
+["pointerdown","mousedown","keydown","touchstart"].forEach(function(t){
+document.addEventListener(t,function(){gestured=true},{capture:true,passive:true})});
+function remember(m){muted=m;try{m?localStorage.setItem(K,"1"):localStorage.removeItem(K)}catch(e){}}
+function announcePaused(el){try{el.dispatchEvent(new Event("pause"))}catch(e){}}
+function harden(el){
+el.autoplay=false;el.removeAttribute("autoplay");
+if(el.getAttribute("preload")==="auto"){el.setAttribute("preload","none")}
+if(muted){el.muted=true}
+if(!gestured&&!el.paused){try{el.pause()}catch(e){}}}
+var play=HTMLMediaElement.prototype.play;
+HTMLMediaElement.prototype.play=function(){
+if(!gestured){announcePaused(this);
+return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false);this.muted=false}
+return play.apply(this,arguments)};
+var acProtos=[];
+function guardAC(n){
+var N=window[n];if(!N||!N.prototype){return}
+if(acProtos.indexOf(N.prototype)<0){acProtos.push(N.prototype);
+var res=N.prototype.resume;
+if(typeof res==="function"){N.prototype.resume=function(){
+if(!gestured){return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false)}
+return res.apply(this,arguments)}}}
+var W=function(o){var c=arguments.length?new N(o):new N();
+if(!gestured){try{c.suspend()}catch(e){}}return c};
+W.prototype=N.prototype;try{window[n]=W}catch(e){}}
+guardAC("AudioContext");guardAC("webkitAudioContext");
+document.addEventListener("play",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&!gestured){try{el.pause()}catch(err){}}},true);
+document.addEventListener("pause",function(e){
+if(e.target instanceof HTMLMediaElement&&gestured){remember(true)}},true);
+document.addEventListener("volumechange",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&gestured){remember(el.muted||el.volume===0)}},true);
+function sweep(n){if(n&&n.querySelectorAll){var l=n.querySelectorAll("audio,video");
+for(var i=0;i<l.length;i++){harden(l[i])}}}
+new MutationObserver(function(rs){for(var i=0;i<rs.length;i++){var a=rs[i].addedNodes;
+for(var j=0;j<a.length;j++){var n=a[j];
+if(n instanceof HTMLMediaElement){harden(n)}else{sweep(n)}}}})
+.observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener("DOMContentLoaded",function(){sweep(document)});
+sweep(document)})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>照片上傳歸檔｜Google Drive 依日期歸檔</title>
+<title>照片上傳歸檔｜Google Drive 依日期與樁號歸檔</title>
 <link rel="stylesheet" href="../assets/drive-page.css">
 <link rel="stylesheet" href="../assets/photo-edit.css">
+<link rel="stylesheet" href="../assets/drive-v2.css">
 </head>
 <body>
 <header>
@@ -13,10 +65,10 @@
     <div class="logo">☁</div>
     <div>
       <h1>照片上傳歸檔</h1>
-      <div class="sub">選取或拍攝照片 → 上傳 Google Drive → 依日期資料夾歸檔</div>
+      <div class="sub">選取或拍攝照片 → 自動轉正 → 壓日期浮水印 → 上傳到 營建相片／日期／樁號</div>
     </div>
     <div class="hmeta">
-      根資料夾 <b>營建照片</b> ／ 子資料夾 <b>YYYY-MM-DD</b><br>
+      根資料夾 <b>營建相片</b> ／ 子資料夾 <b>YYYY-MM-DD</b> ／ <b>樁號</b><br>
       <a href="../index.html">← 回查驗助手</a>
     </div>
   </div>
@@ -47,7 +99,6 @@
       </div>
       <div class="errbox" id="connErr"></div>
 
-      <!-- 自動連線／自動匯入進度 -->
       <div class="syncbox" id="syncBox">
         <div class="sh"><span id="syncIcon">⏳</span><span id="syncTitle">正在自動連線…</span></div>
         <div class="smsg" id="syncMsg"></div>
@@ -65,30 +116,126 @@
     </div>
   </div>
 
-  <!-- 上傳設定 -->
+  <!-- ① 頂部設定區 -->
   <div class="card">
     <div class="card-h">
-      <h2>上傳設定</h2>
+      <h2>① 歸檔設定</h2>
       <span class="spacer"></span>
-      <span class="tag" id="queueTag">0 張</span>
+      <span class="tag" id="metaTag">0 張</span>
     </div>
     <div class="card-b">
-      <div class="grid2">
+      <div class="meta2">
         <div class="field">
           <label for="fDate">歸檔日期<span class="hint">（預設今天，可補上傳過去日期）</span></label>
           <input type="date" id="fDate">
         </div>
         <div class="field">
-          <label for="fItem">工項／墩號樁號<span class="hint">（選填，寫入檔名）</span></label>
-          <input type="text" id="fItem" placeholder="例如 PR4-1、P12-B3">
+          <label for="fStation">樁號<span class="hint">（上傳到以此命名的子資料夾）</span></label>
+          <select id="fStation">
+            <option value="">— 請選擇樁號 —</option>
+          </select>
         </div>
       </div>
-      <div class="field">
-        <label for="fNote">說明<span class="hint">（選填，寫入 Drive 檔案描述）</span></label>
-        <textarea id="fNote" placeholder="例如 樁頭打除完成，鋼筋查驗"></textarea>
+      <div class="sub2">
+        資料夾規則：<code>營建相片 / 日期 / 樁號 /</code>　·　檔名規則：<code>日期_樁號_序號.png</code><br>
+        樁號選單取自網站既有的樁位資料（19 墩、121 支樁）。
       </div>
+    </div>
+  </div>
 
-      <!-- 浮水印開關 -->
+  <!-- ② 上傳／拍照互動區 -->
+  <div class="card">
+    <div class="card-h">
+      <h2>② 選取或拍照</h2>
+      <span class="spacer"></span>
+      <span class="tag" id="stageTag">0 張</span>
+    </div>
+    <div class="card-b">
+      <div class="up2" id="dropZone">
+        <div class="tile" id="tilePick" role="button" tabindex="0">
+          <div class="ic">🖼</div>
+          <div class="t">選擇照片（可多選）</div>
+          <div class="s">從相簿或檔案挑選，也可拖曳進來</div>
+        </div>
+        <div class="tile" id="tileCam" role="button" tabindex="0">
+          <div class="ic">📷</div>
+          <div class="t">直接拍照</div>
+          <div class="s">開啟相機，可連續拍多張</div>
+        </div>
+      </div>
+      <input type="file" id="fileInput2" accept="image/*" multiple style="display:none;">
+      <input type="file" id="camInput2" accept="image/*" capture="environment" multiple style="display:none;">
+
+      <div class="progwrap" id="progWrap">
+        <div class="progbar"><i id="progBar"></i></div>
+        <div class="progtxt" id="progTxt">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 暫存預覽區 -->
+  <div class="card">
+    <div class="card-h">
+      <h2>③ 暫存預覽</h2>
+      <span class="tag" id="stageCount">0 張</span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" id="btnClearStage" type="button">清空暫存</button>
+    </div>
+    <div class="card-b">
+      <div class="stage2">
+        <div class="sh">
+          <span class="t">尚未上傳的照片</span>
+          <span class="cnt" id="stageCount2">0 張</span>
+          <span class="spacer"></span>
+          <label class="wmtog" title="上傳時要不要壓上日期浮水印">
+            <input type="checkbox" id="chkWm2" checked>
+            <span class="trk"></span>
+            <span>日期浮水印</span>
+            <span class="st" id="wmState2">開啟</span>
+          </label>
+        </div>
+
+        <div class="grid2t" id="stageGrid"></div>
+
+        <div class="go2">
+          <button class="btn btn-amber" id="btnGo" type="button" disabled>☁ 確認上傳</button>
+          <span class="hint2" id="goHint">請先加入照片</span>
+          <span class="spacer"></span>
+          <span class="hint2">每張縮圖右下角可 <b>↻ 旋轉 90°</b> 或 <b>× 移除</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ 上傳完成區 -->
+  <div class="card">
+    <div class="card-h">
+      <h2>④ 上傳完成</h2>
+      <span class="tag ok" id="doneCount">0 張</span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" id="btnClearDone" type="button">清空本區</button>
+    </div>
+    <div class="card-b">
+      <div class="done2">
+        <div class="sh">
+          <span class="t">已成功上傳到 Google 雲端硬碟</span>
+        </div>
+        <div id="doneList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 舊版上傳卡（保留 DOM 供 drive-page.js 綁定，不顯示） -->
+  <div class="card" id="legacyUploadCard">
+    <div class="card-b">
+      <div class="field">
+        <label for="fItem">工項／樁號</label>
+        <input type="text" id="fItem" placeholder="例如 PR4-1">
+      </div>
+      <div class="field">
+        <label for="fNote">說明</label>
+        <textarea id="fNote" placeholder="選填"></textarea>
+      </div>
       <div class="wmbar">
         <span class="lbl">歸檔日期浮水印</span>
         <label class="switch">
@@ -96,13 +243,7 @@
           <span class="track"></span>
           <span class="sw" id="wmState">開啟</span>
         </label>
-        <span class="wmhint">
-          壓在照片右下角，樣式 <span class="wmsample">2026-11-11</span>
-          · 照片若已有相機時間戳會<b>自動跳過</b>不重複壓
-        </span>
       </div>
-
-      <!-- 文字方向自動轉正開關 -->
       <div class="wmbar">
         <span class="lbl">文字方向自動轉正</span>
         <label class="switch">
@@ -110,53 +251,24 @@
           <span class="track"></span>
           <span class="sw" id="orientState">開啟</span>
         </label>
-        <span class="wmhint">
-          靠小白板固定的<b>日期字樣</b>（年／月／日）判斷方向，必要時用<b>工程名稱</b>、<b>查驗項目</b>的版面位置輔助
-          · 判斷不出就<b>保持原樣不轉</b>
-        </span>
       </div>
-
-      <div class="drop" id="drop">
-        <div class="ic">📷</div>
-        <div class="t">點此選取照片、拖曳進來，或用手機直接拍攝</div>
-        <div class="s">支援多選與批次上傳 · 上傳前自動壓縮並轉存 PNG（長邊 ≤2000px）</div>
-      </div>
+      <div class="drop" id="drop"></div>
       <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
       <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
-
-      <div class="progwrap" id="progWrap">
-        <div class="progbar"><i id="progBar"></i></div>
-        <div class="progtxt" id="progTxt">—</div>
-      </div>
-
-      <!-- 浮水印預覽 -->
       <div class="prevwrap" id="prevWrap">
-        <div class="prevhead">
-          <span class="t">浮水印預覽</span>
-          <span class="tag" id="prevTag">—</span>
-          <span class="spacer"></span>
-          <button class="btn btn-ghost btn-sm" id="btnPrevRefresh" type="button">↻ 重新預覽</button>
-        </div>
+        <div class="prevhead"><span class="t">浮水印預覽</span><span class="tag" id="prevTag">—</span></div>
         <div class="prevbox"><img id="prevImg" alt="浮水印預覽"></div>
         <div class="prevnote" id="prevNote"></div>
       </div>
-
-      <div class="batchbar" style="margin-top:14px;">
+      <div class="batchbar">
         <button class="btn btn-amber" id="btnUpload" type="button" disabled>☁ 開始上傳</button>
         <button class="btn btn-ghost" id="btnCamera" type="button">📷 直接拍攝</button>
         <button class="btn btn-ghost" id="btnClear" type="button">清除佇列</button>
         <span class="spacer"></span>
         <span class="wmhint" id="uploadHint">請先加入照片</span>
+        <span class="tag" id="queueTag" style="display:none;">0 張</span>
       </div>
-
       <div class="list" id="queueList"></div>
-
-      <div class="note">
-        <b>資料夾規則：</b><code>營建照片 / YYYY-MM-DD /</code>，資料夾已存在就沿用，不重複建立。<br>
-        <b>檔名規則：</b><code>日期_工項或墩號樁號_序號.png</code>；未填工項時為 <code>日期_時間_序號.png</code>。<br>
-        <b>歸檔日期浮水印：</b>上傳前會把歸檔日期壓在照片<b>右下角</b>（橘色粗體＋黑色陰影），<b>壓進實際輸出的 PNG</b>，
-        Drive 上的檔案本身就帶浮水印；照片若已有相機時間戳會<b>自動跳過</b>不重複壓。可用上方開關關閉。
-      </div>
     </div>
   </div>
 
@@ -170,7 +282,6 @@
       <button class="btn btn-ghost btn-sm" id="btnExport" type="button">⬇ 匯出 JSON</button>
     </div>
     <div class="card-b">
-      <!-- 日期篩選 -->
       <div class="filterbar">
         <span class="lbl">日期篩選</span>
         <div class="seg" id="segFilter">
@@ -185,7 +296,6 @@
         <span class="fcount" id="fCount">符合 0 筆 / 共 0 筆</span>
       </div>
 
-      <!-- 批次下載 -->
       <div class="batchbar">
         <label class="chkbox"><input type="checkbox" id="chkAll"> 全選目前篩選結果</label>
         <span class="selcount zero" id="selCount">已選 0 筆</span>
@@ -209,14 +319,16 @@
 
 <script src="../assets/jszip.min.js"></script>
 <script src="../assets/core.js"></script>
+<script src="../assets/store.js"></script>
 <script src="../assets/gdrive.js"></script>
 <script src="../assets/watermark.js"></script>
 <script src="../assets/orient.js"></script>
-<script src="../assets/orient-struct2.js"></script>
+<script src="../assets/orient-struct3.js"></script>
 <script src="../assets/orient-switch.js"></script>
 <script src="../assets/photo-edit.js"></script>
 <script src="../assets/gdrive-photo.js"></script>
 <script src="../assets/drive-page.js"></script>
 <script src="../assets/batch-del.js"></script>
+<script src="../assets/drive-v2.js"></script>
 </body>
 </html>

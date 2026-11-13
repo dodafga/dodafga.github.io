@@ -1,0 +1,21 @@
+=== download diagnostics ===
+orient-struct3.js -> assets/orient-struct3.js  http=200  bytes=7714
+  first80: (function(global){"use strict";var EDGE=600,PAPER_LUMA=80,PAPER_MED=.8,PAPER_ROW
+drive-v2.css -> assets/drive-v2.css  http=200  bytes=6121
+  first80: .meta2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:760p
+drive-v2.js -> assets/drive-v2.js  http=200  bytes=13037
+  first80: (function(){"use strict";var C=window.Core;if(!C||!C.on)return;var $=C.$,esc=C.e
+drive-index.html -> drive/index.html  http=200  bytes=14638
+  first80: <!DOCTYPE html><html lang="zh-Hant"><head><script data-tmly-media-guard="1">(f
+=== md5 ===
+7c06fd1ab77d44ff98ec497f50617e0e  assets/orient-struct3.js
+014e95b9e1b629c90e02c1358d827ac9  assets/drive-v2.css
+8b2646366c0b068a10592a48756519ce  assets/drive-v2.js
+6b8866ffb50025b447aacbdbaab8a7e8  drive/index.html
+=== greps ===
+1
+1
+1
+=== node check ===
+orient rc=0
+v2 rc=0

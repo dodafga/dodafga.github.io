@@ -1,0 +1,62 @@
+name: apply-drive-v2b
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-drive-v2b.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download files
+        run: |
+          set -e
+          B="https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/r12-deploy"
+          TK="tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL3IxMi1kZXBsb3k6MTc5NDU5ODUwOQ.Zjg0OTdiMjRmMDUyZTBlMmYyNDMzMTk4NmUyNGRiOTY"
+          mkdir -p assets drive
+          curl -fsSL -o assets/orient-struct3.js "$B/orient-struct3.js?$TK"
+          curl -fsSL -o assets/drive-v2.css      "$B/drive-v2.css?$TK"
+          curl -fsSL -o assets/drive-v2.js       "$B/drive-v2.js?$TK"
+          curl -fsSL -o drive/index.html         "$B/drive-index.html?$TK"
+          echo "--- sizes ---"
+          wc -c assets/orient-struct3.js assets/drive-v2.css assets/drive-v2.js drive/index.html
+          echo "--- md5 ---"
+          md5sum assets/orient-struct3.js assets/drive-v2.css assets/drive-v2.js drive/index.html
+
+      - name: Verify content
+        run: |
+          set -e
+          grep -q "PhotoOrientStruct3" assets/orient-struct3.js
+          grep -q "drive-v2" assets/drive-v2.css
+          grep -q "buildStations" assets/drive-v2.js
+          grep -q "chkWm2" drive/index.html
+          grep -q "fStation" drive/index.html
+          grep -q "orient-struct3.js" drive/index.html
+          grep -q "drive-v2.js" drive/index.html
+          node --check assets/orient-struct3.js
+          node --check assets/drive-v2.js
+          echo "ALL CHECKS PASSED"
+
+      - name: Commit
+        run: |
+          set -e
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add assets/orient-struct3.js assets/drive-v2.css assets/drive-v2.js drive/index.html
+          git commit -m "feat(drive): rebuild photo upload page (date+station folders, staging grid, manual rotate, watermark toggle) and two-stage orientation"
+          git push origin main
+
+      - name: Self-delete workflow
+        run: |
+          set -e
+          git rm -f .github/workflows/apply-drive-v2b.yml .github/workflows/apply-drive-v2.yml || true
+          git commit -m "chore: remove one-time deploy workflows" || true
+          git push origin main || true

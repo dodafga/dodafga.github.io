@@ -1,0 +1,61 @@
+name: deploy-drive-ocr
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-drive-ocr.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download and verify payload
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/p
+          cd /tmp/p
+          curl -fsSL -o dv2.js.txt   "https://static.teamily.ai/files/412b46dc-2e83-4573-ab05-a904cadfb76a/dv2.js.txt?tk=ZmlsZTo0MTJiNDZkYy0yZTgzLTQ1NzMtYWIwNS1hOTA0Y2FkZmI3NmE6MTc5NDYyOTMzNQ.NzEzNjgzNjAyZGRkNjg5NDM0M2M3ZGI3ZTYyMmZlZjY"
+          curl -fsSL -o dv2.css.txt  "https://static.teamily.ai/files/12df2a0d-c3a9-4fda-b8b7-4f317af99bda/dv2.css.txt?tk=ZmlsZToxMmRmMmEwZC1jM2E5LTRmZGEtYjhiNy00ZjMxN2FmOTliZGE6MTc5NDYyOTMzNQ.ZTIyYmFjOTUyZTExNGE3ZDJlOWM2NWI1ZWRlMmQ0ZWU"
+          curl -fsSL -o ocr.js.txt   "https://static.teamily.ai/files/df5c25aa-c910-4a31-915a-8eebebf992c7/ocr.js.txt?tk=ZmlsZTpkZjVjMjVhYS1jOTEwLTRhMzEtOTE1YS04ZWViZWJmOTkyYzc6MTc5NDYyOTMzNQ.MzdhZjY1MTM2MzUzOTZkZjJmNTE5YzM5OGRlNzc1YTE"
+          curl -fsSL -o idx.html.txt "https://static.teamily.ai/files/5abf74c1-4b65-436f-aecc-dbf46ccf3026/idx.html.txt?tk=ZmlsZTo1YWJmNzRjMS00YjY1LTQzNmYtYWVjYy1kYmY0NmNjZjMwMjY6MTc5NDYyOTMzNQ.NDhmZWU0YWIwNzBkMjA4MTRmY2U2MzkxMDM3NDg4YjM"
+          echo "50ae65616db91bc371c55cc0947f40e5e8d855acd103ef080def56712150b4b4  dv2.js.txt"   | sha256sum -c -
+          echo "e8d55e76999904b812629e15aea1ff733120b10153234926a8638663198ed5a1  dv2.css.txt"  | sha256sum -c -
+          echo "20e0246c172bfb8f9f9bf9496603d25e12804582420dac14abc3556cbcc589cf  ocr.js.txt"   | sha256sum -c -
+          echo "2c0b6a4a70ffe3786e494bc4542d3d0e5810609053bcf72f27f8543d09780c91  idx.html.txt" | sha256sum -c -
+          echo "ALL SHA OK"
+
+      - name: Install files
+        run: |
+          set -euo pipefail
+          cp /tmp/p/dv2.js.txt   assets/drive-v2.js
+          cp /tmp/p/dv2.css.txt  assets/drive-v2.css
+          cp /tmp/p/ocr.js.txt   assets/orient-ocr.js
+          cp /tmp/p/idx.html.txt drive/index.html
+          node --check assets/drive-v2.js
+          node --check assets/orient-ocr.js
+          echo "syntax OK"
+          ls -la assets/drive-v2.js assets/drive-v2.css assets/orient-ocr.js drive/index.html
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name  "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add assets/drive-v2.js assets/drive-v2.css assets/orient-ocr.js drive/index.html
+          git commit -m "feat(drive): 查驗單照片 OCR 自動轉正 + 判不出時一鍵轉180（含自動轉正開關）"
+          git push origin HEAD:main
+
+      - name: Self-remove workflow
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/deploy-drive-ocr.yml
+          git commit -m "chore: remove one-off deploy workflow"
+          git push origin HEAD:main

@@ -1,0 +1,39 @@
+name: deploy r27
+on:
+  push:
+    paths:
+      - '.deploy-r27/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply patch
+        run: python3 .deploy-r27/patch_log.py
+      - name: Verify
+        run: |
+          python3 - <<'PY'
+          import io,re
+          s=io.open('log/index.html',encoding='utf-8').read()
+          assert 'id="pStatTag"' in s, 'badge missing'
+          assert 'function updatePStatTag()' in s, 'fn missing'
+          assert s.count('updatePStatTag();')==2, 'call sites: %d'%s.count('updatePStatTag();')
+          assert s.count('class="design"')==9, 'design rows: %d'%s.count('class="design"')
+          print('OK', len(s.encode('utf-8')))
+          PY
+      - name: Commit
+        run: |
+          git config user.name "Super Agent"
+          git config user.email "agent@teamily.ai"
+          if git diff --quiet log/index.html; then
+            echo "no change"
+          else
+            git add log/index.html
+            git commit -m "feat(log): pStatTag"
+            git push origin main
+          fi

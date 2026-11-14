@@ -14,6 +14,13 @@ var $=C.$,esc=C.esc,pad2=C.pad2,todayISO=C.todayISO,fmtSize=C.fmtSize,safeName=C
     stage=[],doneList=[],wmOn=!0,orientOn=!0,uploading=!1,seq=0;
 
 function compactDate(iso){return String(iso||"").replace(/-/g,"")}
+/* 角度顯示：細部傾斜會是小數（例如 3.7°），四方向時仍是整數 90°。
+   取到小數第一位，並去掉多餘的 .0。 */
+function fmtDeg(a){
+  var v=Number(a)||0;
+  v=Math.round(v*10)/10;
+  return (v%1===0)?String(v):v.toFixed(1);
+}
 function loadWm(){var v=C.store.get(WM_KEY,"");v==="0"?wmOn=!1:v==="1"&&(wmOn=!0)}
 function saveWm(){C.store.set(WM_KEY,wmOn?"1":"0")}
 function loadOrient(){var v=C.store.get(ORIENT_KEY,"");v==="0"?orientOn=!1:v==="1"&&(orientOn=!0)}
@@ -40,11 +47,16 @@ function loadBitmap(file){
 function bSize(b){return {w:b.width||b.naturalWidth||0,h:b.height||b.naturalHeight||0}}
 function bFree(b){try{b&&b.close&&b.close()}catch(e){}}
 
+/* 任意角度旋轉（含 ±45° 內的細部傾斜）。
+   外框尺寸用旋轉後的「外接矩形」計算，90/270 時 cos=0 會自動退化成原本的長寬互換，
+   所以四方向旋轉的結果與舊版逐位元相同。 */
 function drawRot(bmp,angle,maxEdge){
   var s=bSize(bmp),W=s.w,H=s.h;
   if(!W||!H)throw new Error("圖片尺寸無效");
-  var sw=(angle===90||angle===270);
-  var ow=sw?H:W, oh=sw?W:H;
+  var rad=(Number(angle)||0)*Math.PI/180;
+  var ca=Math.abs(Math.cos(rad)),sa=Math.abs(Math.sin(rad));
+  var ow=Math.round(W*ca+H*sa), oh=Math.round(W*sa+H*ca);
+  if(!ow||!oh){ow=W;oh=H}
   var sc=Math.min(1,(maxEdge||MAX_EDGE)/Math.max(ow,oh));
   var w=Math.max(1,Math.round(ow*sc)),h=Math.max(1,Math.round(oh*sc));
   var cv=document.createElement("canvas");
@@ -360,9 +372,9 @@ function renderStage(){
   if(it.busy)bd='<span class="badge">處理中…</span>';
   else if(it.err)bd='<span class="badge warn">原樣</span>';
   else if(!orientOn)bd='<span class="badge mut">未自動轉正</span>';
-  else if(it.ocr&&it.ocr.ok)bd=it.autoAngle?'<span class="badge ok">已自動轉 '+it.autoAngle+"°</span>":'<span class="badge ok">方向正確</span>';
+  else if(it.ocr&&it.ocr.ok)bd=it.autoAngle?'<span class="badge ok">已自動轉 '+fmtDeg(it.autoAngle)+"°</span>":'<span class="badge ok">方向正確</span>';
   else bd='<span class="badge q">這樣對嗎？</span>';
-  if(it.manualAngle)bd+='<span class="badge mut">已轉 '+it.manualAngle+"°</span>";
+  if(it.manualAngle)bd+='<span class="badge mut">已轉 '+fmtDeg(it.manualAngle)+"°</span>";
 
   var qb="";
   if(!it.busy&&orientOn){
@@ -508,7 +520,7 @@ function runUpload(){
         return renderFinal(it.baseBlob,dateISO,it.manualAngle).then(function(fin){
           var name=buildName(dateISO,station,n);n++;
           var desc=["樁號："+station,"歸檔日期："+dateISO,
-            it.ocr&&it.ocr.ok?("自動轉正："+(it.autoAngle||0)+"°"):"自動轉正：未判定",
+            it.ocr&&it.ocr.ok?("自動轉正："+fmtDeg(it.autoAngle||0)+"°"):"自動轉正：未判定",
             it.manualAngle?("手動旋轉："+it.manualAngle+"°"):"",
             wmOn?(fin.applied?"已壓日期浮水印":"未壓浮水印"):"未壓浮水印"].filter(Boolean).join("｜");
           tick("上傳 "+(ok+fail+1)+" / "+total+"："+name);
@@ -584,7 +596,7 @@ function runOneOcr(key){
           bFree(bmp);it.baseBlob=b;if(th)it.thumbUrl=th;renderStage();
         },function(e){bFree(bmp);throw e});
       }).catch(function(){renderStage()});
-      toast("自動判斷：轉 "+(it.autoAngle||0)+"°");
+      toast("自動判斷：轉 "+fmtDeg(it.autoAngle||0)+"°");
     }else{
       it.ocr=res||{ok:!1,reason:"unknown"};renderStage();
       toast("判不出方向，請自行確認（可按「轉 180°」）",!0);

@@ -691,7 +691,47 @@
     });
 
     var inner = detectInner(imgEl, t0);
-    return Promise.race([inner, hard]);
+    return Promise.race([inner, hard]).then(function (res) {
+      return refineSkew(imgEl, res, t0);
+    });
+  }
+
+  /**
+   * 細部傾斜修正：四方向（0/90/180/270）判出來之後，再量「文字行還歪幾度」。
+   *
+   *   1. 先把照片依粗角度轉正（renderRot），得到一張「大致擺正」的畫面。
+   *   2. 用 OrientSkew 量這張畫面的文字行傾斜（±45° 內）。
+   *   3. 最終角度 = 粗角度 + 細部角度（可為小數）。
+   *
+   * 只有 ok===true 才做＋判不出方向時完全不動，維持「這樣對嗎？」的原本行為。
+   * 任何例外都吞掉，退回粗角度，絕不讓自動轉正失敗。
+   */
+  function refineSkew(imgEl, res, t0) {
+    if (!res || !res.ok) return res;
+    var SK = global.OrientSkew;
+    if (!SK || typeof SK.estimate !== 'function') return res;
+    try {
+      var coarse = Number(res.angle) || 0;
+      var pr = renderRot(imgEl, coarse, { edge: 900 });
+      var est = SK.estimate(pr.canvas, 640);
+      if (!est || !est.ok || !est.delta) {
+        res.skew = est ? { ok: !!est.ok, delta: 0, reason: est.reason } : null;
+        return res;
+      }
+      var total = coarse + Number(est.delta);
+      total = ((total % 360) + 360) % 360;
+      /* 取到 0.1 度，避免浮點尾數 */
+      total = Math.round(total * 10) / 10;
+      res.angle = total;
+      res.coarseAngle = coarse;
+      res.skew = { ok: true, delta: est.delta, confidence: est.confidence, reason: est.reason };
+      res.reason = (res.reason || '') + '+skew' + est.delta;
+      res.ms = Math.round(((global.performance && performance.now) ? performance.now() : Date.now()) - t0);
+      return res;
+    } catch (e) {
+      res.skew = { ok: false, delta: 0, reason: 'skew-error' };
+      return res;
+    }
   }
 
   function detectInner(imgEl, t0) {

@@ -1,5 +1,8 @@
 name: wmfix
-on: workflow_dispatch
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-wm.yml'
 permissions:
   contents: write
 jobs:

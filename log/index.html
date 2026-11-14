@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="format-detection" content="telephone=no">
-<title>查驗紀錄表｜每支樁位檢查資訊</title>
+<title>查驗紀錄表｜逐筆記錄 · 樁位資料表</title>
 <style>
   :root{
     --ink:#1b2430; --ink-2:#3d4a5c; --muted:#6b7a8d;
@@ -45,7 +45,7 @@
   .field:last-child{margin-bottom:0;}
   label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:5px;}
   label .hint{font-weight:400;color:var(--muted);font-size:11.5px;margin-left:5px;}
-  input[type=text],input[type=date],input[type=number],select,textarea{
+  input[type=text],input[type=date],select,textarea{
     width:100%;padding:9px 11px;font-size:14px;border:1px solid var(--line);border-radius:7px;
     background:#fcfdfe;color:var(--ink);font-family:inherit;line-height:1.5;
     transition:border-color .15s,box-shadow .15s,background .15s;
@@ -74,7 +74,43 @@
 
   .pilepick{display:flex;gap:7px;align-items:center;}
   .pilepick select{flex:1;min-width:0;}
+  .chipall{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
+  .chipall:empty{display:none;}
+  .bulkbtn{font-family:inherit;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;
+    background:#fff;color:var(--steel-2);border:1px dashed #b9cbe4;cursor:pointer;transition:.15s;}
+  .bulkbtn:hover{background:#eef4fc;border-style:solid;}
+  .bulkbtn:disabled{opacity:.45;cursor:not-allowed;}
 
+  .fixedrow{display:flex;align-items:center;gap:9px;padding:8px 11px;border:1px solid var(--line-2);
+    border-radius:7px;background:#f7f9fc;margin-bottom:7px;font-size:13px;}
+  .fixedrow:last-child{margin-bottom:0;}
+  .fixedrow .k{flex:0 0 74px;color:var(--muted);font-size:12px;font-weight:600;}
+  .fixedrow .v{flex:1;min-width:0;color:var(--ink);font-weight:600;word-break:break-all;}
+  .fixedrow .lk{flex:0 0 auto;font-size:10.5px;color:var(--ok);background:#e9f5ee;
+    border:1px solid #cfe6da;padding:0 6px;border-radius:20px;font-weight:600;}
+
+  .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;}
+  table.rec{width:100%;border-collapse:collapse;min-width:620px;}
+  table.rec th:nth-child(1){width:40px;}
+  table.rec th:nth-child(2){width:118px;}
+  table.rec th:nth-child(3){width:82px;}
+  table.rec th:nth-child(4){width:82px;}
+  table.rec th:nth-child(5){width:auto;min-width:220px;}
+  table.rec th:nth-child(6){width:46px;}
+  table.rec th{background:#eef2f7;color:var(--ink-2);font-size:12px;font-weight:700;
+    padding:8px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
+  table.rec th.c,table.rec td.c{text-align:center;}
+  table.rec td{padding:6px 6px;border-bottom:1px solid var(--line-2);vertical-align:top;font-size:13px;}
+  table.rec tr:last-child td{border-bottom:none;}
+  table.rec tr:hover td{background:#fafcfe;}
+  table.rec .seq{font-weight:700;color:var(--amber);font-size:12.5px;width:44px;}
+  table.rec input,table.rec select{font-size:12.5px;padding:6px 8px;border-radius:6px;}
+  table.rec .del{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;
+    line-height:1;padding:3px 7px;border-radius:5px;}
+  table.rec .del:hover{background:#fdf3f2;}
+  .empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13px;}
+
+  /* 樁位資料表：量測表 */
   .mtable{width:100%;border-collapse:collapse;margin-top:4px;}
   .mtable th{background:#eef2f7;color:var(--ink-2);font-size:12px;font-weight:700;
     padding:8px 10px;text-align:left;border:1px solid var(--line);white-space:nowrap;}
@@ -90,19 +126,7 @@
   .mtable .inline .sep{color:var(--muted);font-size:12px;}
   .mtable .calc{font-weight:700;color:var(--steel-2);min-width:52px;display:inline-block;}
 
-  .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;}
-  table.rec{width:100%;border-collapse:collapse;min-width:760px;}
-  table.rec th{background:#eef2f7;color:var(--ink-2);font-size:12px;font-weight:700;
-    padding:8px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
-  table.rec th.c,table.rec td.c{text-align:center;}
-  table.rec td{padding:7px 8px;border-bottom:1px solid var(--line-2);vertical-align:top;font-size:13px;}
-  table.rec tr:last-child td{border-bottom:none;}
-  table.rec tr:hover td{background:#fafcfe;}
-  table.rec .seq{font-weight:700;color:var(--amber);font-size:12.5px;}
   table.rec .pile{font-weight:700;color:var(--steel-2);}
-  table.rec .del{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;
-    line-height:1;padding:3px 7px;border-radius:5px;}
-  table.rec .del:hover{background:#fdf3f2;}
   table.rec .exp{background:none;border:1px solid var(--line);color:var(--ink-2);cursor:pointer;
     font-size:11.5px;padding:2px 8px;border-radius:5px;font-family:inherit;}
   table.rec .exp:hover{background:#f5f8fb;}
@@ -112,7 +136,10 @@
   .detail .di{font-size:12.5px;color:var(--ink-2);}
   .detail .di b{color:var(--muted);font-weight:600;margin-right:5px;}
   .detail .di span{font-weight:700;color:var(--ink);}
-  .empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13px;}
+
+  .qbar{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;}
+  .qbar .field{margin-bottom:0;flex:1;min-width:180px;}
+  .qbar .btn{flex:0 0 auto;}
 
   .note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:12px;
     background:#f7f9fc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
@@ -122,9 +149,6 @@
     opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:90vw;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   .toast.err{background:var(--danger);}
-  .qbar{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;}
-  .qbar .field{margin-bottom:0;flex:1;min-width:180px;}
-  .qbar .btn{flex:0 0 auto;}
   @media (max-width:760px){
     .entry{grid-template-columns:1fr;}
     .mtable td.design{width:44%;font-size:12px;}
@@ -138,39 +162,41 @@
     <div class="logo">錄</div>
     <div>
       <h1>查驗紀錄表</h1>
-      <div class="sub">每支樁位一筆檢查紀錄 · 依樁號查詢 · 雲端同步</div>
+      <div class="sub">逐筆新增查驗紀錄 · 樁位資料表（每支樁位檢查資訊）· 雲端同步</div>
     </div>
     <div class="hmeta">
-      紀錄筆數 <b id="hCount">0</b><br>
-      已查驗樁位 <b id="hPiles">0</b> 支
+      查驗紀錄 <b id="hCount">0</b> 筆<br>
+      樁位檢查 <b id="hPiles">0</b> 筆
     </div>
   </div>
 </header>
 
 <div class="wrap">
 
+  <!-- ============ 一、查驗紀錄表 ============ -->
   <div class="card">
     <div class="card-h"><h2>固定欄位</h2><span class="tag">沿用既有設定</span></div>
     <div class="card-b">
-      <div class="entry">
-        <div class="field">
-          <label>工程名稱</label>
-          <input type="text" id="vProject" readonly>
-        </div>
-        <div class="field">
-          <label>承包廠商</label>
-          <input type="text" id="vContractor" readonly>
-        </div>
-        <div class="field">
-          <label>工地主任</label>
-          <input type="text" id="vSite" readonly>
-        </div>
+      <div class="fixedrow">
+        <span class="k">工程名稱</span>
+        <span class="v" id="vProject">布袋商港聯外道路新闢工程</span>
+        <span class="lk">已固定</span>
+      </div>
+      <div class="fixedrow">
+        <span class="k">承包商</span>
+        <span class="v" id="vContractor">義力營造股份有限公司</span>
+        <span class="lk">已固定</span>
+      </div>
+      <div class="fixedrow">
+        <span class="k">工地主任</span>
+        <span class="v" id="vSite">王振國</span>
+        <span class="lk">已固定</span>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <div class="card-h"><h2>新增一筆樁位檢查紀錄</h2><span class="tag">一支樁位一筆</span></div>
+    <div class="card-h"><h2>新增一筆查驗紀錄</h2><span class="tag">填寫後按新增</span></div>
     <div class="card-b">
       <div class="entry">
         <div class="field">
@@ -185,11 +211,82 @@
           <label for="inSupervisor">監造人員</label>
           <select id="inSupervisor"></select>
         </div>
-        <div class="field">
-          <label for="inPile">樁號 <span class="hint">先選墩號再選樁號</span></label>
-          <div class="pilepick">
+        <div class="field full">
+          <label for="inLocation">查驗位置 <span class="hint">自由文字 ＋ 墩號／樁號（選完自動併入）</span></label>
+          <input type="text" id="inLocation" placeholder="例：PR4-1、PR4-2 橋墩基礎">
+          <div class="pilepick" style="margin-top:8px;">
             <select id="inPier"></select>
             <select id="inPile" disabled></select>
+          </div>
+          <div class="chipall" id="bulkBox"></div>
+        </div>
+
+        <div class="btnrow">
+          <button class="btn btn-primary" id="btnAdd" type="button">＋ 新增紀錄</button>
+          <button class="btn btn-ghost" id="btnResetEntry" type="button">清空欄位</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <h2>已累積紀錄</h2>
+      <span class="tag ok" id="cntTag">0 筆</span>
+      <span class="spacer"></span>
+      <button class="btn btn-danger btn-sm" id="btnClear" type="button">清除全部</button>
+    </div>
+    <div class="card-b">
+      <div class="tblwrap">
+        <table class="rec" id="recTable">
+          <thead>
+            <tr>
+              <th class="c">序號</th>
+              <th>日期</th>
+              <th>查驗人員</th>
+              <th>監造派員</th>
+              <th>查驗位置</th>
+              <th class="c">操作</th>
+            </tr>
+          </thead>
+          <tbody id="recBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="emptyHint">尚無紀錄，請於上方填寫後按「＋ 新增紀錄」</div>
+      <div class="note" style="margin-top:11px;">
+        <b>本機保存：</b>紀錄自動存在此瀏覽器（localStorage），重新整理或下次開啟仍在。
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 二、樁位資料表（獨立區塊） ============ -->
+  <div class="card" id="pileCard">
+    <div class="card-h">
+      <h2>樁位資料表</h2>
+      <span class="tag">每支樁位一筆檢查資訊</span>
+      <span class="spacer"></span>
+      <span class="tag ok" id="pCntTag">0 筆</span>
+    </div>
+    <div class="card-b">
+
+      <div class="entry">
+        <div class="field">
+          <label for="pDate">查驗日期 <span class="hint">yyyy/mm/dd</span></label>
+          <input type="date" id="pDate">
+        </div>
+        <div class="field">
+          <label for="pInspector">查驗人員</label>
+          <select id="pInspector"></select>
+        </div>
+        <div class="field">
+          <label for="pSupervisor">監造人員</label>
+          <select id="pSupervisor"></select>
+        </div>
+        <div class="field">
+          <label for="pPile">樁號 <span class="hint">先選墩號再選樁號</span></label>
+          <div class="pilepick">
+            <select id="pPier"></select>
+            <select id="pPile" disabled></select>
           </div>
         </div>
       </div>
@@ -291,46 +388,33 @@
 
       <div class="entry" style="margin-top:13px;">
         <div class="field full">
-          <label for="inNote">備註 <span class="hint">選填</span></label>
-          <input type="text" id="inNote" placeholder="例：樁頭打除後複測">
+          <label for="pNote">備註 <span class="hint">選填</span></label>
+          <input type="text" id="pNote" placeholder="例：樁頭打除後複測">
         </div>
         <div class="btnrow">
-          <button class="btn btn-primary" id="btnAdd" type="button">＋ 新增紀錄</button>
-          <button class="btn btn-ghost" id="btnResetEntry" type="button">清空欄位</button>
+          <button class="btn btn-primary" id="btnPAdd" type="button">＋ 新增樁位檢查</button>
+          <button class="btn btn-ghost" id="btnPReset" type="button">清空欄位</button>
         </div>
       </div>
-    </div>
-  </div>
 
-  <div class="card">
-    <div class="card-h"><h2>依樁號查詢</h2><span class="tag" id="qTag">全部</span></div>
-    <div class="card-b">
-      <div class="qbar">
-        <div class="field">
-          <label for="qPile">樁號 <span class="hint">輸入或選擇，留空顯示全部</span></label>
-          <input type="text" id="qPile" list="qPileList" placeholder="例：PR4-1">
-          <datalist id="qPileList"></datalist>
+      <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);">
+        <div class="qbar">
+          <div class="field">
+            <label for="qPile">依樁號查詢 <span class="hint">輸入或選擇，留空顯示全部</span></label>
+            <input type="text" id="qPile" list="qPileList" placeholder="例：PR4-1">
+            <datalist id="qPileList"></datalist>
+          </div>
+          <div class="field">
+            <label for="qDate">日期 <span class="hint">選填</span></label>
+            <input type="date" id="qDate">
+          </div>
+          <button class="btn btn-ghost" id="btnQClear" type="button">清除查詢</button>
         </div>
-        <div class="field">
-          <label for="qDate">日期 <span class="hint">選填</span></label>
-          <input type="date" id="qDate">
-        </div>
-        <button class="btn btn-ghost" id="btnQClear" type="button">清除查詢</button>
+        <div class="note" id="qResult" style="display:none;"></div>
       </div>
-      <div class="note" id="qResult" style="display:none;"></div>
-    </div>
-  </div>
 
-  <div class="card">
-    <div class="card-h">
-      <h2>檢查紀錄</h2>
-      <span class="tag ok" id="cntTag">0 筆</span>
-      <span class="spacer"></span>
-      <button class="btn btn-danger btn-sm" id="btnClear" type="button">清除全部</button>
-    </div>
-    <div class="card-b">
-      <div class="tblwrap">
-        <table class="rec" id="recTable">
+      <div class="tblwrap" style="margin-top:14px;">
+        <table class="rec" id="pTable">
           <thead>
             <tr>
               <th class="c" style="width:44px;">序號</th>
@@ -342,17 +426,14 @@
               <th class="c" style="width:96px;">操作</th>
             </tr>
           </thead>
-          <tbody id="recBody"></tbody>
+          <tbody id="pBody"></tbody>
         </table>
       </div>
-      <div class="empty" id="emptyHint">尚無紀錄，請於上方填寫後按「＋ 新增紀錄」</div>
-      <div class="note">
-        <b>本機保存：</b>紀錄自動存在此瀏覽器（localStorage），重新整理或下次開啟仍在。<br>
-        <b>雲端保存：</b>按下方「☁ 存到 Google Drive」即上傳雲端，換裝置按「⬇ 從 Google Drive 載入」即可取回。
-      </div>
+      <div class="empty" id="pEmptyHint">尚無樁位檢查紀錄，請於上方填寫後按「＋ 新增樁位檢查」</div>
     </div>
   </div>
 
+  <!-- ============ 三、雲端 ============ -->
   <div class="card">
     <div class="card-h">
       <h2>Google Drive 雲端備份</h2>
@@ -363,7 +444,8 @@
       <div class="note" style="margin-top:11px;">
         <b>運作方式：</b>資料仍以 localStorage 為主要儲存，雲端只是備份與跨裝置同步。
         未授權或斷網時可照常填寫；恢復後再按「☁ 存到 Google Drive」即可。<br>
-        <b>雲端位置：</b>我的雲端硬碟 → <code>營建查驗資料</code> → <code>inspection-data.json</code>（每次覆寫同一份）。
+        <b>雲端位置：</b>我的雲端硬碟 → <code>營建查驗資料</code> → <code>inspection-data.json</code>（每次覆寫同一份）。<br>
+        <b>包含內容：</b>樁位進度、查驗紀錄、樁位資料表（量測值）、材料紀錄。
       </div>
     </div>
   </div>
@@ -390,11 +472,21 @@
   var S = window.SuiteStore || null;
   var PIERS = (S && S.pierList) ? S.pierList() : [];
   var STORE_KEY = S ? S.KEY : 'inspection-log-rows-v1';
+  /* 樁位資料表獨立存放於自己的鍵，完全不動 piles／logs 既有結構，
+     因此已上傳紀錄與舊版 JSON 匯出檔都不受影響。 */
+  var PILE_KEY = 'inspection-pile-measure-v1';
 
   var state = { rows: [] };
-  var query = { pile: '', date: '' };
-  var expanded = {};
+  var pendingPiers = [];   /* 本次新增尚未送出的墩號 */
+  var pendingPiles = [];   /* 本次新增尚未送出的樁號 */
+  var freeText = '';       /* 查驗位置自由文字 */
   var dataCache = null;
+  var ALL_PILES = (S && S.load) ? S.load().piles.map(function(p){ return p.pileNo; }) : [];
+
+  /* 樁位資料表狀態 */
+  var pstate = { rows: [] };
+  var pquery = { pile: '', date: '' };
+  var pexpanded = {};
 
   function $(id){ return document.getElementById(id); }
 
@@ -407,7 +499,7 @@
   }
 
   var CORE = window.Core;
-  if (!CORE) { console.error('[log] assets/core.js 未載入'); }
+  if (!CORE) { console.error('[log] assets/core.js 未載入，共用工具無法使用'); }
   var todayISO   = CORE.todayISO;
   var isoToSlash = CORE.isoToSlash;
   var escHtml    = CORE.esc;
@@ -438,7 +530,211 @@
     return S.pileNosOf(snapshot(), pier);
   }
 
-  /* ---------- 量測欄位 ---------- */
+  /* ================= 查驗紀錄表：本機保存 ================= */
+  function save(){
+    if (S) {
+      var d = S.load();
+      d.logs = state.rows.map(function(r){
+        return {
+          id:         r.id || S.uid(),
+          date:       r.date || '',
+          inspector:  r.inspector || '',
+          supervisor: r.supervisor || '',
+          location:   r.location || '',
+          pier:       (r.piers && r.piers[0]) || '',
+          piers:      (r.piers || []).slice(),
+          piles:      (r.piles || []).slice()
+        };
+      });
+      S.recompute(d);
+      S.save(d);
+      invalidateSnapshot();
+      return;
+    }
+    try{
+      localStorage.setItem(STORE_KEY, JSON.stringify(state.rows));
+    }catch(e){ /* 私密模式或額度已滿：靜默失敗，不影響操作 */ }
+  }
+
+  function load(){
+    if (S) {
+      try{
+        var d = snapshot();
+        return (d.logs || []).map(function(r){
+          var parsed = parseLocation(String(r.location || ''));
+          return {
+            id:         String(r.id || ''),
+            date:       String(r.date || ''),
+            inspector:  String(r.inspector || ''),
+            supervisor: String(r.supervisor || ''),
+            location:   parsed.text,
+            piers:      uniq((S.logPiers ? S.logPiers(d, r) : (r.piers || [])).concat(parsed.piers)),
+            piles:      uniq((S.logPileNos ? S.logPileNos(d, r) : (r.piles || [])).concat(parsed.piles))
+          };
+        });
+      }catch(e){ return null; }
+    }
+    try{
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return null;
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return null;
+      return arr.map(function(r){
+        r = r || {};
+        var piers = uniq(r.piers || (r.pier ? [r.pier] : []));
+        return {
+          date:       String(r.date || ''),
+          inspector:  String(r.inspector || ''),
+          supervisor: String(r.supervisor || ''),
+          location:   String(r.location || ''),
+          piers:      piers,
+          piles:      uniq(r.piles)
+        };
+      });
+    }catch(e){ return null; }
+  }
+
+  function fillSelect(sel, list, placeholder){
+    sel.innerHTML = '';
+    var o0 = document.createElement('option');
+    o0.value = ''; o0.textContent = placeholder || '— 請選擇 —';
+    sel.appendChild(o0);
+    list.forEach(function(v){
+      var o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  }
+
+  function sortRows(){
+    state.rows.sort(function(a, b){
+      var c = String(a.date || '').localeCompare(String(b.date || ''));
+      if (c) return c;
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    });
+  }
+
+  function addRow(data){
+    state.rows.push({
+      id:         (S ? S.uid() : 'r' + Date.now()),
+      date:       (data && data.date) || '',
+      inspector:  (data && data.inspector) || '',
+      supervisor: (data && data.supervisor) || '',
+      location:   (data && data.location) || '',
+      piers:      uniq((data && data.piers) || []),
+      piles:      uniq((data && data.piles) || [])
+    });
+    sortRows();
+    save();
+    render();
+  }
+
+  function removeRow(i){
+    state.rows.splice(i, 1);
+    save();
+    render();
+  }
+
+  function composeLoc(r){
+    var piles = (r.piles || []);
+    var piers = (r.piers || []);
+    var txt = String(r.location || '').trim();
+    var head = '';
+    if (piles.length) head = piles.join('、');
+    else if (piers.length) head = piers.join('、') + ' 墩';
+    return [head, txt].filter(Boolean).join(' ');
+  }
+
+  function parseLocation(text){
+    var tokens = String(text || '').split(/[\s、，,;；]+/).filter(Boolean);
+    var piles = [], piers = [], free = [];
+    tokens.forEach(function(tok){
+      if (ALL_PILES.indexOf(tok) >= 0) { if (piles.indexOf(tok) < 0) piles.push(tok); return; }
+      if (PIERS.indexOf(tok) >= 0) { if (piers.indexOf(tok) < 0) piers.push(tok); return; }
+      if (tok === '墩' && piers.length) return;
+      free.push(tok);
+    });
+    piles.forEach(function(no){
+      var p = pierOfPile(no);
+      if (p && piers.indexOf(p) < 0) piers.push(p);
+    });
+    return { piles: piles, piers: piers, text: free.join(' ') };
+  }
+
+  function renderRows(){
+    var body = $('recBody');
+    body.innerHTML = '';
+    $('emptyHint').style.display = state.rows.length ? 'none' : 'block';
+    $('cntTag').textContent = state.rows.length + ' 筆';
+
+    state.rows.forEach(function(r, i){
+      var tr = document.createElement('tr');
+
+      var tdSeq = document.createElement('td');
+      tdSeq.className = 'c seq';
+      tdSeq.textContent = (i + 1);
+      tr.appendChild(tdSeq);
+
+      var tdDate = document.createElement('td');
+      var inDate = document.createElement('input');
+      inDate.type = 'date';
+      inDate.value = r.date || '';
+      inDate.addEventListener('change', function(){ r.date = inDate.value; sortRows(); save(); render(); });
+      inDate.addEventListener('input',  function(){ r.date = inDate.value; save(); });
+      tdDate.appendChild(inDate);
+      tr.appendChild(tdDate);
+
+      var tdIns = document.createElement('td');
+      var selIns = document.createElement('select');
+      fillSelect(selIns, INSPECTORS, '—');
+      selIns.value = r.inspector || '';
+      selIns.addEventListener('change', function(){ r.inspector = selIns.value; save(); });
+      tdIns.appendChild(selIns);
+      tr.appendChild(tdIns);
+
+      var tdSup = document.createElement('td');
+      var selSup = document.createElement('select');
+      fillSelect(selSup, SUPERVISORS, '—');
+      selSup.value = r.supervisor || '';
+      selSup.addEventListener('change', function(){ r.supervisor = selSup.value; save(); });
+      tdSup.appendChild(selSup);
+      tr.appendChild(tdSup);
+
+      var tdLoc = document.createElement('td');
+      var inLoc = document.createElement('input');
+      inLoc.type = 'text';
+      inLoc.value = composeLoc(r);
+      inLoc.placeholder = '例：PR4-1、PR4-2 橋墩基礎';
+      inLoc.addEventListener('input', function(){
+        var parsed = parseLocation(inLoc.value);
+        r.location = parsed.text;
+        r.piers = parsed.piers;
+        r.piles = parsed.piles;
+        save();
+      });
+      tdLoc.appendChild(inLoc);
+      tr.appendChild(tdLoc);
+
+      var tdOp = document.createElement('td');
+      tdOp.className = 'c';
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'del';
+      del.title = '刪除本筆';
+      del.textContent = '×';
+      del.addEventListener('click', function(){ removeRow(i); });
+      tdOp.appendChild(del);
+      tr.appendChild(tdOp);
+
+      body.appendChild(tr);
+    });
+
+    $('hCount').textContent = state.rows.length;
+  }
+
+  function render(){ renderRows(); }
+
+  /* ================= 樁位資料表 ================= */
   var M_KEYS = ['el','actual','upCm','upCnt','lowCm','lowCnt','depth','lap',
                 'weldCm','weldCnt','plumb','topA','topB','dia'];
   var M_IDS = {
@@ -483,166 +779,80 @@
     }
   }
 
-  /* ---------- 本機保存 ---------- */
-  function save(){
-    if (S) {
-      var d = S.load();
-      d.logs = state.rows.map(function(r){
-        return {
-          id:         r.id || S.uid(),
-          date:       r.date || '',
-          inspector:  r.inspector || '',
-          supervisor: r.supervisor || '',
-          location:   r.location || '',
-          pier:       r.pier || '',
-          piers:      (r.piers || []).slice(),
-          piles:      (r.piles || []).slice(),
-          note:       r.note || '',
-          m:          normM(r.m)
-        };
-      });
-      S.recompute(d);
-      S.save(d);
-      invalidateSnapshot();
-      return;
-    }
+  function pSave(){
     try{
-      localStorage.setItem(STORE_KEY, JSON.stringify(state.rows));
-    }catch(e){ /* 私密模式或額度已滿：靜默失敗 */ }
+      localStorage.setItem(PILE_KEY, JSON.stringify(pstate.rows));
+      return true;
+    }catch(e){ return false; }
   }
 
-  function load(){
-    if (S) {
-      try{
-        var d = snapshot();
-        return (d.logs || []).map(function(r){
-          var piles = uniq((S.logPileNos ? S.logPileNos(d, r) : (r.piles || [])));
-          var piers = uniq((S.logPiers ? S.logPiers(d, r) : (r.piers || [])));
-          return {
-            id:         String(r.id || ''),
-            date:       String(r.date || ''),
-            inspector:  String(r.inspector || ''),
-            supervisor: String(r.supervisor || ''),
-            location:   String(r.location || ''),
-            pier:       String(r.pier || (piers[0] || '')),
-            piers:      piers,
-            piles:      piles,
-            note:       String(r.note || ''),
-            m:          normM(r.m)
-          };
-        });
-      }catch(e){ return null; }
-    }
+  function pLoad(){
     try{
-      var raw = localStorage.getItem(STORE_KEY);
-      if (!raw) return null;
+      var raw = localStorage.getItem(PILE_KEY);
+      if (!raw) return [];
       var arr = JSON.parse(raw);
-      if (!Array.isArray(arr)) return null;
+      if (!Array.isArray(arr)) return [];
       return arr.map(function(r){
         r = r || {};
-        var piers = uniq(r.piers || (r.pier ? [r.pier] : []));
+        var pile = String(r.pile || '');
         return {
-          id:         String(r.id || ''),
+          id:         String(r.id || 'p' + Math.random().toString(36).slice(2, 9)),
           date:       String(r.date || ''),
           inspector:  String(r.inspector || ''),
           supervisor: String(r.supervisor || ''),
-          location:   String(r.location || ''),
-          pier:       String(r.pier || (piers[0] || '')),
-          piers:      piers,
-          piles:      uniq(r.piles),
+          pier:       String(r.pier || pierOfPile(pile)),
+          pile:       pile,
           note:       String(r.note || ''),
           m:          normM(r.m)
         };
       });
-    }catch(e){ return null; }
+    }catch(e){ return []; }
   }
 
-  function sortRows(){
-    state.rows.sort(function(a, b){
+  function pSort(){
+    pstate.rows.sort(function(a, b){
       var c = String(a.date || '').localeCompare(String(b.date || ''));
       if (c) return c;
-      return String(a.id || '').localeCompare(String(b.id || ''));
+      return String(a.pile || '').localeCompare(String(b.pile || ''));
     });
   }
 
-  function addRow(data){
-    state.rows.push({
-      id:         (S ? S.uid() : 'r' + Date.now()),
+  function pAdd(data){
+    pstate.rows.push({
+      id:         'p' + Date.now() + Math.random().toString(36).slice(2, 6),
       date:       (data && data.date) || '',
       inspector:  (data && data.inspector) || '',
       supervisor: (data && data.supervisor) || '',
-      location:   (data && data.location) || '',
       pier:       (data && data.pier) || '',
-      piers:      uniq((data && data.piers) || []),
-      piles:      uniq((data && data.piles) || []),
+      pile:       (data && data.pile) || '',
       note:       (data && data.note) || '',
       m:          normM(data && data.m)
     });
-    sortRows();
-    save();
-    render();
+    pSort();
+    pSave();
+    pRender();
   }
 
-  function removeRow(id){
+  function pRemove(id){
     var i = -1;
-    state.rows.forEach(function(r, k){ if (r.id === id) i = k; });
+    pstate.rows.forEach(function(r, k){ if (r.id === id) i = k; });
     if (i < 0) return;
-    state.rows.splice(i, 1);
-    save();
-    render();
+    pstate.rows.splice(i, 1);
+    pSave();
+    pRender();
   }
 
-  /* ---------- 下拉 ---------- */
-  function fillSelect(sel, list, placeholder){
-    sel.innerHTML = '';
-    var o0 = document.createElement('option');
-    o0.value = ''; o0.textContent = placeholder || '— 請選擇 —';
-    sel.appendChild(o0);
-    list.forEach(function(v){
-      var o = document.createElement('option');
-      o.value = v; o.textContent = v;
-      sel.appendChild(o);
-    });
-  }
-
-  function refreshPileSelect(){
-    var sel = $('inPile');
-    sel.innerHTML = '';
-    var pier = $('inPier').value;
-    if (!pier) {
-      sel.disabled = true;
-      var o = document.createElement('option');
-      o.value = ''; o.textContent = '— 請先選墩號 —';
-      sel.appendChild(o);
-      return;
+  function pMatch(r){
+    if (pquery.pile) {
+      var q = pquery.pile.trim().toUpperCase();
+      var no = String(r.pile || '').toUpperCase();
+      if (no !== q && no.indexOf(q) < 0) return false;
     }
-    var nos = pileNosOfPier(pier);
-    var o0 = document.createElement('option');
-    o0.value = ''; o0.textContent = '— 選擇樁號 —';
-    sel.appendChild(o0);
-    nos.forEach(function(no){
-      var op = document.createElement('option');
-      op.value = no; op.textContent = no;
-      sel.appendChild(op);
-    });
-    sel.disabled = !nos.length;
-  }
-
-  /* ---------- 查詢 ---------- */
-  function matchQuery(r){
-    if (query.pile) {
-      var q = query.pile.trim().toUpperCase();
-      var hit = (r.piles || []).some(function(no){ return String(no).toUpperCase() === q; });
-      if (!hit) {
-        hit = (r.piles || []).some(function(no){ return String(no).toUpperCase().indexOf(q) >= 0; });
-      }
-      if (!hit) return false;
-    }
-    if (query.date && r.date !== query.date) return false;
+    if (pquery.date && r.date !== pquery.date) return false;
     return true;
   }
 
-  function summaryOf(r){
+  function pSummary(r){
     var m = r.m || {};
     var bits = [];
     if (m.depth) bits.push('深度 ' + m.depth + 'm');
@@ -655,7 +865,7 @@
     return bits.length ? bits.join('　·　') : '—';
   }
 
-  function detailHtml(r){
+  function pDetailHtml(r){
     var m = r.m || {};
     function di(k, v){
       if (!v) return '';
@@ -681,21 +891,17 @@
     return h;
   }
 
-  /* ---------- 渲染 ---------- */
-  function renderRows(){
-    var body = $('recBody');
+  function pRender(){
+    var body = $('pBody');
     body.innerHTML = '';
 
-    var list = state.rows.filter(matchQuery);
+    var list = pstate.rows.filter(pMatch);
 
-    $('emptyHint').style.display = list.length ? 'none' : 'block';
-    $('emptyHint').textContent = state.rows.length
-      ? '查無符合條件的紀錄，請調整樁號或日期。'
-      : '尚無紀錄，請於上方填寫後按「＋ 新增紀錄」';
-    $('cntTag').textContent = list.length + ' 筆';
-    $('qTag').textContent = (query.pile || query.date)
-      ? ('查詢中' + (query.pile ? '：' + query.pile : '') + (query.date ? '　' + query.date : ''))
-      : '全部';
+    $('pEmptyHint').style.display = list.length ? 'none' : 'block';
+    $('pEmptyHint').textContent = pstate.rows.length
+      ? '查無符合條件的樁位紀錄，請調整樁號或日期。'
+      : '尚無樁位檢查紀錄，請於上方填寫後按「＋ 新增樁位檢查」';
+    $('pCntTag').textContent = list.length + ' 筆';
 
     list.forEach(function(r, i){
       var tr = document.createElement('tr');
@@ -711,7 +917,7 @@
 
       var tdPile = document.createElement('td');
       tdPile.className = 'pile';
-      tdPile.textContent = (r.piles && r.piles.length) ? r.piles.join('、') : (r.pier || '—');
+      tdPile.textContent = r.pile || r.pier || '—';
       tr.appendChild(tdPile);
 
       var tdIns = document.createElement('td');
@@ -723,7 +929,7 @@
       tr.appendChild(tdSup);
 
       var tdSum = document.createElement('td');
-      tdSum.textContent = summaryOf(r);
+      tdSum.textContent = pSummary(r);
       tr.appendChild(tdSum);
 
       var tdOp = document.createElement('td');
@@ -731,10 +937,10 @@
       var exp = document.createElement('button');
       exp.type = 'button';
       exp.className = 'exp';
-      exp.textContent = expanded[r.id] ? '收合' : '明細';
+      exp.textContent = pexpanded[r.id] ? '收合' : '明細';
       exp.addEventListener('click', function(){
-        expanded[r.id] = !expanded[r.id];
-        renderRows();
+        pexpanded[r.id] = !pexpanded[r.id];
+        pRender();
       });
       var del = document.createElement('button');
       del.type = 'button';
@@ -742,8 +948,8 @@
       del.title = '刪除本筆';
       del.textContent = '×';
       del.addEventListener('click', function(){
-        if (!window.confirm('確定刪除「' + ((r.piles && r.piles[0]) || r.pier || '') + '　' + isoToSlash(r.date) + '」這筆紀錄？')) return;
-        removeRow(r.id);
+        if (!window.confirm('確定刪除「' + (r.pile || r.pier || '') + '　' + isoToSlash(r.date) + '」這筆樁位紀錄？')) return;
+        pRemove(r.id);
       });
       tdOp.appendChild(exp);
       tdOp.appendChild(del);
@@ -751,26 +957,26 @@
 
       body.appendChild(tr);
 
-      if (expanded[r.id]) {
+      if (pexpanded[r.id]) {
         var dtr = document.createElement('tr');
         dtr.className = 'detail';
         var dtd = document.createElement('td');
         dtd.colSpan = 7;
-        dtd.innerHTML = detailHtml(r);
+        dtd.innerHTML = pDetailHtml(r);
         dtr.appendChild(dtd);
         body.appendChild(dtr);
       }
     });
 
     var qr = $('qResult');
-    if (query.pile || query.date) {
+    if (pquery.pile || pquery.date) {
       qr.style.display = '';
       if (!list.length) {
-        qr.innerHTML = '<b>查無紀錄：</b>' + escHtml(query.pile || '') +
-          (query.date ? '　' + escHtml(query.date) : '') + ' 尚無檢查紀錄。';
+        qr.innerHTML = '<b>查無紀錄：</b>' + escHtml(pquery.pile || '') +
+          (pquery.date ? '　' + escHtml(pquery.date) : '') + ' 尚無樁位檢查紀錄。';
       } else {
         var piles = {};
-        list.forEach(function(r){ (r.piles || []).forEach(function(no){ piles[no] = 1; }); });
+        list.forEach(function(r){ if (r.pile) piles[r.pile] = 1; });
         qr.innerHTML = '<b>查詢結果：</b>共 ' + list.length + ' 筆，涵蓋 ' +
           Object.keys(piles).length + ' 支樁位（' + escHtml(Object.keys(piles).join('、')) + '）。';
       }
@@ -778,24 +984,135 @@
       qr.style.display = 'none';
     }
 
-    var allPiles = {};
-    state.rows.forEach(function(r){ (r.piles || []).forEach(function(no){ allPiles[no] = 1; }); });
-    $('hCount').textContent = state.rows.length;
-    $('hPiles').textContent = Object.keys(allPiles).length;
+    $('hPiles').textContent = pstate.rows.length;
   }
 
-  function render(){ renderRows(); }
+  function refreshPPileSelect(){
+    var sel = $('pPile');
+    sel.innerHTML = '';
+    var pier = $('pPier').value;
+    if (!pier) {
+      sel.disabled = true;
+      var o = document.createElement('option');
+      o.value = ''; o.textContent = '— 請先選墩號 —';
+      sel.appendChild(o);
+      return;
+    }
+    var nos = pileNosOfPier(pier);
+    var o0 = document.createElement('option');
+    o0.value = ''; o0.textContent = '— 選擇樁號 —';
+    sel.appendChild(o0);
+    nos.forEach(function(no){
+      var op = document.createElement('option');
+      op.value = no; op.textContent = no;
+      sel.appendChild(op);
+    });
+    sel.disabled = !nos.length;
+  }
 
-  /* ---------- 初始化 ---------- */
-  $('vProject').value = FIXED_PROJECT;
-  $('vContractor').value = FIXED_CONTRACTOR;
-  $('vSite').value = FIXED_SITE;
+  /* ================= 查驗位置：墩號／樁號併入 ================= */
+  function syncLocationInput(){
+    $('inLocation').value = composeLoc({ piles: pendingPiles, piers: pendingPiers, location: freeText });
+  }
+
+  function addPendingPier(){
+    var v = $('inPier').value;
+    if (!v) { toast('請先選擇墩號', true); return; }
+    if (pendingPiers.indexOf(v) >= 0) { toast(v + ' 已在清單中', true); return; }
+    pendingPiers.push(v);
+    syncLocationInput();
+    refreshPileSelect();
+    renderBulk();
+    $('inPier').value = '';
+  }
+
+  function refreshPileSelect(){
+    var sel = $('inPile');
+    sel.innerHTML = '';
+
+    if (!pendingPiers.length) {
+      sel.disabled = true;
+      var o = document.createElement('option');
+      o.value = ''; o.textContent = '— 請先選墩號 —';
+      sel.appendChild(o);
+      return;
+    }
+
+    var o0 = document.createElement('option');
+    o0.value = ''; o0.textContent = '— 選擇樁號 —';
+    sel.appendChild(o0);
+
+    var any = false;
+    pendingPiers.forEach(function(p){
+      var nos = pileNosOfPier(p);
+      if (!nos.length) return;
+      var og = document.createElement('optgroup');
+      og.label = p;
+      nos.forEach(function(no){
+        var op = document.createElement('option');
+        op.value = no;
+        op.textContent = no + (pendingPiles.indexOf(no) >= 0 ? '（已加入）' : '');
+        og.appendChild(op);
+        any = true;
+      });
+      sel.appendChild(og);
+    });
+
+    sel.disabled = !any;
+  }
+
+  function addPendingPile(){
+    var no = $('inPile').value;
+    if (!no) { toast('請先選擇樁號', true); return; }
+    if (pendingPiles.indexOf(no) >= 0) { toast(no + ' 已在清單中', true); return; }
+    pendingPiles.push(no);
+    syncLocationInput();
+    refreshPileSelect();
+    renderBulk();
+    $('inPile').value = '';
+  }
+
+  function renderBulk(){
+    var box = $('bulkBox');
+    box.innerHTML = '';
+    pendingPiers.forEach(function(p){
+      var nos = pileNosOfPier(p);
+      var missing = nos.filter(function(no){ return pendingPiles.indexOf(no) < 0; });
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'bulkbtn';
+      b.textContent = p + ' 整墩全選（' + nos.length + ' 支）';
+      b.disabled = !missing.length;
+      if (!missing.length) b.textContent = p + ' 已全選';
+      b.addEventListener('click', function(){
+        pendingPiles = uniq(pendingPiles.concat(nos));
+        syncLocationInput();
+        refreshPileSelect();
+        renderBulk();
+        toast(p + ' 已加入 ' + nos.length + ' 支樁號');
+      });
+      box.appendChild(b);
+    });
+  }
+
+  /* ================= 初始化 ================= */
+  $('vProject').textContent = FIXED_PROJECT;
+  $('vContractor').textContent = FIXED_CONTRACTOR;
+  $('vSite').textContent = FIXED_SITE;
 
   fillSelect($('inInspector'), INSPECTORS, '— 請選擇 —');
   fillSelect($('inSupervisor'), SUPERVISORS, '— 請選擇 —');
   fillSelect($('inPier'), PIERS, '— 選擇墩號 —');
   $('inDate').value = todayISO();
   refreshPileSelect();
+  syncLocationInput();
+  renderBulk();
+
+  fillSelect($('pInspector'), INSPECTORS, '— 請選擇 —');
+  fillSelect($('pSupervisor'), SUPERVISORS, '— 請選擇 —');
+  fillSelect($('pPier'), PIERS, '— 選擇墩號 —');
+  $('pDate').value = todayISO();
+  refreshPPileSelect();
 
   (function(){
     var dl = $('qPileList');
@@ -804,63 +1121,74 @@
     dl.innerHTML = all.map(function(no){ return '<option value="' + escHtml(no) + '">'; }).join('');
   })();
 
-  $('inPier').addEventListener('change', refreshPileSelect);
-  $('mTopA').addEventListener('input', updateTopCalc);
-  $('mTopB').addEventListener('input', updateTopCalc);
+  $('inLocation').addEventListener('input', function(){
+    var raw = String(this.value || '');
+    var parsed = parseLocation(raw);
+    var keepPiles = pendingPiles.filter(function(no){ return raw.indexOf(no) >= 0; });
+    var keepPiers = pendingPiers.filter(function(p){ return raw.indexOf(p) >= 0; });
+    pendingPiles = uniq(keepPiles.concat(parsed.piles));
+    pendingPiers = uniq(keepPiers.concat(parsed.piers));
+    freeText = parsed.text;
+    refreshPileSelect();
+    renderBulk();
+  });
+
+  $('inPier').addEventListener('change', function(){
+    if (this.value) addPendingPier();
+  });
+
+  $('inPile').addEventListener('change', function(){
+    if (this.value) addPendingPile();
+  });
 
   $('btnAdd').addEventListener('click', function(){
-    var d   = $('inDate').value;
+    var d = $('inDate').value;
     var ins = $('inInspector').value;
     var sup = $('inSupervisor').value;
-    var pile = $('inPile').value;
+    var loc = freeText;
 
-    if (!d)   { toast('請填寫查驗日期', true); $('inDate').focus(); return; }
+    if (!d) { toast('請填寫查驗日期', true); $('inDate').focus(); return; }
     if (!ins) { toast('請選擇查驗人員', true); $('inInspector').focus(); return; }
     if (!sup) { toast('請選擇監造人員', true); $('inSupervisor').focus(); return; }
-    if (!pile){ toast('請選擇樁號', true); $('inPile').focus(); return; }
 
-    var m = readM();
-    if (!m.actual) m.actual = pile;
-
-    addRow({
-      date: d, inspector: ins, supervisor: sup,
-      location: '', pier: pierOfPile(pile),
-      piers: [pierOfPile(pile)], piles: [pile],
-      note: $('inNote').value.trim(),
-      m: m
+    var piles = pendingPiles.slice();
+    pendingPiers.forEach(function(p){
+      var has = piles.some(function(no){ return pierOfPile(no) === p; });
+      if (!has) piles = piles.concat(pileNosOfPier(p));
     });
+    piles = uniq(piles);
 
-    toast('已新增 ' + pile + ' 的檢查紀錄（共 ' + state.rows.length + ' 筆）');
+    addRow({ date:d, inspector:ins, supervisor:sup, location:loc,
+             piers:pendingPiers.slice(), piles:piles });
 
-    $('inPile').value = '';
-    $('inNote').value = '';
-    clearM();
-    $('inPile').focus();
+    var nP = pendingPiers.length, nL = piles.length;
+    pendingPiers = [];
+    pendingPiles = [];
+    freeText = '';
+    syncLocationInput();
+    refreshPileSelect();
+    renderBulk();
+
+    $('inLocation').value = '';
+    $('inLocation').focus();
+    var msg = '已新增第 ' + state.rows.length + ' 筆紀錄';
+    if (nP) msg += '（' + nP + ' 個墩號 · ' + nL + ' 支樁 已同步至進度表）';
+    toast(msg);
   });
 
   $('btnResetEntry').addEventListener('click', function(){
     $('inDate').value = todayISO();
     $('inInspector').value = '';
     $('inSupervisor').value = '';
+    $('inLocation').value = '';
     $('inPier').value = '';
-    $('inNote').value = '';
+    pendingPiers = [];
+    pendingPiles = [];
+    freeText = '';
+    syncLocationInput();
     refreshPileSelect();
-    clearM();
+    renderBulk();
     $('inDate').focus();
-  });
-
-  $('qPile').addEventListener('input', function(){
-    query.pile = String(this.value || '').trim();
-    renderRows();
-  });
-  $('qDate').addEventListener('change', function(){
-    query.date = String(this.value || '');
-    renderRows();
-  });
-  $('btnQClear').addEventListener('click', function(){
-    query.pile = ''; query.date = '';
-    $('qPile').value = ''; $('qDate').value = '';
-    renderRows();
   });
 
   $('btnClear').addEventListener('click', function(){
@@ -872,19 +1200,85 @@
     toast('已清除全部紀錄');
   });
 
-  /* ---------- Google Drive ---------- */
+  /* ---- 樁位資料表事件 ---- */
+  $('pPier').addEventListener('change', refreshPPileSelect);
+  $('mTopA').addEventListener('input', updateTopCalc);
+  $('mTopB').addEventListener('input', updateTopCalc);
+
+  $('btnPAdd').addEventListener('click', function(){
+    var d   = $('pDate').value;
+    var ins = $('pInspector').value;
+    var sup = $('pSupervisor').value;
+    var pile = $('pPile').value;
+
+    if (!d)   { toast('請填寫查驗日期', true); $('pDate').focus(); return; }
+    if (!ins) { toast('請選擇查驗人員', true); $('pInspector').focus(); return; }
+    if (!sup) { toast('請選擇監造人員', true); $('pSupervisor').focus(); return; }
+    if (!pile){ toast('請選擇樁號', true); $('pPile').focus(); return; }
+
+    var m = readM();
+    if (!m.actual) m.actual = pile;
+
+    pAdd({
+      date: d, inspector: ins, supervisor: sup,
+      pier: pierOfPile(pile), pile: pile,
+      note: $('pNote').value.trim(),
+      m: m
+    });
+
+    toast('已新增 ' + pile + ' 的樁位檢查紀錄（共 ' + pstate.rows.length + ' 筆）');
+
+    $('pPile').value = '';
+    $('pNote').value = '';
+    clearM();
+    $('pPile').focus();
+  });
+
+  $('btnPReset').addEventListener('click', function(){
+    $('pDate').value = todayISO();
+    $('pInspector').value = '';
+    $('pSupervisor').value = '';
+    $('pPier').value = '';
+    $('pNote').value = '';
+    refreshPPileSelect();
+    clearM();
+    $('pDate').focus();
+  });
+
+  $('qPile').addEventListener('input', function(){
+    pquery.pile = String(this.value || '').trim();
+    pRender();
+  });
+  $('qDate').addEventListener('change', function(){
+    pquery.date = String(this.value || '');
+    pRender();
+  });
+  $('btnQClear').addEventListener('click', function(){
+    pquery.pile = ''; pquery.date = '';
+    $('qPile').value = ''; $('qDate').value = '';
+    pRender();
+  });
+
+  /* ================= Google Drive 雲端 ================= */
   function gdSave(){
     if (!S) { toast('資料層未載入，無法同步', true); return; }
     save();
+    pSave();
     var d = S.load();
     GDrive.save({
       app: 'inspection-suite',
       kind: 'progress+logs',
       version: S.DATA_VERSION,
       savedAt: new Date().toISOString(),
-      data: { version: S.DATA_VERSION, piles: d.piles, logs: d.logs }
+      data: {
+        version: S.DATA_VERSION,
+        piles: d.piles,
+        logs: d.logs,
+        /* 新增欄位：樁位資料表。舊版程式讀到會忽略，舊檔沒有此欄位也能正常載入 */
+        pileMeasures: pstate.rows
+      }
     }).then(function(){
-      toast('已存到 Google Drive（' + state.rows.length + ' 筆紀錄）');
+      toast('已存到 Google Drive（查驗 ' + state.rows.length + ' 筆 · 樁位 ' + pstate.rows.length + ' 筆）');
     }).catch(function(e){
       toast('雲端存檔失敗：' + (e && e.message ? e.message : e), true);
     });
@@ -898,7 +1292,8 @@
         throw new Error('雲端檔案格式不符（找不到 piles 或 logs）');
       }
       var nLogs = (payload.logs || []).length;
-      if (!window.confirm('將以雲端資料覆蓋本機目前內容。\n雲端紀錄：' + nLogs + ' 筆\n本機紀錄：' + state.rows.length + ' 筆\n\n確定要載入嗎？')) {
+      var nPiles = Array.isArray(payload.pileMeasures) ? payload.pileMeasures.length : 0;
+      if (!window.confirm('將以雲端資料覆蓋本機目前內容。\n雲端查驗紀錄：' + nLogs + ' 筆\n雲端樁位檢查：' + nPiles + ' 筆\n本機查驗紀錄：' + state.rows.length + ' 筆\n本機樁位檢查：' + pstate.rows.length + ' 筆\n\n確定要載入嗎？')) {
         return;
       }
       var d = S.normalize(payload);
@@ -906,8 +1301,30 @@
       S.save(d);
       state.rows = load() || [];
       sortRows();
+
+      /* 樁位資料表：舊檔沒有 pileMeasures 時保留本機現有資料，不清空 */
+      if (Array.isArray(payload.pileMeasures)) {
+        pstate.rows = payload.pileMeasures.map(function(r){
+          r = r || {};
+          var pile = String(r.pile || '');
+          return {
+            id:         String(r.id || 'p' + Math.random().toString(36).slice(2, 9)),
+            date:       String(r.date || ''),
+            inspector:  String(r.inspector || ''),
+            supervisor: String(r.supervisor || ''),
+            pier:       String(r.pier || pierOfPile(pile)),
+            pile:       pile,
+            note:       String(r.note || ''),
+            m:          normM(r.m)
+          };
+        });
+        pSort();
+        pSave();
+      }
+
       render();
-      toast('已從 Google Drive 載入 ' + state.rows.length + ' 筆紀錄');
+      pRender();
+      toast('已從 Google Drive 載入 ' + state.rows.length + ' 筆查驗、' + pstate.rows.length + ' 筆樁位紀錄');
     }).catch(function(e){
       toast('雲端載入失敗：' + (e && e.message ? e.message : e), true);
     });
@@ -921,13 +1338,17 @@
     });
   }
 
-  /* ---------- 還原 ---------- */
+  /* ================= 還原 ================= */
   var saved = load();
   if (saved && saved.length) state.rows = saved;
   sortRows();
   render();
 
-  /* ---------- 跨頁籤同步 ---------- */
+  pstate.rows = pLoad();
+  pSort();
+  pRender();
+
+  /* ================= 跨頁籤同步 ================= */
   function reloadFromStore(){
     invalidateSnapshot();
     if (S) S.invalidate();
@@ -939,6 +1360,7 @@
   }
   window.addEventListener('storage', function(e){
     if (e.key === STORE_KEY || (S && e.key === S.KEY)) reloadFromStore();
+    if (e.key === PILE_KEY) { pstate.rows = pLoad(); pSort(); pRender(); }
   });
   window.addEventListener('focus', function(){
     var before = state.rows.length;

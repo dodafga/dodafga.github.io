@@ -1267,7 +1267,7 @@
     var raw = String(this.value || '');
     var parsed = parseLocation(raw);
     var keepPiles = pendingPiles.filter(function(no){ return raw.indexOf(no) >= 0; });
-    var keepPiers = pendingPiles.filter(function(p){ return raw.indexOf(p) >= 0; });
+    var keepPiers = pendingPiers.filter(function(p){ return raw.indexOf(p) >= 0; });
     pendingPiles = uniq(keepPiles.concat(parsed.piles));
     pendingPiers = uniq(keepPiers.concat(parsed.piers));
     freeText = parsed.text;

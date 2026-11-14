@@ -1,0 +1,41 @@
+name: restore-watermark
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/restore-wm.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and verify
+        run: |
+          set -e
+          curl -sSL -o /tmp/drive-v2.js "https://static.teamily.ai/files/dd98fec6-fa0e-4541-a988-3ecc1ff1e201/drive-v2.js"
+          echo "size: $(stat -c%s /tmp/drive-v2.js)"
+          echo "a23ef80ad23bc90bb5cc1d4a253bf2c17ff043e11e3bb896c2abacd911f7444a  /tmp/drive-v2.js" | sha256sum -c -
+          cp /tmp/drive-v2.js assets/drive-v2.js
+          node -e "new Function(require('fs').readFileSync('assets/drive-v2.js','utf8')); console.log('syntax OK')"
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "132368659+dodafga@users.noreply.github.com"
+          git add assets/drive-v2.js
+          git commit -m "fix(drive): 日期浮水印還原為 2026-11-11 F-24-03 校正版格式
+
+改回呼叫 assets/watermark.js 的 PhotoWatermark.drawWatermark()，不再自繪。
+- 顏色 橘色 #FF7505（原白字）
+- 位置 右下角（原左下角）
+- 字級 短邊 3.5%（原 4.5%）
+- 日期 2026.11.14 點號（原 2026/11/14）
+- 陰影 淡黑影（原黑色圓角底塊）
+未動：OCR 本地快取、20 秒預算、獨立 worker、旋轉、開關、上傳路徑、資料格式。"
+          git push
+      - name: Self delete
+        run: |
+          git rm .github/workflows/restore-wm.yml
+          git commit -m "chore: remove one-off workflow"
+          git push

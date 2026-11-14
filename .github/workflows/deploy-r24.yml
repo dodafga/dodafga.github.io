@@ -1,39 +1,9 @@
 name: deploy-r24
-on:
-  push:
-    paths:
-      - '.deploy-r24/**'
-  workflow_dispatch:
-permissions:
-  contents: write
+# 一次性部署已完成（2026-11-14）。此 workflow 已中和：
+# 只保留手動觸發，不會再隨 push 自動執行。可安全刪除。
+on: workflow_dispatch
 jobs:
-  deploy:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Fetch and verify
-        run: |
-          set -e
-          mkdir -p /tmp/in
-          curl -sL --compressed -o /tmp/in/log-index.html "https://static.teamily.ai/files/8cf1a44a-77bb-4330-b634-1a0edbfe969a/log-index.html.txt?tk=ZmlsZTo4Y2YxYTQ0YS03N2JiLTQzMzAtYjYzNC0xYTBlZGJmZTk2OWE6MTc5NDY0ODM4OA.NWQ3YTFmNjE4NjA1NGU3ZTM3MjM4ZGQ5ZmY5YTljYzM"
-          curl -sL --compressed -o /tmp/in/drive-v2.js "https://static.teamily.ai/files/32b861a2-c659-4b00-a7f4-a097778fbb68/drive-v2.js.txt?tk=ZmlsZTozMmI4NjFhMi1jNjU5LTRiMDAtYTdmNC1hMDk3Nzc4ZmJiNjg6MTc5NDY0ODM4OA.OWUxZjUzNGM3Y2QzN2JlODBiOGViMWNmMzcyNzZiMGQ"
-          curl -sL --compressed -o /tmp/in/drive-v2.css "https://static.teamily.ai/files/ff57aa7a-8b80-49bd-8362-2621a7e9bef6/drive-v2.css.txt?tk=ZmlsZTpmZjU3YWE3YS04YjgwLTQ5YmQtODM2Mi0yNjIxYTdlOWJlZjY6MTc5NDY0ODM4OA.M2Y4Y2EzNWMzMDFlNmU0ZGU0MDlkNTcxNWZmZmJlNzc"
-          curl -sL --compressed -o /tmp/in/drive-index.html "https://static.teamily.ai/files/4965b8cf-327e-428f-a91c-ee42be9e53a9/drive-index.html.txt?tk=ZmlsZTo0OTY1YjhjZi0zMjdlLTQyOGYtYTkxYy1lZTQyYmU5ZTUzYTk6MTc5NDY0ODM4OA.MTVkZDg0Y2Y0OTliNTg1ZTk3NzdkN2FiNWRlZjU2ODE"
-          ls -l /tmp/in
-          echo "8fd171344329ee419e8ca95cf541c53f32cd35f0c2dea58c290efc24283ee09a  /tmp/in/log-index.html" | sha256sum -c -
-          echo "eee843cc88ba4e7bf8594e950adf4b44c10db40eef02e3eb1720aaf927e7398c  /tmp/in/drive-v2.js" | sha256sum -c -
-          echo "869e64d919d7ccea549e6cb74c14af6939d858ac271e7328b92cefff892d5cc5  /tmp/in/drive-v2.css" | sha256sum -c -
-          echo "c09a3fa6cc29c32769c0a8bfbfc231a863c21b43de4173a642a48f1bad22f646  /tmp/in/drive-index.html" | sha256sum -c -
-          cp /tmp/in/log-index.html log/index.html
-          cp /tmp/in/drive-v2.js assets/drive-v2.js
-          cp /tmp/in/drive-v2.css assets/drive-v2.css
-          cp /tmp/in/drive-index.html drive/index.html
-          node --check assets/drive-v2.js
-          echo "ALL VERIFIED"
-      - name: Commit
-        run: |
-          git config user.name "dodafga"
-          git config user.email "dodafga@users.noreply.github.com"
-          git add log/index.html assets/drive-v2.js assets/drive-v2.css drive/index.html
-          git commit -m "feat(drive): jump-to-N input in stage viewer; feat(log): pier-then-pile query, date-filtered piles, auto staff fill" || echo "nothing to commit"
-          git push
+      - run: echo "one-off deploy already completed; nothing to do"

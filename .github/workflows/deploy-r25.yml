@@ -1,0 +1,34 @@
+name: deploy-r25
+on:
+  push:
+    paths:
+      - '.deploy-r25/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and verify
+        run: |
+          set -e
+          mkdir -p /tmp/in
+          curl -sL --compressed -o /tmp/in/sw-ocr.js "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/r25-deploy/sw-ocr.js.txt"
+          curl -sL --compressed -o /tmp/in/log-index.html "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/r25-deploy/log-index.html.txt"
+          echo "7eebb2187b1fe55716c78e201f12ea228758b98c0ebd4b9e09e0d9f69c370691  /tmp/in/sw-ocr.js" | sha256sum -c -
+          echo "9338d1310fa9cb071afdd094ab15802917271d227b33427ceaa3a6a9000002d8  /tmp/in/log-index.html" | sha256sum -c -
+          cp /tmp/in/sw-ocr.js sw-ocr.js
+          cp /tmp/in/log-index.html log/index.html
+          node --check sw-ocr.js
+          grep -q "drive-offline-v3" sw-ocr.js
+          grep -q "optDone" log/index.html
+          echo "ALL VERIFIED"
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add sw-ocr.js log/index.html
+          git commit -m "fix(drive): SW v3 network-first so new code actually reaches users; feat(log): filed/unfiled pile markers" || echo "nothing to commit"
+          git push

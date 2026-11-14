@@ -76,6 +76,15 @@
   .pilepick select{flex:1;min-width:0;}
   .phint{font-size:11.5px;line-height:1.6;margin-top:6px;color:var(--muted);}
   .phint.warn{color:var(--danger);font-weight:600;}
+  /* 樁號「已建檔／未建檔」標記 */
+  .plegend{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:11.5px;
+    color:var(--muted);margin-top:6px;line-height:1.55;}
+  .plegend .lg{display:inline-flex;align-items:center;gap:4px;font-weight:800;
+    padding:1px 8px;border-radius:20px;font-size:11px;white-space:nowrap;}
+  .plegend .lg-done{background:rgba(21,128,61,.13);color:#15803d;}
+  .plegend .lg-todo{background:rgba(107,122,141,.14);color:#5d6b7d;}
+  option.optDone{color:#15803d;font-weight:700;}
+  option.optTodo{color:#6b7a8d;}
   .chipall{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
   .chipall:empty{display:none;}
   .bulkbtn{font-family:inherit;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;
@@ -293,6 +302,10 @@
             <select id="pPile" disabled></select>
           </div>
           <div class="phint" id="pPileHint" style="display:none;"></div>
+          <div class="plegend" id="pPileLegend" style="display:none;">
+            <span><span class="lg lg-done">✓ 已建檔</span> 該樁號本日已有樁位資料表紀錄（仍可載入修改）</span>
+            <span><span class="lg lg-todo">○ 未建檔</span> 該樁號本日尚無紀錄</span>
+          </div>
         </div>
       </div>
 
@@ -989,6 +1002,8 @@
   function pRender(){
     var body = $('pBody');
     body.innerHTML = '';
+    /* 樁位紀錄增／刪／改、雲端載入後，樁號的「已建檔／未建檔」標記要跟著更新 */
+    if (typeof refreshPPileSelect === 'function') refreshPPileSelect();
 
     var list = pstate.rows.filter(pMatch);
 
@@ -1167,6 +1182,7 @@
 
   function refreshPPileSelect(){
     var sel = $('pPile');
+    var prev = sel.value;
     sel.innerHTML = '';
     var pier = $('pPier').value;
     var d = $('pDate').value;
@@ -1183,15 +1199,30 @@
       var today = pilesInspectedOn(d);
       nos = nos.filter(function(no){ return today.indexOf(no) >= 0; });
     }
+
+    /* 該日期在「樁位資料表」已建檔的樁號（同一份 pstate.rows，含雲端載入） */
+    var filed = {};
+    if (d) {
+      pstate.rows.forEach(function(r){
+        if (String(r.date || '') === String(d)) filed[String(r.pile || '')] = true;
+      });
+    }
+
     var o0 = document.createElement('option');
     o0.value = ''; o0.textContent = '— 選擇樁號 —';
     sel.appendChild(o0);
     nos.forEach(function(no){
       var op = document.createElement('option');
-      op.value = no; op.textContent = no;
+      op.value = no;
+      /* 有日期才標記；已建檔仍可選、可載入修改，只是加上辨識用的符號與顏色 */
+      if (d && filed[no]) { op.textContent = '✓ ' + no; op.className = 'optDone'; }
+      else if (d)         { op.textContent = '○ ' + no; op.className = 'optTodo'; }
+      else                { op.textContent = no; }
       sel.appendChild(op);
     });
     sel.disabled = !nos.length;
+    /* 原本選的樁號若仍在新清單中，保留選取（避免標記刷新把選好的樁號清掉） */
+    if (prev && nos.indexOf(prev) >= 0) sel.value = prev;
     if (d && !nos.length) {
       o0.textContent = '— 本日此墩無查驗樁號 —';
     }
@@ -1205,15 +1236,20 @@
           hint.className = 'phint warn';
           hint.textContent = '此日期尚無查驗紀錄，請先到上方「查驗紀錄表」新增該日期的查驗，或改選其他日期。';
         } else {
+          var nDone = nos.filter(function(no){ return filed[no]; }).length;
           hint.style.display = '';
           hint.className = 'phint';
-          hint.textContent = '本日有查驗的樁號共 ' + all.length + ' 支：' + all.join('、');
+          hint.textContent = '本日有查驗的樁號共 ' + all.length + ' 支：' + all.join('、') +
+            '。本墩已建檔 ' + nDone + ' 支、未建檔 ' + (nos.length - nDone) + ' 支（已建檔仍可載入修改）。';
         }
       } else {
         hint.style.display = 'none';
         hint.textContent = '';
       }
     }
+    /* 圖例：只有在「已選日期且有樁號可選」時才顯示，避免無意義的說明 */
+    var lg = $('pPileLegend');
+    if (lg) lg.style.display = (d && nos.length) ? '' : 'none';
   }
 
   /* 選了日期：自動帶入當日查驗人員與監造派員 */

@@ -391,9 +391,13 @@
       if (sw < 8 || sh < 8) { sx = 0; sy = 0; sw = w0; sh = h0; }
     }
 
-    var swap = (angle === 90 || angle === 270);
-    var ow = swap ? sh : sw;
-    var oh = swap ? sw : sh;
+    /* 任意角度：外框用旋轉後的外接矩形。90/270 時 cos=0，會自動退化成原本的長寬互換，
+       所以四方向旋轉的結果與舊版完全相同。 */
+    var rad = (Number(angle) || 0) * Math.PI / 180;
+    var ca = Math.abs(Math.cos(rad)), sa = Math.abs(Math.sin(rad));
+    var ow = Math.round(sw * ca + sh * sa);
+    var oh = Math.round(sw * sa + sh * ca);
+    if (!ow || !oh) { ow = sw; oh = sh; }
     var scale = Math.min(1, edge / Math.max(ow, oh));
     var w = Math.max(1, Math.round(ow * scale));
     var h = Math.max(1, Math.round(oh * scale));
@@ -692,8 +696,61 @@
 
     var inner = detectInner(imgEl, t0);
     return Promise.race([inner, hard]).then(function (res) {
-      return refineSkew(imgEl, res, t0);
+      if (res && res.ok) return refineSkew(imgEl, res, t0);
+      /* 四方向判不出來時，先量「文字歪幾度」再重試一次。
+         手機拍歪 10°～45° 的照片，OCR 連標籤都讀不到，四方向必然失敗；
+         先把它轉正再 OCR，才救得回來。 */
+      return rescueBySkew(imgEl, res, t0);
     });
+  }
+
+  /**
+   * 傾斜救援：四方向判不出來時，用 OrientSkew 量出傾斜角，先把照片轉正，
+   * 再跑一次原本的四方向判斷。
+   *
+   *   - 量不到可信角度（空白紙、純風景、90° 轉向的表單）→ 原封不動回傳 ok:false，
+   *     維持「這樣對嗎？」的原本行為，絕不亂轉。
+   *   - 轉正後仍判不出方向 → 一樣回傳原本的 ok:false。
+   *   - 成功 → 最終角度 = 傾斜角 + 四方向角度。
+   */
+  function rescueBySkew(imgEl, res, t0) {
+    var SK = global.OrientSkew;
+    if (!SK || typeof SK.estimate !== 'function') return res;
+    var now = function () {
+      return (global.performance && performance.now) ? performance.now() : Date.now();
+    };
+    /* 剩餘時間不夠就別冒險，直接維持原本結果 */
+    if (now() - t0 > DETAIL_BUDGET * 0.45) return res;
+    try {
+      var est = SK.estimate(imgEl, 640);
+      if (!est || !est.ok || !est.delta) {
+        if (res) res.skew = est ? { ok: !!est.ok, delta: 0, reason: est.reason } : null;
+        return res;
+      }
+      var delta = Number(est.delta);
+      var pr = renderRot(imgEl, delta, { edge: PROBE_EDGE });
+      return detectInner(pr.canvas, t0).then(function (r2) {
+        if (!r2 || !r2.ok) {
+          if (res) res.skew = { ok: true, delta: delta, confidence: est.confidence, reason: 'skew-rescue-failed' };
+          return res;
+        }
+        var total = delta + (Number(r2.angle) || 0);
+        total = ((total % 360) + 360) % 360;
+        total = Math.round(total * 10) / 10;
+        r2.angle = total;
+        r2.coarseAngle = Math.round((total - delta) * 10) / 10;
+        r2.skew = { ok: true, delta: delta, confidence: est.confidence, reason: 'skew-rescue' };
+        r2.reason = (r2.reason || '') + '+rescue' + delta;
+        r2.ms = Math.round(now() - t0);
+        return r2;
+      }, function () {
+        if (res) res.skew = { ok: true, delta: delta, confidence: est.confidence, reason: 'skew-rescue-error' };
+        return res;
+      });
+    } catch (e) {
+      if (res) res.skew = { ok: false, delta: 0, reason: 'skew-rescue-error' };
+      return res;
+    }
   }
 
   /**

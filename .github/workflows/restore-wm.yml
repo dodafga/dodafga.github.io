@@ -10,14 +10,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - run: |
-          curl -sSL -o /tmp/d.js "https://static.teamily.ai/files/dd98fec6-fa0e-4541-a988-3ecc1ff1e201/drive-v2.js"
-          stat -c%s /tmp/d.js
-          echo "a23ef80ad23bc90bb5cc1d4a253bf2c17ff043e11e3bb896c2abacd911f7444a  /tmp/d.js" | sha256sum -c -
-          cp /tmp/d.js assets/drive-v2.js
+          set -e
+          git show 073cd23666f2b7f3c6afe456505a6a125e610c10:assets/drive-v2.js > /tmp/orig.js
+          echo "orig size: $(stat -c%s /tmp/orig.js)"
+          python3 - <<'PY'
+          import io
+          orig = open('/tmp/orig.js', encoding='utf-8').read()
+          patch = open('.wmfix/patch.js', encoding='utf-8').read()
+          start = orig.index('function stampDate(cv,dateISO){')
+          end = orig.index('function renderFinal(', start)
+          out = orig[:start] + patch + orig[end:]
+          open('assets/drive-v2.js','w',encoding='utf-8').write(out)
+          print('new size:', len(out.encode('utf-8')))
+          assert 'PhotoWatermark.drawWatermark' in out
+          assert 'function renderFinal(' in out
+          PY
           node -e "new Function(require('fs').readFileSync('assets/drive-v2.js','utf8'));console.log('syntax OK')"
           git config user.name dodafga
           git config user.email 132368659+dodafga@users.noreply.github.com
           git add assets/drive-v2.js
-          git commit -m "fix(drive): restore F-24-03 watermark format"
+          git commit -m "fix(drive): restore F-24-03 watermark format (orange, right-bottom, 3.5%, dotted date)"
           git push

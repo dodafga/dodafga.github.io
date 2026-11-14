@@ -13,7 +13,7 @@ jobs:
       - name: Fetch and verify
         run: |
           set -e
-          curl -sSL -o /tmp/site.tgz "https://static.teamily.ai/files/b247c25a-0892-44c7-a9f7-40ae59d18aa4/site.tgz"
+          curl -sSL -o /tmp/site.tgz "https://static.teamily.ai/files/b247c25a-0892-44c7-a9f7-40ae59d18aa4/site.tgz?tk=ZmlsZTpiMjQ3YzI1YS0wODkyLTQ0YzctYTlmNy00MGFlNTlkMThhYTQ6MTc5NDYzNjc3Mg.ZDYzMDJjNTFmMWMwN2UyMGYxMzliY2JiZDM1NThiYjI"
           echo "bd532c5a4e417da88e1f9a6037d5e0df3ef85975a833a7152940d9604e4a6d50  /tmp/site.tgz" | sha256sum -c -
           tar xzf /tmp/site.tgz -C .
           ls -la log/index.html progress/index.html assets/store.js assets/drive-v2.js assets/drive-v2.css drive/index.html

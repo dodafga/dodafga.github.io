@@ -149,6 +149,87 @@ s = sub(s,
         '  }',
         'orient-ocr.js refineSkew')
 
+# --- 2b. orient-ocr.js：四方向失敗時，先量傾斜再重試（rescueBySkew）
+s = sub(s,
+        '    var inner = detectInner(imgEl, t0);\n'
+        '    return Promise.race([inner, hard]).then(function (res) {\n'
+        '      return refineSkew(imgEl, res, t0);\n'
+        '    });\n'
+        '  }',
+        '    var inner = detectInner(imgEl, t0);\n'
+        '    return Promise.race([inner, hard]).then(function (res) {\n'
+        '      if (res && res.ok) return refineSkew(imgEl, res, t0);\n'
+        '      /* \u56db\u65b9\u5411\u5224\u4e0d\u51fa\u4f86\u6642\uff0c\u5148\u91cf\u300c\u6587\u5b57\u6b6a\u5e7e\u5ea6\u300d\u518d\u91cd\u8a66\u4e00\u6b21\u3002\n'
+        '         \u624b\u6a5f\u62cd\u6b6a 10\u00b0\uff5e45\u00b0 \u7684\u7167\u7247\uff0cOCR \u9023\u6a19\u7c64\u90fd\u8b80\u4e0d\u5230\uff0c\u56db\u65b9\u5411\u5fc5\u7136\u5931\u6557\uff1b\n'
+        '         \u5148\u628a\u5b83\u8f49\u6b63\u518d OCR\uff0c\u624d\u6551\u5f97\u56de\u4f86\u3002 */\n'
+        '      return rescueBySkew(imgEl, res, t0);\n'
+        '    });\n'
+        '  }\n'
+        '\n'
+        '  /**\n'
+        '   * \u50be\u659c\u6551\u63f4\uff1a\u56db\u65b9\u5411\u5224\u4e0d\u51fa\u4f86\u6642\uff0c\u7528 OrientSkew \u91cf\u51fa\u50be\u659c\u89d2\uff0c\u5148\u628a\u7167\u7247\u8f49\u6b63\uff0c\n'
+        '   * \u518d\u8dd1\u4e00\u6b21\u539f\u672c\u7684\u56db\u65b9\u5411\u5224\u65b7\u3002\n'
+        '   *\n'
+        '   *   - \u91cf\u4e0d\u5230\u53ef\u4fe1\u89d2\u5ea6\uff08\u7a7a\u767d\u7d19\u3001\u7d14\u98a8\u666f\u300190\u00b0 \u8f49\u5411\u7684\u8868\u55ae\uff09\u2192 \u539f\u5c01\u4e0d\u52d5\u56de\u50b3 ok:false\uff0c\n'
+        '   *     \u7dad\u6301\u300c\u9019\u6a23\u5c0d\u55ce\uff1f\u300d\u7684\u539f\u672c\u884c\u70ba\uff0c\u7d55\u4e0d\u4e82\u8f49\u3002\n'
+        '   *   - \u8f49\u6b63\u5f8c\u4ecd\u5224\u4e0d\u51fa\u65b9\u5411 \u2192 \u4e00\u6a23\u56de\u50b3\u539f\u672c\u7684 ok:false\u3002\n'
+        '   *   - \u6210\u529f \u2192 \u6700\u7d42\u89d2\u5ea6 = \u50be\u659c\u89d2 + \u56db\u65b9\u5411\u89d2\u5ea6\u3002\n'
+        '   */\n'
+        '  function rescueBySkew(imgEl, res, t0) {\n'
+        '    var SK = global.OrientSkew;\n'
+        '    if (!SK || typeof SK.estimate !== \'function\') return res;\n'
+        '    var now = function () {\n'
+        '      return (global.performance && performance.now) ? performance.now() : Date.now();\n'
+        '    };\n'
+        '    /* \u5269\u9918\u6642\u9593\u4e0d\u5920\u5c31\u5225\u5192\u96aa\uff0c\u76f4\u63a5\u7dad\u6301\u539f\u672c\u7d50\u679c */\n'
+        '    if (now() - t0 > DETAIL_BUDGET * 0.45) return res;\n'
+        '    try {\n'
+        '      var est = SK.estimate(imgEl, 640);\n'
+        '      if (!est || !est.ok || !est.delta) {\n'
+        '        if (res) res.skew = est ? { ok: !!est.ok, delta: 0, reason: est.reason } : null;\n'
+        '        return res;\n'
+        '      }\n'
+        '      var delta = Number(est.delta);\n'
+        '      var pr = renderRot(imgEl, delta, { edge: PROBE_EDGE });\n'
+        '      return detectInner(pr.canvas, t0).then(function (r2) {\n'
+        '        if (!r2 || !r2.ok) {\n'
+        '          if (res) res.skew = { ok: true, delta: delta, confidence: est.confidence, reason: \'skew-rescue-failed\' };\n'
+        '          return res;\n'
+        '        }\n'
+        '        var total = delta + (Number(r2.angle) || 0);\n'
+        '        total = ((total % 360) + 360) % 360;\n'
+        '        total = Math.round(total * 10) / 10;\n'
+        '        r2.angle = total;\n'
+        '        r2.coarseAngle = Math.round((total - delta) * 10) / 10;\n'
+        '        r2.skew = { ok: true, delta: delta, confidence: est.confidence, reason: \'skew-rescue\' };\n'
+        '        r2.reason = (r2.reason || \'\') + \'+rescue\' + delta;\n'
+        '        r2.ms = Math.round(now() - t0);\n'
+        '        return r2;\n'
+        '      }, function () {\n'
+        '        if (res) res.skew = { ok: true, delta: delta, confidence: est.confidence, reason: \'skew-rescue-error\' };\n'
+        '        return res;\n'
+        '      });\n'
+        '    } catch (e) {\n'
+        '      if (res) res.skew = { ok: false, delta: 0, reason: \'skew-rescue-error\' };\n'
+        '      return res;\n'
+        '    }\n'
+        '  }',
+        'orient-ocr.js rescueBySkew')
+
+# --- 2c. orient-ocr.js renderRot：任意角度外框
+s = sub(s,
+        '    var swap = (angle === 90 || angle === 270);\n'
+        '    var ow = swap ? sh : sw;\n'
+        '    var oh = swap ? sw : sh;',
+        '    /* \u4efb\u610f\u89d2\u5ea6\uff1a\u5916\u6846\u7528\u65cb\u8f49\u5f8c\u7684\u5916\u63a5\u77e9\u5f62\u300290/270 \u6642 cos=0\uff0c\u6703\u81ea\u52d5\u9000\u5316\u6210\u539f\u672c\u7684\u9577\u5bec\u4e92\u63db\uff0c\n'
+        '       \u6240\u4ee5\u56db\u65b9\u5411\u65cb\u8f49\u7684\u7d50\u679c\u8207\u820a\u7248\u5b8c\u5168\u76f8\u540c\u3002 */\n'
+        '    var rad = (Number(angle) || 0) * Math.PI / 180;\n'
+        '    var ca = Math.abs(Math.cos(rad)), sa = Math.abs(Math.sin(rad));\n'
+        '    var ow = Math.round(sw * ca + sh * sa);\n'
+        '    var oh = Math.round(sw * sa + sh * ca);\n'
+        '    if (!ow || !oh) { ow = sw; oh = sh; }',
+        'orient-ocr.js renderRot')
+
 write(p, s)
 
 # ---------------------------------------------------------------- 3. drive/index.html

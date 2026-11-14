@@ -1,0 +1,43 @@
+name: deploy-drive-r22
+on:
+  push:
+    paths:
+      - '.deploy-r22/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and verify
+        run: |
+          set -euo pipefail
+          BASE="https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/r22-deploy"
+          TK="tk=c2l0ZTozN2ViODMyZC05MjgwLTQxYWEtYmY0OS0yNWZmNjkxMGE5M2EvZG9jdW1lbnRzL3IyMi1kZXBsb3k6MTc5NDY0NzE2Ng.YjEyOTc1ZjZmOTQ3NDI2ODFjYjk2YTE2ZWI3NzczODk"
+          curl -sSL --fail -o /tmp/drive-v2.js.gz "$BASE/drive-v2.js.gz?$TK"
+          curl -sSL --fail -o /tmp/drive-v2.css.gz "$BASE/drive-v2.css.gz?$TK"
+          curl -sSL --fail -o /tmp/drive-index.html.gz "$BASE/drive-index.html.gz?$TK"
+          gunzip -c /tmp/drive-v2.js.gz > /tmp/drive-v2.js
+          gunzip -c /tmp/drive-v2.css.gz > /tmp/drive-v2.css
+          gunzip -c /tmp/drive-index.html.gz > /tmp/drive-index.html
+          echo "js   $(stat -c%s /tmp/drive-v2.js) $(sha256sum /tmp/drive-v2.js | cut -d' ' -f1)"
+          echo "css  $(stat -c%s /tmp/drive-v2.css) $(sha256sum /tmp/drive-v2.css | cut -d' ' -f1)"
+          echo "html $(stat -c%s /tmp/drive-index.html) $(sha256sum /tmp/drive-index.html | cut -d' ' -f1)"
+          test "$(sha256sum /tmp/drive-v2.js | cut -d' ' -f1)" = "a11eb054994a9c59a650b3aa3bbfd746ea6d19cf6de3e9a7cdf27501c63cd311"
+          test "$(sha256sum /tmp/drive-v2.css | cut -d' ' -f1)" = "539224b207a452751317ec0a03e9a000b33492e5025ec0dca42c031defa7bae7"
+          test "$(sha256sum /tmp/drive-index.html | cut -d' ' -f1)" = "a4344cb8dd67bd9cda612ff40b5316571cb8b76eb14d9e36ad6f1cf1a666ddc5"
+          cp /tmp/drive-v2.js assets/drive-v2.js
+          cp /tmp/drive-v2.css assets/drive-v2.css
+          cp /tmp/drive-index.html drive/index.html
+          echo "verified OK"
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name "dodafga"
+          git config user.email "132368659+dodafga@users.noreply.github.com"
+          git add assets/drive-v2.js assets/drive-v2.css drive/index.html
+          git diff --cached --stat
+          git commit -m "feat(drive): staging area becomes single-photo viewer (prev/next, N/M, watermark preview follows)"
+          git push

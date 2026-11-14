@@ -74,6 +74,8 @@
 
   .pilepick{display:flex;gap:7px;align-items:center;}
   .pilepick select{flex:1;min-width:0;}
+  .phint{font-size:11.5px;line-height:1.6;margin-top:6px;color:var(--muted);}
+  .phint.warn{color:var(--danger);font-weight:600;}
   .chipall{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
   .chipall:empty{display:none;}
   .bulkbtn{font-family:inherit;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;
@@ -285,11 +287,12 @@
           <select id="pSupervisor"></select>
         </div>
         <div class="field">
-          <label for="pPile">樁號 <span class="hint">先選墩號再選樁號</span></label>
+          <label for="pPile">樁號 <span class="hint">先選墩號再選樁號；選了日期只列當日查驗的樁號</span></label>
           <div class="pilepick">
             <select id="pPier"></select>
             <select id="pPile" disabled></select>
           </div>
+          <div class="phint" id="pPileHint" style="display:none;"></div>
         </div>
       </div>
 
@@ -397,9 +400,11 @@
       <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);">
         <div class="qbar">
           <div class="field">
-            <label for="qPile">依樁號查詢 <span class="hint">輸入或選擇，留空顯示全部</span></label>
-            <input type="text" id="qPile" list="qPileList" placeholder="例：PR4-1">
-            <datalist id="qPileList"></datalist>
+            <label for="qPier">依樁號查詢 <span class="hint">先選墩號，再選樁號；留空顯示全部</span></label>
+            <div class="pilepick">
+              <select id="qPier"></select>
+              <select id="qPile" disabled></select>
+            </div>
           </div>
           <div class="field">
             <label for="qDate">日期 <span class="hint">選填</span></label>
@@ -525,6 +530,26 @@
   function pileNosOfPier(pier){
     if (!S) return [];
     return S.pileNosOf(snapshot(), pier);
+  }
+
+  /* ===== 當日查驗資料（與查驗紀錄表同一份 state.rows，含雲端載入） ===== */
+  function pilesInspectedOn(dateISO){
+    var out = [];
+    if (!dateISO) return out;
+    (state.rows || []).forEach(function(r){
+      if (String(r.date || '') !== String(dateISO)) return;
+      (r.piles || []).forEach(function(no){ if (out.indexOf(no) < 0) out.push(no); });
+    });
+    return out;
+  }
+  function staffOn(dateISO){
+    var ins = '', sup = '';
+    (state.rows || []).forEach(function(r){
+      if (String(r.date || '') !== String(dateISO)) return;
+      if (!ins && r.inspector)  ins = r.inspector;
+      if (!sup && r.supervisor) sup = r.supervisor;
+    });
+    return { inspector: ins, supervisor: sup };
   }
 
   /* ================= 查驗紀錄表：本機保存 ================= */
@@ -729,7 +754,7 @@
     $('hCount').textContent = state.rows.length;
   }
 
-  function render(){ renderRows(); }
+  function render(){ renderRows(); refreshPPileSelect(); }
 
   /* ================= 樁位資料表 ================= */
   var M_KEYS = ['el','upCm','upCnt','lowCm','lowCnt','depth','lap',
@@ -1113,6 +1138,17 @@
     var pier = r.pier || pierOfPile(r.pile);
     $('pPier').value = pier;
     refreshPPileSelect();
+    /* 修改中的樁號若不在當日查驗清單，仍要能載入（不讓舊資料讀不出來） */
+    if (r.pile) {
+      var found = false, opts = $('pPile').options;
+      for (var i = 0; i < opts.length; i++) { if (opts[i].value === r.pile) { found = true; break; } }
+      if (!found) {
+        var op = document.createElement('option');
+        op.value = r.pile; op.textContent = r.pile + '（原紀錄）';
+        $('pPile').appendChild(op);
+        $('pPile').disabled = false;
+      }
+    }
     $('pPile').value = r.pile || '';
     $('pNote').value = r.note || '';
     var m = r.m || {};
@@ -1133,6 +1169,7 @@
     var sel = $('pPile');
     sel.innerHTML = '';
     var pier = $('pPier').value;
+    var d = $('pDate').value;
     if (!pier) {
       sel.disabled = true;
       var o = document.createElement('option');
@@ -1141,6 +1178,11 @@
       return;
     }
     var nos = pileNosOfPier(pier);
+    /* 選了日期：樁號只列「當日查驗的樁號」 */
+    if (d) {
+      var today = pilesInspectedOn(d);
+      nos = nos.filter(function(no){ return today.indexOf(no) >= 0; });
+    }
     var o0 = document.createElement('option');
     o0.value = ''; o0.textContent = '— 選擇樁號 —';
     sel.appendChild(o0);
@@ -1150,6 +1192,52 @@
       sel.appendChild(op);
     });
     sel.disabled = !nos.length;
+    if (d && !nos.length) {
+      o0.textContent = '— 本日此墩無查驗樁號 —';
+    }
+    /* 提示：本日查驗樁號數 */
+    var hint = $('pPileHint');
+    if (hint) {
+      if (d) {
+        var all = pilesInspectedOn(d);
+        if (!all.length) {
+          hint.style.display = '';
+          hint.className = 'phint warn';
+          hint.textContent = '此日期尚無查驗紀錄，請先到上方「查驗紀錄表」新增該日期的查驗，或改選其他日期。';
+        } else {
+          hint.style.display = '';
+          hint.className = 'phint';
+          hint.textContent = '本日有查驗的樁號共 ' + all.length + ' 支：' + all.join('、');
+        }
+      } else {
+        hint.style.display = 'none';
+        hint.textContent = '';
+      }
+    }
+  }
+
+  /* 選了日期：自動帶入當日查驗人員與監造派員 */
+  function autoFillStaff(){
+    var d = $('pDate').value;
+    if (!d) return;
+    var st = staffOn(d);
+    if (st.inspector)  $('pInspector').value  = st.inspector;
+    if (st.supervisor) $('pSupervisor').value = st.supervisor;
+  }
+
+  /* 日期變更：重算樁號選項、清掉無效值、自動帶入人員 */
+  function onPDateChange(){
+    var d = $('pDate').value;
+    var keep = $('pPile').value;
+    autoFillStaff();
+    refreshPPileSelect();
+    /* 原本已選但新日期沒有的樁號要清掉 */
+    if (keep) {
+      var still = false;
+      var opts = $('pPile').options;
+      for (var i = 0; i < opts.length; i++) { if (opts[i].value === keep) { still = true; break; } }
+      if (!still) $('pPile').value = '';
+    }
   }
 
   /* ================= 查驗位置：墩號／樁號併入 ================= */
@@ -1254,14 +1342,11 @@
   fillSelect($('pSupervisor'), SUPERVISORS, '— 請選擇 —');
   fillSelect($('pPier'), PIERS, '— 選擇墩號 —');
   $('pDate').value = todayISO();
+  autoFillStaff();
   refreshPPileSelect();
 
-  (function(){
-    var dl = $('qPileList');
-    var all = [];
-    PIERS.forEach(function(p){ all = all.concat(pileNosOfPier(p)); });
-    dl.innerHTML = all.map(function(no){ return '<option value="' + escHtml(no) + '">'; }).join('');
-  })();
+  fillSelect($('qPier'), PIERS, '— 選擇墩號 —');
+  refreshQPileSelect();
 
   $('inLocation').addEventListener('input', function(){
     var raw = String(this.value || '');
@@ -1343,7 +1428,12 @@
   });
 
   /* ---- 樁位資料表事件 ---- */
-  $('pPier').addEventListener('change', refreshPPileSelect);
+  $('pPier').addEventListener('change', function(){
+    refreshPPileSelect();
+    $('pPile').value = '';
+  });
+  $('pDate').addEventListener('change', onPDateChange);
+  $('pDate').addEventListener('input', onPDateChange);
   $('mTopA').addEventListener('input', updateTopCalc);
   $('mTopB').addEventListener('input', updateTopCalc);
   bindNumInputs();
@@ -1376,6 +1466,19 @@
     if (!ins) { toast('請選擇查驗人員', true); $('pInspector').focus(); return; }
     if (!sup) { toast('請選擇監造人員', true); $('pSupervisor').focus(); return; }
     if (!pile){ toast('請選擇樁號', true); $('pPile').focus(); return; }
+
+    /* 選了日期：樁號必須是當日查驗的樁號 */
+    if (d) {
+      var dayPiles = pilesInspectedOn(d);
+      if (!dayPiles.length) {
+        toast(isoToSlash(d) + ' 尚無查驗紀錄，請先到「查驗紀錄表」新增該日期的查驗', true);
+        return;
+      }
+      if (dayPiles.indexOf(pile) < 0) {
+        toast(pile + ' 在 ' + isoToSlash(d) + ' 沒有查驗紀錄，只能選當日查驗的樁號', true);
+        return;
+      }
+    }
 
     var m = readM();
 
@@ -1424,13 +1527,43 @@
     $('pSupervisor').value = '';
     $('pPier').value = '';
     $('pNote').value = '';
+    autoFillStaff();
     refreshPPileSelect();
     clearM();
     setEditMode(null);
     $('pDate').focus();
   });
 
-  $('qPile').addEventListener('input', function(){
+  /* ---- 樁號查詢：先墩號、後樁號 ---- */
+  function refreshQPileSelect(){
+    var sel = $('qPile');
+    sel.innerHTML = '';
+    var pier = $('qPier').value;
+    if (!pier) {
+      sel.disabled = true;
+      var o = document.createElement('option');
+      o.value = ''; o.textContent = '— 請先選墩號 —';
+      sel.appendChild(o);
+      return;
+    }
+    var nos = pileNosOfPier(pier);
+    var o0 = document.createElement('option');
+    o0.value = ''; o0.textContent = '— 全部樁號 —';
+    sel.appendChild(o0);
+    nos.forEach(function(no){
+      var op = document.createElement('option');
+      op.value = no; op.textContent = no;
+      sel.appendChild(op);
+    });
+    sel.disabled = !nos.length;
+  }
+
+  $('qPier').addEventListener('change', function(){
+    refreshQPileSelect();
+    pquery.pile = '';
+    pRender();
+  });
+  $('qPile').addEventListener('change', function(){
     pquery.pile = String(this.value || '').trim();
     pRender();
   });
@@ -1440,7 +1573,8 @@
   });
   $('btnQClear').addEventListener('click', function(){
     pquery.pile = ''; pquery.date = '';
-    $('qPile').value = ''; $('qDate').value = '';
+    $('qPier').value = ''; $('qDate').value = '';
+    refreshQPileSelect();
     pRender();
   });
 

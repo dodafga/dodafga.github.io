@@ -325,6 +325,23 @@ function clampStageIdx(){
   if(stageIdx<0)stageIdx=0;
   if(stageIdx>stage.length-1)stageIdx=stage.length-1;
 }
+/* 跳到第 N 張：超出範圍一律夾回 1..總張數，不會跳到不存在的張 */
+function doJump(){
+  if(!stage.length)return;
+  var inp=$("vjumpin");
+  if(!inp)return;
+  var raw=String(inp.value==null?"":inp.value).replace(/[^0-9]/g,"");
+  if(!raw){toast("請輸入要跳到的張數（1 ~ "+stage.length+"）",!0);inp.value=stageIdx+1;return}
+  var want=parseInt(raw,10);
+  if(isNaN(want)){toast("請輸入數字",!0);inp.value=stageIdx+1;return}
+  var lo=1,hi=stage.length,clamped=want;
+  if(want<lo)clamped=lo;
+  if(want>hi)clamped=hi;
+  if(clamped!==want)toast("只有 "+hi+" 張，已跳到第 "+clamped+" 張");
+  stageIdx=clamped-1;
+  clampStageIdx();
+  renderStage();
+}
 function renderStage(){
   var box=$("stageGrid"),c1=$("stageCount"),c2=$("stageCount2");
   if(c1)c1.textContent=stage.length+" 張";
@@ -379,6 +396,12 @@ function renderStage(){
       '<button type="button" class="vbtn" data-prev="1"'+(stageIdx<=0?" disabled":"")+">‹ 上一張</button>"+
       '<span class="vcount">'+(stageIdx+1)+" / "+n+"</span>"+
       '<button type="button" class="vbtn" data-next="1"'+(stageIdx>=n-1?" disabled":"")+">下一張 ›</button>"+
+    "</div>"+
+    '<div class="vjump">'+
+      '<label for="vjumpin">跳到第</label>'+
+      '<input type="number" id="vjumpin" class="vjumpin" inputmode="numeric" pattern="[0-9]*" min="1" max="'+n+'" step="1" value="'+(stageIdx+1)+'" aria-label="跳到第幾張">'+
+      '<span class="vjumpof">/ '+n+' 張</span>'+
+      '<button type="button" class="vjumpgo" data-jump="1">前往</button>'+
     "</div>"+
   "</div>";
   box.innerHTML=html;
@@ -590,8 +613,17 @@ function bind(){
     dz.addEventListener("drop",function(e){e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length&&addFiles(e.dataTransfer.files)});
   }
 
+  C.on("stageGrid","keydown",function(e){
+    var t=e.target;
+    if(!t||!t.id||t.id!=="vjumpin")return;
+    if(e.key==="Enter"||e.keyCode===13){e.preventDefault();doJump()}
+  });
+
   C.on("stageGrid","click",function(e){
     var t=e.target;
+    /* 跳到第 N 張 */
+    var jb=t&&t.closest?t.closest("[data-jump]"):null;
+    if(jb){doJump();return}
     /* 上一張 / 下一張 */
     var nav=t&&t.closest?t.closest("[data-prev],[data-next]"):null;
     if(nav){

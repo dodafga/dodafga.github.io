@@ -1,0 +1,30 @@
+name: restore-drive-v2
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: restore and patch
+        run: |
+          git show c9a76a31902998820035bce9f067d4c1079459d8:assets/drive-v2.js > assets/drive-v2.js
+          python3 -c "import base64,io;io.open('/tmp/p.py','wb').write(base64.b64decode('aW1wb3J0IGlvLHJlCnA9J2Fzc2V0cy9kcml2ZS12Mi5qcycKcz1pby5vcGVuKHAsZW5jb2Rpbmc9J3V0Zi04JykucmVhZCgpCmlmICdmdW5jdGlvbiBhbGxTdGF0aW9ucygpJyBpbiBzOgogICAgcHJpbnQoJ2FscmVhZHknKTsgcmFpc2UgU3lzdGVtRXhpdCgwKQpGTj0nJydmdW5jdGlvbiBhbGxTdGF0aW9ucygpewogIHZhciBTPXdpbmRvdy5TdWl0ZVN0b3JlLGRlZnM9KFMmJlMuUElFUl9ERUZTKXx8W10sb3V0PVtdOwogIGRlZnMuZm9yRWFjaChmdW5jdGlvbihkKXt2YXIgbj1OdW1iZXIoZC5jb3VudCl8fDA7Zm9yKHZhciBpPTE7aTw9bjtpKyspb3V0LnB1c2goZC5waWVyKyItIitpKX0pOwogIHJldHVybiBvdXQ7Cn0KJycnCk5FVz0nJycgIGlmKCFkYXRlSVNPKXsKICAgIHZhciBhbGw9YWxsU3RhdGlvbnMoKTsKICAgIGlmKCFhbGwubGVuZ3RoKXsKICAgICAgc2VsLmlubmVySFRNTD0nPG9wdGlvbiB2YWx1ZT0iIj5cdTIwMTQgXHU4YWNiXHU5MDc4XHU2NGM3XHU2YTAxXHU4NjVmIFx1MjAxNDwvb3B0aW9uPic7CiAgICAgIHNlbC5kaXNhYmxlZD0hMDsKICAgICAgaWYoaGludCl7aGludC50ZXh0Q29udGVudD0iXHU2YTAxXHU0ZjRkXHU4Y2M3XHU2NTk5XHU2NzJhXHU4ZjA5XHU1MTY1XHVmZjBjXHU3MTIxXHU2Y2Q1XHU1MjE3XHU1MWZhXHU2YTAxXHU4NjVmXHUzMDAyIjtoaW50LmNsYXNzTmFtZT0iaGludDIgYmFkIjt9CiAgICAgIHJldHVybjsKICAgIH0KICAgIHZhciBnMD17fSxvMD1bXTsKICAgIGFsbC5mb3JFYWNoKGZ1bmN0aW9uKG5vKXt2YXIgcT1waWVyT2ZTdGF0aW9uKG5vKTtpZighZzBbcV0pe2cwW3FdPVtdO28wLnB1c2gocSl9ZzBbcV0ucHVzaChubyl9KTsKICAgIHZhciBoMD0nPG9wdGlvbiB2YWx1ZT0iIj5cdTIwMTQgXHU4YWNiXHU5MDc4XHU2NGM3XHU2YTAxXHU4NjVmIFx1MjAxNDwvb3B0aW9uPic7CiAgICBvMC5mb3JFYWNoKGZ1bmN0aW9uKHEpe2gwKz0nPG9wdGdyb3VwIGxhYmVsPSInK2VzYyhxKSsnIj4nO2cwW3FdLmZvckVhY2goZnVuY3Rpb24obm8pe2gwKz0nPG9wdGlvbiB2YWx1ZT0iJytlc2Mobm8pKyciPicrZXNjKG5vKSsiPC9vcHRpb24+In0pO2gwKz0iPC9vcHRncm91cD4ifSk7CiAgICBzZWwuaW5uZXJIVE1MPWgwO3NlbC5kaXNhYmxlZD0hMTsKICAgIGlmKHByZXYmJmFsbC5pbmRleE9mKHByZXYpPj0wKXNlbC52YWx1ZT1wcmV2OwogICAgaWYoaGludCl7aGludC50ZXh0Q29udGVudD0iXHU1YzFhXHU2NzJhXHU5MDc4XHU2NGM3XHU2NWU1XHU2NzFmXHVmZjBjXHU2YTAxXHU4NjVmXHU1MjE3XHU1MWZhXHU1MTY4XHU5MGU4ICIrYWxsLmxlbmd0aCsiIFx1NjUyZlx1ZmYxYlx1OTA3OFx1NGU4Nlx1NjVlNVx1NjcxZlx1NWY4Y1x1NTNlYVx1NjcwM1x1NTIxN1x1NTFmYVx1OGE3Mlx1NjVlNVx1NjcwOVx1NjdlNVx1OWE1N1x1NzY4NFx1NmEwMVx1ODY1Zlx1MzAwMiI7aGludC5jbGFzc05hbWU9ImhpbnQyIjt9CiAgICByZXR1cm47CiAgfQonJycKbT1yZS5zZWFyY2gociIgIGlmXCghZGF0ZUlTT1wpXHsuKj9cbiAgXH1cbiIsIHMsIHJlLlMpCmFzc2VydCBtLCAnbm8tZGF0ZSBibG9jayBub3QgZm91bmQnCnM9c1s6bS5zdGFydCgpXStORVcrc1ttLmVuZCgpOl0Kcz1zLnJlcGxhY2UoJ2Z1bmN0aW9uIGJ1aWxkU3RhdGlvbnMoKXsnLCBGTisnZnVuY3Rpb24gYnVpbGRTdGF0aW9ucygpeycsMSkKaW8ub3BlbihwLCd3JyxlbmNvZGluZz0ndXRmLTgnKS53cml0ZShzKQpwcmludCgncGF0Y2hlZCcsIGxlbihzLmVuY29kZSgpKSkK'))"
+          python3 /tmp/p.py
+          node --check assets/drive-v2.js
+          wc -c assets/drive-v2.js
+          sha256sum assets/drive-v2.js
+          grep -c allStations assets/drive-v2.js
+      - name: commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "132368659+dodafga@users.noreply.github.com"
+          git add assets/drive-v2.js
+          git diff --cached --quiet && echo "no change" || git commit -m "fix(drive): restore drive-v2.js and keep full station list when no date"
+          git push

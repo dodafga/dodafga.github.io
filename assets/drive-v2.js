@@ -318,40 +318,69 @@ function prepOne(it){
   });
 }
 
-/* ================= 暫存區 ================= */
+/* ================= 暫存區（一次只顯示一張，可左右切換） ================= */
+var stageIdx=0;
+function clampStageIdx(){
+  if(!stage.length){stageIdx=0;return}
+  if(stageIdx<0)stageIdx=0;
+  if(stageIdx>stage.length-1)stageIdx=stage.length-1;
+}
 function renderStage(){
   var box=$("stageGrid"),c1=$("stageCount"),c2=$("stageCount2");
   if(c1)c1.textContent=stage.length+" 張";
   if(c2)c2.textContent=stage.length+" 張";
   if(!box)return;
+  clampStageIdx();
   if(!stage.length){
+    box.className="grid2t";
     box.innerHTML='<div class="empty2">尚未選取照片。<br>點上方「選擇照片」或「直接拍照」，照片會先自動轉正並排在這裡。</div>';
     renderUncertain();updateGo();return;
   }
-  var html="";
-  stage.forEach(function(it){
-    var bd="";
-    if(it.busy)bd='<span class="badge">處理中…</span>';
-    else if(it.err)bd='<span class="badge warn">原樣</span>';
-    else if(!orientOn)bd='<span class="badge mut">未自動轉正</span>';
-    else if(it.ocr&&it.ocr.ok)bd=it.autoAngle?'<span class="badge ok">已自動轉 '+it.autoAngle+"°</span>":'<span class="badge ok">方向正確</span>';
-    else bd='<span class="badge q">這樣對嗎？</span>';
-    if(it.manualAngle)bd+='<span class="badge mut">已轉 '+it.manualAngle+"°</span>";
+  box.className="grid2t single";
+  var it=stage[stageIdx],n=stage.length;
 
-    var qb="";
-    if(!it.busy&&orientOn){
-      qb='<div class="q180"><span>'+(it.ocr&&it.ocr.ok?"方向已判定":"這樣對嗎？")+"</span>"+
-         '<button type="button" data-rot180="'+it.key+'">轉 180°</button></div>';
-    }
-    html+='<div class="th2" data-k="'+it.key+'">'+
-      (it.thumbUrl?'<img src="'+it.thumbUrl+'" alt="">':"")+
-      '<div class="bwrap">'+bd+"</div>"+qb+
+  var bd="";
+  if(it.busy)bd='<span class="badge">處理中…</span>';
+  else if(it.err)bd='<span class="badge warn">原樣</span>';
+  else if(!orientOn)bd='<span class="badge mut">未自動轉正</span>';
+  else if(it.ocr&&it.ocr.ok)bd=it.autoAngle?'<span class="badge ok">已自動轉 '+it.autoAngle+"°</span>":'<span class="badge ok">方向正確</span>';
+  else bd='<span class="badge q">這樣對嗎？</span>';
+  if(it.manualAngle)bd+='<span class="badge mut">已轉 '+it.manualAngle+"°</span>";
+
+  var qb="";
+  if(!it.busy&&orientOn){
+    qb='<div class="q180"><span>'+(it.ocr&&it.ocr.ok?"方向已判定":"這樣對嗎？")+"</span>"+
+       '<button type="button" data-rot180="'+it.key+'">轉 180°</button></div>';
+  }
+
+  var wmPrev="";
+  if(wmOn){
+    var dv=($("fDate")&&$("fDate").value)||"";
+    if(dv)wmPrev='<div class="vwm">'+esc(dv.replace(/-/g,"."))+"</div>";
+  }
+
+  var html='<div class="viewer">'+
+    '<div class="vhead">'+
+      '<span class="vpos">'+(stageIdx+1)+" / "+n+"</span>"+
+      '<span class="vname">'+esc(it.name||"")+"</span>"+
+    "</div>"+
+    '<div class="vstage">'+
+      (it.thumbUrl?'<img src="'+it.thumbUrl+'" alt="">':'<div class="vload">處理中…</div>')+
+      wmPrev+
+      '<div class="bwrap">'+bd+"</div>"+
       '<div class="ops">'+
         '<button type="button" data-ocr="'+it.key+'" title="自動判斷方向">◎</button>'+
         '<button type="button" data-rot="'+it.key+'" title="旋轉 90 度">↻</button>'+
         '<button type="button" class="rm" data-rm="'+it.key+'" title="移除">×</button>'+
-      "</div></div>";
-  });
+      "</div>"+
+    "</div>"+
+    qb+
+    '<div class="vnav">'+
+      '<button type="button" class="vbtn" data-prev="1"'+(stageIdx<=0?" disabled":"")+">‹ 上一張</button>"+
+      '<span class="vcount">'+(stageIdx+1)+" / "+n+"</span>"+
+      '<button type="button" class="vbtn" data-next="1"'+(stageIdx>=n-1?" disabled":"")+">下一張 ›</button>"+
+    "</div>"+
+  "</div>";
   box.innerHTML=html;
   renderUncertain();updateGo();
 }
@@ -563,6 +592,17 @@ function bind(){
 
   C.on("stageGrid","click",function(e){
     var t=e.target;
+    /* 上一張 / 下一張 */
+    var nav=t&&t.closest?t.closest("[data-prev],[data-next]"):null;
+    if(nav){
+      if(uploading){toast("上傳中，請稍候",!0);return}
+      if(nav.hasAttribute("data-prev")){
+        if(stageIdx>0){stageIdx--;renderStage()}
+      }else{
+        if(stageIdx<stage.length-1){stageIdx++;renderStage()}
+      }
+      return;
+    }
     var el=t&&t.closest?t.closest("[data-rot],[data-rot180],[data-rm],[data-ocr]"):null;
     if(!el)return;
     var key=el.getAttribute("data-rot")||el.getAttribute("data-rot180")||
@@ -592,7 +632,7 @@ function bind(){
     C.on(chk,"change",function(){
       wmOn=!!chk.checked;saveWm();
       var st=$("wmState2");st&&(st.textContent=wmOn?"開啟":"關閉");
-      updateGo();
+      renderStage();updateGo();
       toast(wmOn?"上傳時會壓上日期浮水印":"上傳時不壓日期浮水印");
     });
   }
@@ -610,8 +650,8 @@ function bind(){
   }
 
   /* 日期變更 → 樁號選單依該日查驗紀錄重算，再更新按鈕狀態 */
-  C.on("fDate","change",function(){buildStations();updateGo()});
-  C.on("fDate","input",function(){buildStations();updateGo()});
+  C.on("fDate","change",function(){buildStations();renderStage();updateGo()});
+  C.on("fDate","input",function(){buildStations();renderStage();updateGo()});
   C.on("fStation","change",updateGo);
   /* 三重保險：C.on + onclick + document 代理，
      確保任何情況下點「確認上傳」都會真的執行（不會被別的 handler 吃掉）。 */

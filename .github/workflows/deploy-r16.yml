@@ -1,0 +1,27 @@
+name: deploy-r16
+on:
+  push:
+    paths:
+      - '.deploy/trigger.txt'
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and verify
+        run: |
+          set -e
+          curl -sSL -o /tmp/site.tgz "https://static.teamily.ai/files/b247c25a-0892-44c7-a9f7-40ae59d18aa4/site.tgz"
+          echo "bd532c5a4e417da88e1f9a6037d5e0df3ef85975a833a7152940d9604e4a6d50  /tmp/site.tgz" | sha256sum -c -
+          tar xzf /tmp/site.tgz -C .
+          ls -la log/index.html progress/index.html assets/store.js assets/drive-v2.js assets/drive-v2.css drive/index.html
+      - name: Commit
+        run: |
+          set -e
+          git config user.name "deploy-bot"
+          git config user.email "deploy@local"
+          git add log/index.html progress/index.html assets/store.js assets/drive-v2.js assets/drive-v2.css drive/index.html
+          git commit -m "feat(log,progress,drive): 查驗紀錄表改為每支樁位檢查資訊+樁號查詢；移除匯出/預覽；drive 樁號依日期連動" || echo "nothing to commit"
+          git push

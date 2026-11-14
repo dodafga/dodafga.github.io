@@ -832,8 +832,7 @@ PR1-5（0K+154）"></textarea>
       h += '<table class="att-tbl"><colgroup>' +
            '<col style="width:12.4%"><col style="width:46.95%"><col style="width:10.74%">' +
            '<col style="width:14.05%"><col style="width:15.86%"></colgroup>';
-      h += '<tr class="att-head">' +
-           '<td>契約項次</td><td>項目及說明</td><td>單位</td><td>查驗數量</td><td>監造覆核</td></tr>';
+      /* v9：附件表格不列表頭，直接從資料列開始 */
       /* 第一列固定帶入查驗單的契約項次與契約名稱 */
       h += '<tr>' +
            '<td class="c">' + esc(state.itemNo || "") + '</td>' +

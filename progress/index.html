@@ -440,10 +440,6 @@
         </div>
       </div>
 
-      <div class="toolbar" style="margin-bottom:12px;">
-        <button class="btn btn-ghost btn-sm" id="btnMatXlsx" type="button">⬇ 匯出材料 Excel</button>
-      </div>
-
       <!-- 第 3 項：水泥與濕細沙的資料表分成兩欄（兩張表並排，各自獨立） -->
       <div class="matsplit">
         <div class="matcol">
@@ -488,27 +484,20 @@
       <div class="note">
         <b>換算方式：</b>水泥 1 T ＝ 0.8 m³、濕細沙 1 T ＝ 0.59 m³；兩者換算後相加即為已進料方數。<br>
         <b>對照基準：</b>全案需求 ＝ 全案樁數 × 6 方／支（目前 <b id="matPileCount">121</b> 支 → <b id="matDesignM3">726</b> m³）；設計需求 ＝ 已查驗樁支數 × 6 方／支（目前 <b id="matInspPileCount">0</b> 支 → <b id="matInspDesignM3">0</b> m³）。<br>
-        <b>資料存放：</b>材料紀錄與樁位進度分開儲存於本機瀏覽器，互不影響；匯出 JSON 時會一併帶出（舊版 JSON 沒有此欄位也能正常匯入）。
+        <b>資料存放：</b>材料紀錄與樁位進度分開儲存於本機瀏覽器，互不影響；雲端同步時會一併帶出。
       </div>
     </div>
   </div>
 
   <div class="card">
-    <div class="card-h"><h2>資料備份與匯出</h2><span class="tag" id="gdTag">本機儲存</span></div>
+    <div class="card-h"><h2>雲端同步</h2><span class="tag" id="gdTag">本機儲存</span></div>
     <div class="card-b">
       <!-- Google Drive 雲端同步狀態列（自動同步） -->
       <div id="gdMount" style="margin-bottom:12px;"></div>
-      <div class="toolbar">
-        <button class="btn btn-amber" id="btnXlsx" type="button">⬇ 匯出 Excel（進度表＋墩號彙總）</button>
-        <button class="btn btn-ghost" id="btnJson" type="button">⬇ 匯出 JSON（含查驗紀錄）</button>
-        <button class="btn btn-ghost" id="btnImport" type="button">⬆ 匯入 JSON</button>
-        <input type="file" id="fileImport" accept=".json,application/json" style="display:none;">
-      </div>
       <div class="note">
         <b>雲端同步：</b>按上方「☁ 存到 Google Drive」即把樁位進度、查驗紀錄與材料紀錄一起存到雲端；換裝置或換瀏覽器按「⬇ 從 Google Drive 載入」就是同一份資料。<br>
         <b>自動同步：</b>已授權後，每次修改會自動推上雲端；開啟本頁時也會自動讀取較新的雲端資料。<br>
-        <b>資料存放：</b>未授權時資料只存在這台裝置的瀏覽器（localStorage）。<br>
-        <b>離線備份：</b>仍可用「匯出 JSON」／「匯入 JSON」做完整備份與還原（含材料紀錄，舊版 JSON 沒有此欄位也能正常匯入）。
+        <b>資料存放：</b>未授權時資料只存在這台裝置的瀏覽器（localStorage）。
       </div>
     </div>
   </div>
@@ -1122,47 +1111,6 @@
       fmt(tons * (def ? def.m3PerTon : 0)) + ' m³）');
   }
 
-  function exportMaterialXlsx(){
-    var btn = $('btnMatXlsx');
-    btn.disabled = true;
-    var old = btn.textContent;
-    btn.textContent = '產生中…';
-    var sum = S.materialSummary(mats, data.piles.length, S.summary(data).inspected);
-    var sumRows = [
-      ['項目', '數值', '單位'],
-      ['全案樁數', String(sum.piles), '支'],
-      ['設計方數／支', String(sum.designM3PerPile), 'm³'],
-      ['全案需求方數', String(sum.designM3), 'm³'],
-      ['已進料方數', fmt(sum.totalM3), 'm³'],
-      ['已進料噸數', fmt(sum.totalTons), 'T'],
-      ['差額（已進料－全案需求）', fmt(sum.diffM3), 'm³'],
-      ['全案達成率', String(sum.percent), '%'],
-      ['已查驗樁數', String(sum.inspectedPiles), '支'],
-      ['設計需求方數', String(sum.inspectedDesignM3), 'm³'],
-      ['差額（已進料－設計需求）', fmt(sum.inspectedDiffM3), 'm³'],
-      ['設計需求達成率', String(sum.inspectedPercent), '%']
-    ];
-    sum.byType.forEach(function(t){
-      sumRows.push([t.name + ' 噸數', fmt(t.tons), 'T']);
-      sumRows.push([t.name + ' 換算方數', fmt(t.m3), 'm³']);
-    });
-
-    S.buildXlsxMulti([
-      { name: '水泥進料', rows: S.materialRowsByType(mats, 'cement'), widths: S.MATERIAL_TYPE_WIDTHS },
-      { name: '濕細沙進料', rows: S.materialRowsByType(mats, 'sand'), widths: S.MATERIAL_TYPE_WIDTHS },
-      { name: '材料統計', rows: sumRows, widths: [24, 16, 10] }
-    ])
-      .then(function(blob){
-        downloadBlob(blob, '材料管控_' + todayISO().replace(/-/g,'') + '.xlsx');
-        toast('已匯出材料 Excel');
-      })
-      .catch(function(e){
-        console.error(e);
-        toast('匯出失敗：' + (e && e.message ? e.message : e), true);
-      })
-      .then(function(){ btn.disabled = false; btn.textContent = old; });
-  }
-
   /* ---------- 墩號詳情 ---------- */
   function openDrawer(pier){
     var def = S.pierDef(pier) || {};
@@ -1267,66 +1215,6 @@
     $('mask').classList.remove('on');
   }
 
-  /* ---------- 匯出 ---------- */
-  /* 原本自己 createObjectURL / revoke，與 assets/core.js 的 Core.download 重複；
-     改為直接呼叫 Core.download（同樣會 revoke，且少了重複實作）。 */
-  function downloadBlob(blob, filename){
-    CORE.download(filename, blob);
-  }
-
-  function exportXlsx(){
-    var btn = $('btnXlsx');
-    btn.disabled = true;
-    var old = btn.textContent;
-    btn.textContent = '產生中…';
-    S.buildXlsxMulti([
-      { name: '進度管控表', rows: S.progressRows(data), widths: S.PROGRESS_WIDTHS },
-      { name: '墩號彙總', rows: S.pierSummaryRows(data), widths: S.PIER_WIDTHS }
-    ])
-      .then(function(blob){
-        downloadBlob(blob, '預壘樁進度管控表_' + todayISO().replace(/-/g,'') + '.xlsx');
-        toast('已匯出 Excel（含墩號彙總）');
-      })
-      .catch(function(e){
-        console.error(e);
-        toast('匯出失敗：' + (e && e.message ? e.message : e), true);
-      })
-      .then(function(){ btn.disabled = false; btn.textContent = old; });
-  }
-
-  function exportJson(){
-    var txt = S.exportJSON(data);
-    downloadBlob(new Blob([txt], { type:'application/json;charset=utf-8' }),
-      '查驗整合資料_' + todayISO().replace(/-/g,'') + '.json');
-    toast('已匯出 JSON（含查驗紀錄與墩號彙總）');
-  }
-
-  function importJson(file){
-    var fr = new FileReader();
-    fr.onload = function(){
-      try {
-        var d = S.importJSON(String(fr.result));
-        if (!window.confirm('匯入將覆蓋目前所有資料（' + data.piles.length + ' 支樁、' +
-            data.logs.length + ' 筆查驗紀錄）。\n\n檔案內容：' + d.piles.length + ' 支樁、' +
-            d.logs.length + ' 筆查驗紀錄。\n\n確定要匯入嗎？')) return;
-        data = d;
-        persist();
-        /* 匯入檔若含材料紀錄，一併還原 */
-        if (Array.isArray(d.materials)) {
-          mats = S.normalizeMaterials(d.materials);
-          S.saveMaterials(mats);
-        }
-        render();
-        cloudTouch();
-        toast('已匯入：' + d.piles.length + ' 支樁、' + d.logs.length + ' 筆查驗紀錄' +
-          (Array.isArray(d.materials) ? '、' + mats.length + ' 筆材料' : ''));
-      } catch (e) {
-        toast('匯入失敗：' + (e && e.message ? e.message : e), true);
-      }
-    };
-    fr.readAsText(file);
-  }
-
   /* ---------- 事件 ---------- */
   $('fSide').addEventListener('change', function(){ filter.side = this.value; renderTable(); });
   $('fStatus').addEventListener('change', function(){ filter.status = this.value; renderTable(); });
@@ -1362,14 +1250,6 @@
     toast('已重設進度（查驗紀錄保留）');
   });
 
-  $('btnXlsx').addEventListener('click', exportXlsx);
-  $('btnJson').addEventListener('click', exportJson);
-  $('btnImport').addEventListener('click', function(){ $('fileImport').click(); });
-  $('fileImport').addEventListener('change', function(){
-    if (this.files && this.files[0]) importJson(this.files[0]);
-    this.value = '';
-  });
-
   /* 材料管控：兩種材料各自獨立的填寫與按鈕 */
   MAT_ENTRY.forEach(function(ent){
     $(ent.dateId).value = todayISO();
@@ -1382,7 +1262,6 @@
       if (e.key === 'Enter') { e.preventDefault(); addMaterial(ent.type); }
     });
   });
-  $('btnMatXlsx').addEventListener('click', exportMaterialXlsx);
 
   /* Google Drive 雲端同步：狀態列（手動存／載）＋ 開頁自動讀取 */
   if (GD) {

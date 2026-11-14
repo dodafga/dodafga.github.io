@@ -119,20 +119,86 @@ function renderFinal(blob,dateISO,angle){
   }).catch(function(){return {blob:blob,applied:!1}});
 }
 
-/* ================= 樁號下拉 ================= */
+/* ================= 樁號下拉（依日期連動） =================
+   只列出「查驗紀錄表」中該日期有查驗紀錄的樁號。
+   資料來源：SuiteStore 的 logs（每筆紀錄的 piles 陣列）。
+   換日期即重算；該日期沒有查驗紀錄時明確提示，不讓使用者選到不存在的樁號。 */
+function stationsForDate(dateISO){
+  var S=window.SuiteStore;
+  if(!S||!S.load||!dateISO)return [];
+  var d;
+  try{d=S.load()}catch(e){return []}
+  var out=[],seen={};
+  (d.logs||[]).forEach(function(l){
+    if(!l||String(l.date||"")!==String(dateISO))return;
+    var nos=(S.logPileNos?S.logPileNos(d,l):(l.piles||[]))||[];
+    nos.forEach(function(no){
+      var s=String(no||"").trim();
+      if(!s||seen[s])return;seen[s]=1;out.push(s);
+    });
+  });
+  /* 依墩號、樁號序號排序，讓下拉好找 */
+  out.sort(function(a,b){
+    var pa=pierOfStation(a),pb=pierOfStation(b);
+    if(pa!==pb)return pa.localeCompare(pb);
+    return (parseInt(String(a).split("-").pop(),10)||0)-(parseInt(String(b).split("-").pop(),10)||0);
+  });
+  return out;
+}
+function pierOfStation(no){
+  var m=String(no||"").match(/^(.+?)-\d+$/);
+  return m?m[1]:String(no||"");
+}
 function buildStations(){
   var sel=$("fStation");
   if(!sel)return;
-  var S=window.SuiteStore,defs=S&&S.PIER_DEFS||[],html='<option value="">— 請選擇樁號 —</option>';
-  if(!defs.length){html+='<option value="__none">（樁位資料未載入）</option>';sel.innerHTML=html;return}
-  defs.forEach(function(d){
-    var n=Number(d.count)||0;
-    if(!n)return;
-    html+='<optgroup label="'+esc(d.pier)+"　"+esc(d.side||"")+"　"+esc(d.type||"")+'">';
-    for(var i=1;i<=n;i++){var v=d.pier+"-"+i;html+='<option value="'+esc(v)+'">'+esc(v)+"</option>"}
+  var hint=$("stationHint");
+  var dateISO=$("fDate")&&$("fDate").value||"";
+  var prev=sel.value||"";
+
+  if(!dateISO){
+    sel.innerHTML='<option value="">— 請先選擇日期 —</option>';
+    sel.disabled=!0;
+    if(hint){hint.textContent="請先選擇歸檔日期，樁號會依該日的查驗紀錄自動列出。";hint.className="hint2";}
+    return;
+  }
+
+  var list=stationsForDate(dateISO);
+
+  if(!list.length){
+    sel.innerHTML='<option value="">— 此日期尚無查驗紀錄 —</option>';
+    sel.disabled=!0;
+    if(hint){
+      hint.textContent="此日期尚無查驗紀錄，請先到「查驗紀錄表」新增該日期的查驗，或改選其他日期。";
+      hint.className="hint2 bad";
+    }
+    return;
+  }
+
+  /* 依墩號分組 */
+  var groups={},order=[];
+  list.forEach(function(no){
+    var p=pierOfStation(no);
+    if(!groups[p]){groups[p]=[];order.push(p)}
+    groups[p].push(no);
+  });
+
+  var html='<option value="">— 請選擇樁號 —</option>';
+  order.forEach(function(p){
+    html+='<optgroup label="'+esc(p)+'">';
+    groups[p].forEach(function(no){html+='<option value="'+esc(no)+'">'+esc(no)+"</option>"});
     html+="</optgroup>";
   });
   sel.innerHTML=html;
+  sel.disabled=!1;
+
+  /* 盡量保留原本選取（若該樁號當日仍有查驗） */
+  if(prev&&list.indexOf(prev)>=0)sel.value=prev;
+
+  if(hint){
+    hint.textContent="本日有查驗的樁號共 "+list.length+" 支（"+order.length+" 個墩號）。";
+    hint.className="hint2";
+  }
 }
 
 /* ================= 加入照片（階段一：EXIF 轉正 + 縮圖） ================= */
@@ -527,8 +593,9 @@ function bind(){
     });
   }
 
-  C.on("fDate","change",updateGo);
-  C.on("fDate","input",updateGo);
+  /* 日期變更 → 樁號選單依該日查驗紀錄重算，再更新按鈕狀態 */
+  C.on("fDate","change",function(){buildStations();updateGo()});
+  C.on("fDate","input",function(){buildStations();updateGo()});
   C.on("fStation","change",updateGo);
   /* 三重保險：C.on + onclick + document 代理，
      確保任何情況下點「確認上傳」都會真的執行（不會被別的 handler 吃掉）。 */
@@ -586,8 +653,9 @@ function startPrep(){
 
 function init(){
   window.__v2init="yes";
-  buildStations();loadWm();loadOrient();loadDone();
+  loadWm();loadOrient();loadDone();
   var d=$("fDate");d&&!d.value&&(d.value=todayISO());
+  buildStations();   /* 日期先設好，再依該日查驗紀錄建立樁號選單 */
   var chk=$("chkWm2");chk&&(chk.checked=wmOn);
   var st=$("wmState2");st&&(st.textContent=wmOn?"開啟":"關閉");
   var chkO=$("chkOrient2");chkO&&(chkO.checked=orientOn);

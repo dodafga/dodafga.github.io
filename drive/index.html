@@ -130,15 +130,16 @@ sweep(document)})();</script>
           <input type="date" id="fDate">
         </div>
         <div class="field">
-          <label for="fStation">樁號<span class="hint">（上傳到以此命名的子資料夾）</span></label>
+          <label for="fStation">樁號<span class="hint">（只列出該日期有查驗的樁號）</span></label>
           <select id="fStation">
-            <option value="">— 請選擇樁號 —</option>
+            <option value="">— 請先選擇日期 —</option>
           </select>
+          <div class="hint2" id="stationHint" style="margin-top:6px;"></div>
         </div>
       </div>
       <div class="sub2">
         資料夾規則：<code>營建相片 / 日期 / 樁號 /</code>　·　檔名規則：<code>日期_樁號_序號.png</code><br>
-        樁號選單取自網站既有的樁位資料（19 墩、121 支樁）。<br>
+        樁號選單依「查驗紀錄表」中該日期的查驗紀錄產生，只列出當日有查驗的樁號。<br>
         自動轉正：先用 OCR 找「工程名稱／檢查項目／檢查日期」的位置判斷方向；判不出來時會在縮圖上顯示「這樣對嗎？」並可按一下轉 180°。
       </div>
     </div>

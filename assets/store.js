@@ -197,7 +197,10 @@
         location: String(l.location || ''),
         pier: pier,
         piers: piers,
-        piles: list
+        piles: list,
+        /* 每支樁位的檢查量測值（舊資料沒有此欄位 → 空物件，相容） */
+        note: String(l.note || ''),
+        m: (l.m && typeof l.m === 'object') ? l.m : {}
       };
     });
 

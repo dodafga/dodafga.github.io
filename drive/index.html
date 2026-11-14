@@ -138,7 +138,8 @@ sweep(document)})();</script>
       </div>
       <div class="sub2">
         資料夾規則：<code>營建相片 / 日期 / 樁號 /</code>　·　檔名規則：<code>日期_樁號_序號.png</code><br>
-        樁號選單取自網站既有的樁位資料（19 墩、121 支樁）。
+        樁號選單取自網站既有的樁位資料（19 墩、121 支樁）。<br>
+        自動轉正：先用 OCR 找「工程名稱／檢查項目／檢查日期」的位置判斷方向；判不出來時會在縮圖上顯示「這樣對嗎？」並可按一下轉 180°。
       </div>
     </div>
   </div>
@@ -193,7 +194,15 @@ sweep(document)})();</script>
             <span>日期浮水印</span>
             <span class="st" id="wmState2">開啟</span>
           </label>
+          <label class="wmtog" title="新加入的照片要不要自動判斷方向（OCR）">
+            <input type="checkbox" id="chkOrient2" checked>
+            <span class="trk"></span>
+            <span>自動轉正</span>
+            <span class="st" id="orientState2">開啟</span>
+          </label>
         </div>
+
+        <div class="uncertain" id="uncertainBar" style="display:none;"></div>
 
         <div class="grid2t" id="stageGrid"></div>
 
@@ -324,6 +333,7 @@ sweep(document)})();</script>
 <script src="../assets/watermark.js"></script>
 <script src="../assets/orient.js"></script>
 <script src="../assets/orient-struct3.js"></script>
+<script src="../assets/orient-ocr.js"></script>
 <script src="../assets/orient-switch.js"></script>
 <script src="../assets/photo-edit.js"></script>
 <script src="../assets/gdrive-photo.js"></script>

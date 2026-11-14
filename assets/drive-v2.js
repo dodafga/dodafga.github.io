@@ -1,1 +1,569 @@
-(function(){"use strict";var C=window.Core;if(!C||!C.on)return;var $=C.$,esc=C.esc,pad2=C.pad2,todayISO=C.todayISO,fmtSize=C.fmtSize,safeName=C.safeName,toast=C.makeToast("toast",2600),HIST_KEY="inspection-drive-photo-history",DONE_KEY="inspection-drive-photo-done-session",WM_KEY="inspection-drive-photo-watermark",MAX_EDGE=2e3,THUMB_EDGE=320,stage=[],doneList=[],wmOn=!0,uploading=!1,seq=0;function compactDate(iso){return String(iso||"").replace(/-/g,"")}function loadWm(){var v=C.store.get(WM_KEY,"");v==="0"?wmOn=!1:v==="1"&&(wmOn=!0)}function saveWm(){C.store.set(WM_KEY,wmOn?"1":"0")}function loadDone(){try{var raw=sessionStorage.getItem(DONE_KEY);if(!raw)return;var arr=JSON.parse(raw);Array.isArray(arr)&&(doneList=arr.slice(0,30))}catch(e){}}function saveDone(){try{sessionStorage.setItem(DONE_KEY,JSON.stringify(doneList.slice(0,30)))}catch(e){}}function readHist(){var arr=C.store.getJSON(HIST_KEY,[]);return Array.isArray(arr)?arr:[]}function writeHist(arr){var L=C.LIMITS||{};L.HISTORY_LIMIT&&arr.length>L.HISTORY_LIMIT&&(arr=arr.slice(0,L.HISTORY_LIMIT)),C.store.setJSON(HIST_KEY,arr)||toast("本機儲存空間不足，較舊的紀錄可能無法保存",!0)}function buildStations(){var sel=$("fStation");if(sel){var S=window.SuiteStore,defs=S&&S.PIER_DEFS||[],html='<option value="">— 請選擇樁號 —</option>';if(!defs.length){html+='<option value="__none">（樁位資料未載入）</option>',sel.innerHTML=html;return}defs.forEach(function(d){var n=Number(d.count)||0;if(n){html+='<optgroup label="'+esc(d.pier)+"　"+esc(d.side||"")+"　"+esc(d.type||"")+'">';for(var i=1;i<=n;i++){var v=d.pier+"-"+i;html+='<option value="'+esc(v)+'">'+esc(v)+"</option>"}html+="</optgroup>"}}),sel.innerHTML=html}}function addFiles(fileList){for(var files=[],i=0;i<fileList.length;i++){var f=fileList[i];f&&/^image\//.test(f.type)&&files.push(f)}if(!files.length){toast("沒有可用的圖片檔",!0);return}var added=0;files.forEach(function(f2){var item={key:"s"+Date.now()+"_"+seq++,baseBlob:null,thumbUrl:"",manualAngle:0,autoAngle:0,busy:!0,err:"",name:f2.name||"photo_"+seq+".jpg",size:f2.size||0};stage.push(item),added++,renderStage(),prepareClean(f2).then(function(r){return item.baseBlob=r.blob,item.autoAngle=r.autoRotated||0,makeThumbUrl(r.blob,item.manualAngle)}).then(function(url){item.thumbUrl=url,item.busy=!1,renderStage()}).catch(function(e){item.busy=!1,item.err=e&&e.message||"轉正失敗",item.baseBlob=f2,makeThumbUrl(f2,0).then(function(url){item.thumbUrl=url,renderStage()}).catch(function(){renderStage()})})}),toast("已加入 "+added+" 張照片，正在自動轉正…")}function prepareClean(file){var G=window.GDrivePhoto;return!G||!G.preparePhotoBlob?Promise.resolve({blob:file,autoRotated:0}):G.preparePhotoBlob(file,{date:"",watermark:!1,maxEdge:MAX_EDGE,detect:!0,orient:!0,manualAngle:0}).then(function(r){return{blob:r.blob||file,autoRotated:r.autoRotated||0}})}function makeThumbUrl(blob,angle){var WM=window.PhotoWatermark;return!WM||!WM.loadImageFromBlob?Promise.resolve(""):WM.loadImageFromBlob(blob).then(function(img){var r;try{r=WM.render(img,{maxEdge:THUMB_EDGE,date:"",watermark:!1,detect:!1,orient:!1,manualAngle:angle||0})}finally{try{img.release()}catch(e){}}return r.canvas.toDataURL("image/jpeg",.72)}).catch(function(){return""})}function renderStage(){var box=$("stageGrid"),cnt=$("stageCount");if(cnt&&(cnt.textContent=stage.length+" 張"),!!box){if(!stage.length){box.innerHTML='<div class="empty2">尚未選取照片。<br>點上方「選擇照片」或「直接拍照」，照片會先自動轉正並排在這裡。</div>',updateGo();return}var html="";stage.forEach(function(it){var badge="";it.busy?badge='<div class="spin">轉正中…</div>':it.err?badge='<span class="badge warn">原樣</span>':it.manualAngle?badge='<span class="badge">已轉 '+it.manualAngle+"°</span>":it.autoAngle&&(badge='<span class="badge">自動轉正</span>'),html+='<div class="th2" data-k="'+it.key+'">'+(it.thumbUrl?'<img src="'+it.thumbUrl+'" alt="">':"")+badge+'<div class="ops"><button type="button" data-rot="'+it.key+'" title="旋轉 90 度">↻</button><button type="button" class="rm" data-rm="'+it.key+'" title="移除">×</button></div></div>'}),box.innerHTML=html,updateGo()}}function updateGo(){var btn=$("btnGo"),hint=$("goHint"),date=$("fDate")&&$("fDate").value||"",st=$("fStation")&&$("fStation").value||"",ready=stage.filter(function(s){return!s.busy&&s.baseBlob}).length,busy=stage.some(function(s){return s.busy});if(btn&&(btn.disabled=uploading||busy||ready===0||!date||!st,btn.textContent=uploading?"☁ 上傳中…":ready?"☁ 確認上傳（"+ready+"）":"☁ 確認上傳"),hint){var msg="",bad=!1;uploading?msg="上傳中，請勿關閉頁面…":busy?msg="正在自動轉正…":stage.length?date?st?msg="將上傳到 營建相片 / "+date+" / "+st+" /":(msg="請先選擇樁號",bad=!0):(msg="請先選擇日期",bad=!0):msg="請先加入照片",hint.textContent=msg,hint.className="hint2"+(bad?" bad":"")}}function buildName(dateISO,station,n){var d=compactDate(dateISO)||compactDate(todayISO()),mid=safeName(station)||"photo",taken={};readHist().forEach(function(h){h&&h.date===dateISO&&h.name&&(taken[h.name]=1)});var name;do name=d+"_"+mid+"_"+pad2(n)+".png",n++;while(taken[name]&&n<1e3);return name}function renderFinal(blob,dateISO,angle){var WM=window.PhotoWatermark;return!WM||!WM.loadImageFromBlob?Promise.resolve(blob):WM.loadImageFromBlob(blob).then(function(img){var r;try{r=WM.render(img,{maxEdge:MAX_EDGE,date:dateISO,watermark:wmOn,detect:wmOn,orient:!1,manualAngle:angle||0})}finally{try{img.release()}catch(e){}}return WM.toPng(r.canvas).then(function(png){return{blob:png,applied:!!r.applied,detected:!!r.detected}})}).catch(function(){return{blob,applied:!1,detected:!1}})}function ensureStationFolder(dateISO,station){var G=window.GDrivePhoto;if(!G||!G.ensureNamedFolder)return Promise.reject(new Error("Drive 模組未載入"));var ROOT="營建相片";return G.ensureNamedFolder(ROOT).then(function(rootId){return G.ensureNamedFolder(dateISO,rootId).then(function(dayId){return G.ensureNamedFolder(station,dayId).then(function(stId){return{rootId,dayId,stationId:stId}})})})}function uploadOne(blob,name,folderId,desc){var G=window.GDrive;if(!G||!G.uploadMultipart)return Promise.reject(new Error("Drive 模組未載入"));var meta={name,parents:[folderId]};desc&&(meta.description=desc);var form=new FormData;form.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"}));var b=blob;if(b.type!=="image/png")try{b=new Blob([b],{type:"image/png"})}catch(e){b=blob}return form.append("file",b,name),G.uploadMultipart(form,"id,name,webViewLink,size").then(function(j){return{id:j.id,name:j.name,link:j.webViewLink||"https://drive.google.com/file/d/"+j.id+"/view",size:j.size?Number(j.size):blob.size||0}})}function runUpload(){if(uploading)return;var G=window.GDrive;if(!G||!G.hasToken||!G.hasToken()){toast("請先連線 Google Drive",!0);var w=$("connWarn");w&&(w.style.display="");return}var dateISO=$("fDate")&&$("fDate").value||"",station=$("fStation")&&$("fStation").value||"";if(!dateISO){toast("請先選擇日期",!0);return}if(!station){toast("請先選擇樁號",!0);return}var list=stage.filter(function(s){return!s.busy&&s.baseBlob});if(!list.length){toast("暫存區沒有可上傳的照片",!0);return}uploading=!0,updateGo();var pw=$("progWrap"),pb=$("progBar"),pt=$("progTxt");pw&&pw.classList.add("on");var total=list.length,ok=0,fail=0,n=1,folder=null;function tick(msg){var pct=Math.round((ok+fail)/total*100);pb&&(pb.style.width=pct+"%"),pt&&(pt.textContent=msg||"已完成 "+ok+" / "+total+" 張"+(fail?"（失敗 "+fail+" 張）":""))}tick("準備資料夾…"),ensureStationFolder(dateISO,station).then(function(f){folder=f;var chain=Promise.resolve();return list.forEach(function(it){chain=chain.then(function(){return tick("處理 "+(ok+fail+1)+" / "+total+"：壓浮水印…"),renderFinal(it.baseBlob,dateISO,it.manualAngle).then(function(fin){var name=buildName(dateISO,station,n);n++;var desc=["樁號："+station,"歸檔日期："+dateISO,wmOn?fin.applied?"已壓日期浮水印":fin.detected?"已有時間戳，未重複壓":"未壓浮水印":"未壓浮水印"].join("｜");return tick("上傳 "+(ok+fail+1)+" / "+total+"："+name),uploadOne(fin.blob,name,folder.stationId,desc).then(function(res){var hist=readHist();hist.unshift({id:res.id,name:res.name,link:res.link,date:dateISO,item:station,note:"",size:res.size||0,watermark:wmOn?fin.applied?"applied":fin.detected?"skipped-existing":"off":"off",uploadedAt:new Date().toISOString()}),writeHist(hist),doneList.unshift({name:res.name,link:res.link,date:dateISO,station,thumbUrl:it.thumbUrl||"",size:res.size||0}),saveDone();var idx=stage.indexOf(it);idx>=0&&stage.splice(idx,1),ok++,renderStage(),renderDone(),tick()})}).catch(function(e){fail++,it.err=e&&e.message||"上傳失敗",renderStage(),tick("第 "+(ok+fail)+" 張失敗："+it.err)})})}),chain}).then(function(){uploading=!1,updateGo(),pw&&pw.classList.remove("on"),fail?toast("已完成：成功 "+ok+" 張，失敗 "+fail+" 張（失敗的留在暫存區可重試）",!0):toast("已上傳 "+ok+" 張到 營建相片 / "+dateISO+" / "+station+" /"),ok>0&&setTimeout(function(){try{window.location.reload()}catch(e){}},1100)}).catch(function(e){uploading=!1,updateGo(),pw&&pw.classList.remove("on");var msg=e&&e.message||String(e);toast("上傳失敗："+msg,!0),tick("失敗："+msg)})}function renderDone(){var box=$("doneList"),cnt=$("doneCount");if(cnt&&(cnt.textContent=doneList.length+" 張"),!!box){if(!doneList.length){box.innerHTML='<div class="empty2">尚無上傳完成的照片。上傳成功後會列在這裡。</div>';return}var html="";doneList.forEach(function(d){html+='<div class="row2"><div class="th3">'+(d.thumbUrl?'<img src="'+d.thumbUrl+'" alt="">':"")+'</div><div class="info"><div class="nm2">'+esc(d.name)+'</div><div class="sub3">'+esc(d.date)+"　"+esc(d.station)+"　"+esc(fmtSize(d.size||0))+'</div></div><span class="ok2">已上傳</span><a class="open2" href="'+esc(C.safeUrl?C.safeUrl(d.link,"#"):d.link)+'" target="_blank" rel="noopener">開啟</a></div>'}),box.innerHTML=html}}function bind(){var fi=$("fileInput2");fi&&C.on(fi,"change",function(){fi.files&&fi.files.length&&addFiles(fi.files),fi.value=""});var ci=$("camInput2");ci&&C.on(ci,"change",function(){ci.files&&ci.files.length&&addFiles(ci.files),ci.value=""}),C.on("tilePick","click",function(){fi&&fi.click()}),C.on("tileCam","click",function(){ci&&ci.click()});var dz=$("dropZone");dz&&(["dragenter","dragover"].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault(),dz.classList.add("drag")})}),["dragleave","drop"].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault(),dz.classList.remove("drag")})}),dz.addEventListener("drop",function(e){e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length&&addFiles(e.dataTransfer.files)})),C.on("stageGrid","click",function(e){var t=e.target,el=t&&t.closest?t.closest("[data-rot],[data-rm]"):null;if(el){for(var key=el.getAttribute("data-rot")||el.getAttribute("data-rm"),it=null,i=0;i<stage.length;i++)if(stage[i].key===key){it=stage[i];break}if(it){if(el.hasAttribute("data-rm")){if(uploading){toast("上傳中，請稍候",!0);return}var idx=stage.indexOf(it);idx>=0&&stage.splice(idx,1),renderStage(),toast("已從暫存區移除");return}if(uploading){toast("上傳中，請稍候",!0);return}if(it.busy||!it.baseBlob){toast("照片還在轉正，請稍候",!0);return}it.manualAngle=((it.manualAngle||0)+90)%360,it.busy=!0,renderStage(),makeThumbUrl(it.baseBlob,it.manualAngle).then(function(url){url&&(it.thumbUrl=url),it.busy=!1,renderStage()}).catch(function(){it.busy=!1,renderStage()})}}});var chk=$("chkWm2");chk&&(chk.checked=wmOn,C.on(chk,"change",function(){wmOn=!!chk.checked,saveWm();var st=$("wmState2");st&&(st.textContent=wmOn?"開啟":"關閉"),updateGo(),toast(wmOn?"上傳時會壓上日期浮水印":"上傳時不壓日期浮水印")})),C.on("fDate","change",updateGo),C.on("fDate","input",updateGo),C.on("fStation","change",updateGo),C.on("btnGo","click",runUpload),C.on("btnClearStage","click",function(){if(uploading){toast("上傳中，請稍候",!0);return}if(!stage.length){toast("暫存區已經是空的");return}window.confirm("要清空暫存區的 "+stage.length+" 張照片嗎？（不會影響已上傳的紀錄）")&&(stage=[],renderStage(),toast("已清空暫存區"))}),C.on("btnClearDone","click",function(){if(!doneList.length){toast("上傳完成區已經是空的");return}doneList=[],saveDone(),renderDone(),toast("已清空上傳完成區（已上傳紀錄不受影響）")})}function init(){buildStations(),loadWm(),loadDone();var d=$("fDate");d&&!d.value&&(d.value=todayISO());var chk=$("chkWm2");chk&&(chk.checked=wmOn);var st=$("wmState2");st&&(st.textContent=wmOn?"開啟":"關閉"),bind(),renderStage(),renderDone(),updateGo()}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",init):init()})();
+(function(){
+"use strict";
+var C=window.Core;
+if(!C||!C.on)return;
+var $=C.$,esc=C.esc,pad2=C.pad2,todayISO=C.todayISO,fmtSize=C.fmtSize,safeName=C.safeName,
+    toast=C.makeToast("toast",2600),
+    HIST_KEY="inspection-drive-photo-history",
+    DONE_KEY="inspection-drive-photo-done-session",
+    WM_KEY="inspection-drive-photo-watermark",
+    ORIENT_KEY="inspection-drive-photo-autoorient",
+    MAX_EDGE=2000,
+    THUMB_EDGE=320,
+    OCR_BUDGET=20000,
+    stage=[],doneList=[],wmOn=!0,orientOn=!0,uploading=!1,seq=0;
+
+function compactDate(iso){return String(iso||"").replace(/-/g,"")}
+function loadWm(){var v=C.store.get(WM_KEY,"");v==="0"?wmOn=!1:v==="1"&&(wmOn=!0)}
+function saveWm(){C.store.set(WM_KEY,wmOn?"1":"0")}
+function loadOrient(){var v=C.store.get(ORIENT_KEY,"");v==="0"?orientOn=!1:v==="1"&&(orientOn=!0)}
+function saveOrient(){C.store.set(ORIENT_KEY,orientOn?"1":"0")}
+function loadDone(){try{var r=sessionStorage.getItem(DONE_KEY);if(!r)return;var a=JSON.parse(r);Array.isArray(a)&&(doneList=a.slice(0,30))}catch(e){}}
+function saveDone(){try{sessionStorage.setItem(DONE_KEY,JSON.stringify(doneList.slice(0,30)))}catch(e){}}
+function readHist(){var a=C.store.getJSON(HIST_KEY,[]);return Array.isArray(a)?a:[]}
+function writeHist(a){var L=C.LIMITS||{};L.HISTORY_LIMIT&&a.length>L.HISTORY_LIMIT&&(a=a.slice(0,L.HISTORY_LIMIT)),C.store.setJSON(HIST_KEY,a)||toast("本機儲存空間不足，較舊的紀錄可能無法保存",!0)}
+
+/* ================= 影像（全部自有 canvas，不依賴 watermark.js） ================= */
+function loadBitmap(file){
+  if(window.createImageBitmap){
+    return createImageBitmap(file,{imageOrientation:"from-image"}).catch(function(){
+      return createImageBitmap(file);
+    });
+  }
+  return new Promise(function(res,rej){
+    var u=URL.createObjectURL(file),im=new Image();
+    im.onload=function(){URL.revokeObjectURL(u);res(im)};
+    im.onerror=function(){URL.revokeObjectURL(u);rej(new Error("圖片載入失敗"))};
+    im.src=u;
+  });
+}
+function bSize(b){return {w:b.width||b.naturalWidth||0,h:b.height||b.naturalHeight||0}}
+function bFree(b){try{b&&b.close&&b.close()}catch(e){}}
+
+function drawRot(bmp,angle,maxEdge){
+  var s=bSize(bmp),W=s.w,H=s.h;
+  if(!W||!H)throw new Error("圖片尺寸無效");
+  var sw=(angle===90||angle===270);
+  var ow=sw?H:W, oh=sw?W:H;
+  var sc=Math.min(1,(maxEdge||MAX_EDGE)/Math.max(ow,oh));
+  var w=Math.max(1,Math.round(ow*sc)),h=Math.max(1,Math.round(oh*sc));
+  var cv=document.createElement("canvas");
+  cv.width=w;cv.height=h;
+  var cx=cv.getContext("2d");
+  cx.fillStyle="#fff";cx.fillRect(0,0,w,h);
+  var dw=Math.round(W*sc),dh=Math.round(H*sc);
+  cx.save();cx.translate(w/2,h/2);
+  if(angle)cx.rotate(angle*Math.PI/180);
+  cx.drawImage(bmp,-dw/2,-dh/2,dw,dh);
+  cx.restore();
+  return cv;
+}
+function canvasToBlob(cv){
+  return new Promise(function(res,rej){
+    if(cv.toBlob)cv.toBlob(function(b){b?res(b):rej(new Error("轉檔失敗"))},"image/png");
+    else{try{res(dataURLtoBlob(cv.toDataURL("image/png")))}catch(e){rej(e)}}
+  });
+}
+function dataURLtoBlob(u){
+  var p=u.split(","),m=p[0].match(/:(.*?);/)[1],bin=atob(p[1]),n=bin.length,a=new Uint8Array(n);
+  for(var i=0;i<n;i++)a[i]=bin.charCodeAt(i);
+  return new Blob([a],{type:m});
+}
+function thumbDataURL(bmp,angle){
+  var cv=drawRot(bmp,angle,THUMB_EDGE);
+  try{return cv.toDataURL("image/jpeg",0.72)}catch(e){return ""}
+}
+function thumbFromBlob(blob,angle){
+  return loadBitmap(blob).then(function(b){
+    var u="";
+    try{u=thumbDataURL(b,angle||0)}catch(e){}
+    bFree(b);return u;
+  }).catch(function(){return ""});
+}
+function stampDate(cv,dateISO){
+  var txt=String(dateISO||"").replace(/-/g,"/");
+  if(!txt)return;
+  var cx=cv.getContext("2d"),W=cv.width,H=cv.height;
+  var fs=Math.max(16,Math.round(Math.min(W,H)*0.045));
+  var m=Math.round(fs*0.7);
+  cx.save();
+  cx.font="700 "+fs+"px -apple-system,'PingFang TC','Noto Sans TC',sans-serif";
+  cx.textBaseline="top";
+  var tw=cx.measureText(txt).width;
+  var bw=tw+fs*1.2,bh=Math.round(fs*1.6);
+  var x=m,y=H-m-bh;
+  cx.globalAlpha=.58;cx.fillStyle="#000";
+  cx.beginPath();
+  var r=Math.round(fs*0.42);
+  cx.moveTo(x+r,y);cx.lineTo(x+bw-r,y);cx.quadraticCurveTo(x+bw,y,x+bw,y+r);
+  cx.lineTo(x+bw,y+bh-r);cx.quadraticCurveTo(x+bw,y+bh,x+bw-r,y+bh);
+  cx.lineTo(x+r,y+bh);cx.quadraticCurveTo(x,y+bh,x,y+bh-r);
+  cx.lineTo(x,y+r);cx.quadraticCurveTo(x,y,x+r,y);cx.closePath();
+  cx.fill();
+  cx.globalAlpha=1;cx.fillStyle="#fff";
+  cx.fillText(txt,x+fs*0.6,y+fs*0.3);
+  cx.restore();
+}
+function renderFinal(blob,dateISO,angle){
+  return loadBitmap(blob).then(function(bmp){
+    var cv=drawRot(bmp,angle||0,MAX_EDGE);
+    bFree(bmp);
+    var applied=!1;
+    if(wmOn){try{stampDate(cv,dateISO);applied=!0}catch(e){}}
+    return canvasToBlob(cv).then(function(b){return {blob:b,applied:applied}});
+  }).catch(function(){return {blob:blob,applied:!1}});
+}
+
+/* ================= 樁號下拉 ================= */
+function buildStations(){
+  var sel=$("fStation");
+  if(!sel)return;
+  var S=window.SuiteStore,defs=S&&S.PIER_DEFS||[],html='<option value="">— 請選擇樁號 —</option>';
+  if(!defs.length){html+='<option value="__none">（樁位資料未載入）</option>';sel.innerHTML=html;return}
+  defs.forEach(function(d){
+    var n=Number(d.count)||0;
+    if(!n)return;
+    html+='<optgroup label="'+esc(d.pier)+"　"+esc(d.side||"")+"　"+esc(d.type||"")+'">';
+    for(var i=1;i<=n;i++){var v=d.pier+"-"+i;html+='<option value="'+esc(v)+'">'+esc(v)+"</option>"}
+    html+="</optgroup>";
+  });
+  sel.innerHTML=html;
+}
+
+/* ================= 加入照片（階段一：EXIF 轉正 + 縮圖） ================= */
+var prepQ=[],prepBusy=!1;
+
+function addFiles(list){
+  var files=[],i;
+  for(i=0;i<list.length;i++){var f=list[i];f&&/^image\//.test(f.type)&&files.push(f)}
+  if(!files.length){toast("沒有可用的圖片檔",!0);return}
+  files.forEach(function(f){
+    var it={
+      key:"s"+Date.now()+"_"+seq++,
+      srcFile:f,baseBlob:null,thumbUrl:"",
+      manualAngle:0,autoAngle:0,ocr:null,
+      busy:!0,ocrBusy:!1,err:"",
+      name:f.name||("photo_"+seq+".jpg"),size:f.size||0
+    };
+    stage.push(it);prepQ.push(it);
+  });
+  renderStage();
+  toast("已加入 "+files.length+" 張照片");
+  prepQueue();
+}
+
+function prepQueue(){
+  if(prepBusy)return;
+  var it=prepQ.shift();
+  if(!it){prepBusy=!1;return}
+  prepBusy=!0;
+
+  /* 每張最多 12 秒。瀏覽器的影像解碼偶爾會卡住（尤其連續處理多張時），
+     時間到就直接採用原檔並用 objectURL 當縮圖，寧可少一次轉檔也不能卡住整頁。 */
+  var settled=!1;
+  function settle(){
+    if(settled)return;settled=!0;
+    prepBusy=!1;          /* 一定要先放鎖，否則 prepQueue 會因為 prepBusy 還是 true 而直接 return，整條佇列死鎖 */
+    renderStage();prepQueue();
+  }
+  /* 解碼 + OCR 合計上限。OCR 自己有 20 秒預算，這裡留 32 秒緩衝，
+     確保「一定」會 settle，不會讓整條佇列卡死。 */
+  var guard=setTimeout(function(){
+    if(it.busy){
+      it.busy=!1;
+      it.err=it.err||"處理逾時，已使用原檔";
+      it.baseBlob=it.baseBlob||it.srcFile;
+      if(!it.thumbUrl){try{it.thumbUrl=URL.createObjectURL(it.srcFile)}catch(e){}}
+    }
+    settle();
+  },32000);
+
+  prepOne(it).then(function(){clearTimeout(guard);settle()},function(){clearTimeout(guard);settle()});
+}
+/* 單張 OCR 方向判斷。一定有結果（成功／逾時／失敗），永不 reject、永不卡住。 */
+function ocrOne(it,budgetMs){
+  var O=window.PhotoOrientOCR;
+  if(!O||!O.detect)return Promise.resolve({ok:!1,reason:"no-module"});
+  var done=!1;
+  return new Promise(function(resolve){
+    var t=setTimeout(function(){
+      if(done)return;done=!0;
+      resolve({ok:!1,reason:"timeout"});
+    },budgetMs||OCR_BUDGET);
+    loadBitmap(it.srcFile).then(function(bmp){
+      return O.detect(bmp).then(function(r){bFree(bmp);return r},function(e){bFree(bmp);throw e});
+    }).then(function(r){
+      if(done)return;done=!0;clearTimeout(t);
+      resolve(r||{ok:!1,reason:"empty"});
+    },function(e){
+      if(done)return;done=!0;clearTimeout(t);
+      resolve({ok:!1,reason:"error",error:e&&e.message?e.message:String(e)});
+    });
+  });
+}
+
+/* 階段一：EXIF 轉正 → 縮圖 → （可選）OCR 自動判斷方向 → 依判斷結果重出圖 */
+function prepOne(it){
+  return loadBitmap(it.srcFile).then(function(bmp){
+    var th="";
+    try{th=thumbDataURL(bmp,0)}catch(e){}
+    return canvasToBlob(drawRot(bmp,0,MAX_EDGE)).then(function(blob){
+      bFree(bmp);
+      it.baseBlob=blob;it.thumbUrl=th;it.err="";
+      if(!orientOn){it.ocr={ok:!1,reason:"switch-off"};it.busy=!1;return}
+      return ocrOne(it,OCR_BUDGET).then(function(res){
+        if(res&&res.ok&&res.angle){
+          it.autoAngle=Number(res.angle)||0;it.ocr=res;
+          return loadBitmap(it.baseBlob).then(function(b2){
+            var t2="";try{t2=thumbDataURL(b2,it.autoAngle)}catch(e){}
+            return canvasToBlob(drawRot(b2,it.autoAngle,MAX_EDGE)).then(function(nb){
+              bFree(b2);it.baseBlob=nb;if(t2)it.thumbUrl=t2;
+            },function(e){bFree(b2);throw e});
+          }).catch(function(){});
+        }
+        it.ocr=res||{ok:!1,reason:"unknown"};
+      }).then(function(){it.busy=!1},function(){it.busy=!1});
+    },function(e){bFree(bmp);throw e});
+  }).catch(function(e){
+    it.busy=!1;it.err=e&&e.message?e.message:"轉檔失敗";
+    it.baseBlob=it.baseBlob||it.srcFile;
+    return thumbFromBlob(it.srcFile,0).then(function(u){if(u)it.thumbUrl=u});
+  });
+}
+
+/* ================= 暫存區 ================= */
+function renderStage(){
+  var box=$("stageGrid"),c1=$("stageCount"),c2=$("stageCount2");
+  if(c1)c1.textContent=stage.length+" 張";
+  if(c2)c2.textContent=stage.length+" 張";
+  if(!box)return;
+  if(!stage.length){
+    box.innerHTML='<div class="empty2">尚未選取照片。<br>點上方「選擇照片」或「直接拍照」，照片會先自動轉正並排在這裡。</div>';
+    renderUncertain();updateGo();return;
+  }
+  var html="";
+  stage.forEach(function(it){
+    var bd="";
+    if(it.busy)bd='<span class="badge">處理中…</span>';
+    else if(it.err)bd='<span class="badge warn">原樣</span>';
+    else if(!orientOn)bd='<span class="badge mut">未自動轉正</span>';
+    else if(it.ocr&&it.ocr.ok)bd=it.autoAngle?'<span class="badge ok">已自動轉 '+it.autoAngle+"°</span>":'<span class="badge ok">方向正確</span>';
+    else bd='<span class="badge q">這樣對嗎？</span>';
+    if(it.manualAngle)bd+='<span class="badge mut">已轉 '+it.manualAngle+"°</span>";
+
+    var qb="";
+    if(!it.busy&&orientOn){
+      qb='<div class="q180"><span>'+(it.ocr&&it.ocr.ok?"方向已判定":"這樣對嗎？")+"</span>"+
+         '<button type="button" data-rot180="'+it.key+'">轉 180°</button></div>';
+    }
+    html+='<div class="th2" data-k="'+it.key+'">'+
+      (it.thumbUrl?'<img src="'+it.thumbUrl+'" alt="">':"")+
+      '<div class="bwrap">'+bd+"</div>"+qb+
+      '<div class="ops">'+
+        '<button type="button" data-ocr="'+it.key+'" title="自動判斷方向">◎</button>'+
+        '<button type="button" data-rot="'+it.key+'" title="旋轉 90 度">↻</button>'+
+        '<button type="button" class="rm" data-rm="'+it.key+'" title="移除">×</button>'+
+      "</div></div>";
+  });
+  box.innerHTML=html;
+  renderUncertain();updateGo();
+}
+function renderUncertain(){
+  var bar=$("uncertainBar");
+  if(!bar)return;
+  var n=stage.filter(function(s){return !s.busy&&orientOn&&s.ocr&&!s.ocr.ok}).length;
+  if(!n){bar.style.display="none";bar.innerHTML="";return}
+  bar.style.display="";
+  bar.innerHTML='<b>有 '+n+" 張方向不確定</b>　請確認是否需要轉正：按「<b>轉 180°</b>」一鍵轉正，或用「<b>↻</b>」每次轉 90°。";
+}
+function updateGo(){
+  var btn=$("btnGo"),hint=$("goHint"),
+      d=$("fDate")&&$("fDate").value||"",
+      s=$("fStation")&&$("fStation").value||"",
+      ready=stage.filter(function(x){return !x.busy&&x.baseBlob}).length,
+      busy=stage.some(function(x){return x.busy});
+  if(btn){
+    btn.disabled=uploading||busy||ready===0||!d||!s;
+    btn.textContent=uploading?"☁ 上傳中…":(ready?"☁ 確認上傳（"+ready+"）":"☁ 確認上傳");
+  }
+  if(hint){
+    var msg="",bad=!1;
+    if(uploading)msg="上傳中，請勿關閉頁面…";
+    else if(busy)msg="正在處理照片…";
+    else if(!stage.length)msg="請先加入照片";
+    else if(!d){msg="請先選擇日期";bad=!0}
+    else if(!s){msg="請先選擇樁號";bad=!0}
+    else msg="將上傳到 營建相片 / "+d+" / "+s+" /"+(wmOn?"（壓日期浮水印）":"（不壓浮水印）");
+    hint.textContent=msg;
+    hint.className="hint2"+(bad?" bad":"");
+  }
+}
+
+/* ================= 檔名 ================= */
+function buildName(dateISO,station,n){
+  var d=compactDate(dateISO)||compactDate(todayISO()),
+      mid=safeName(station)||"photo",taken={};
+  readHist().forEach(function(h){h&&h.date===dateISO&&h.name&&(taken[h.name]=1)});
+  var name;
+  do{name=d+"_"+mid+"_"+pad2(n)+".png";n++}while(taken[name]&&n<1000);
+  return name;
+}
+
+/* ================= 資料夾 / 上傳 ================= */
+function ensureStationFolder(dateISO,station){
+  var G=window.GDrivePhoto;
+  if(!G||!G.ensureNamedFolder)return Promise.reject(new Error("Drive 模組未載入"));
+  return G.ensureNamedFolder("營建相片").then(function(rootId){
+    return G.ensureNamedFolder(dateISO,rootId).then(function(dayId){
+      return G.ensureNamedFolder(station,dayId).then(function(stId){
+        return {rootId:rootId,dayId:dayId,stationId:stId};
+      });
+    });
+  });
+}
+function uploadOne(blob,name,folderId,desc){
+  var G=window.GDrive;
+  if(!G||!G.uploadMultipart)return Promise.reject(new Error("Drive 模組未載入"));
+  var meta={name:name,parents:[folderId]};
+  desc&&(meta.description=desc);
+  var form=new FormData;
+  form.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"}));
+  var b=blob;
+  if(b.type!=="image/png"){try{b=new Blob([b],{type:"image/png"})}catch(e){b=blob}}
+  form.append("file",b,name);
+  return G.uploadMultipart(form,"id,name,webViewLink,size").then(function(j){
+    return {id:j.id,name:j.name,link:j.webViewLink||("https://drive.google.com/file/d/"+j.id+"/view"),size:j.size?Number(j.size):(blob.size||0)};
+  });
+}
+
+function runUpload(){
+  if(uploading)return;
+  var G=window.GDrive;
+  if(!G||!G.hasToken||!G.hasToken()){
+    toast("請先連線 Google Drive",!0);
+    var w=$("connWarn");w&&(w.style.display="");return;
+  }
+  var dateISO=$("fDate")&&$("fDate").value||"",
+      station=$("fStation")&&$("fStation").value||"";
+  if(!dateISO){toast("請先選擇日期",!0);return}
+  if(!station){toast("請先選擇樁號",!0);return}
+  var list=stage.filter(function(s){return !s.busy&&s.baseBlob});
+  if(!list.length){toast("暫存區沒有可上傳的照片",!0);return}
+
+  uploading=!0;updateGo();
+  var pw=$("progWrap"),pb=$("progBar"),pt=$("progTxt");
+  pw&&pw.classList.add("on");
+  var total=list.length,ok=0,fail=0,n=1;
+  function tick(m){
+    var pct=Math.round((ok+fail)/total*100);
+    pb&&(pb.style.width=pct+"%");
+    pt&&(pt.textContent=m||("已完成 "+ok+" / "+total+" 張"+(fail?"（失敗 "+fail+" 張）":"")));
+  }
+  tick("準備資料夾…");
+
+  ensureStationFolder(dateISO,station).then(function(folder){
+    var chain=Promise.resolve();
+    list.forEach(function(it){
+      chain=chain.then(function(){
+        tick("處理 "+(ok+fail+1)+" / "+total+"：壓浮水印…");
+        return renderFinal(it.baseBlob,dateISO,it.manualAngle).then(function(fin){
+          var name=buildName(dateISO,station,n);n++;
+          var desc=["樁號："+station,"歸檔日期："+dateISO,
+            it.ocr&&it.ocr.ok?("自動轉正："+(it.autoAngle||0)+"°"):"自動轉正：未判定",
+            it.manualAngle?("手動旋轉："+it.manualAngle+"°"):"",
+            wmOn?(fin.applied?"已壓日期浮水印":"未壓浮水印"):"未壓浮水印"].filter(Boolean).join("｜");
+          tick("上傳 "+(ok+fail+1)+" / "+total+"："+name);
+          return uploadOne(fin.blob,name,folder.stationId,desc).then(function(res){
+            var hist=readHist();
+            hist.unshift({id:res.id,name:res.name,link:res.link,date:dateISO,
+              item:station,note:"",size:res.size||0,
+              watermark:wmOn?(fin.applied?"applied":"off"):"off",
+              uploadedAt:new Date().toISOString()});
+            writeHist(hist);
+            doneList.unshift({name:res.name,link:res.link,date:dateISO,station:station,thumbUrl:it.thumbUrl||"",size:res.size||0});
+            saveDone();
+            var idx=stage.indexOf(it);idx>=0&&stage.splice(idx,1);
+            ok++;renderStage();renderDone();tick();
+          });
+        }).catch(function(e){
+          fail++;it.err=e&&e.message?e.message:"上傳失敗";renderStage();
+          tick("第 "+(ok+fail)+" 張失敗："+it.err);
+        });
+      });
+    });
+    return chain;
+  }).then(function(){
+    uploading=!1;updateGo();
+    pw&&pw.classList.remove("on");
+    if(fail)toast("已完成：成功 "+ok+" 張，失敗 "+fail+" 張（失敗的留在暫存區可重試）",!0);
+    else toast("已上傳 "+ok+" 張到 營建相片 / "+dateISO+" / "+station+" /");
+    ok>0&&setTimeout(function(){try{window.location.reload()}catch(e){}},1100);
+  }).catch(function(e){
+    uploading=!1;updateGo();
+    pw&&pw.classList.remove("on");
+    var msg=e&&e.message?e.message:String(e);
+    toast("上傳失敗："+msg,!0);tick("失敗："+msg);
+  });
+}
+
+/* ================= 完成區 ================= */
+function renderDone(){
+  var box=$("doneList"),cnt=$("doneCount");
+  if(cnt)cnt.textContent=doneList.length+" 張";
+  if(!box)return;
+  if(!doneList.length){box.innerHTML='<div class="empty2">尚無上傳完成的照片。上傳成功後會列在這裡。</div>';return}
+  var html="";
+  doneList.forEach(function(d){
+    html+='<div class="row2"><div class="th3">'+(d.thumbUrl?'<img src="'+d.thumbUrl+'" alt="">':"")+"</div>"+
+      '<div class="info"><div class="nm2">'+esc(d.name)+"</div>"+
+      '<div class="sub3">'+esc(d.date)+"　"+esc(d.station)+"　"+esc(fmtSize(d.size||0))+"</div></div>"+
+      '<span class="ok2">已上傳</span>'+
+      '<a class="open2" href="'+esc(d.link||"#")+'" target="_blank" rel="noopener">開啟</a></div>';
+  });
+  box.innerHTML=html;
+}
+
+/* ================= 單張 OCR ================= */
+function runOneOcr(key){
+  var it=null,i;
+  for(i=0;i<stage.length;i++){if(stage[i].key===key){it=stage[i];break}}
+  if(!it)return;
+  var O=window.PhotoOrientOCR;
+  if(!O||!O.detect){toast("自動判斷模組未載入",!0);return}
+  if(it.busy){toast("這張還在處理，請稍候",!0);return}
+
+  it.busy=!0;it.ocrBusy=!0;renderStage();
+  var doneFlag=!1;
+  function finish(res){
+    if(doneFlag)return;doneFlag=!0;
+    it.busy=!1;it.ocrBusy=!1;
+    if(res&&res.ok){
+      it.autoAngle=Number(res.angle)||0;it.ocr=res;
+      loadBitmap(it.srcFile).then(function(bmp){
+        var th="";try{th=thumbDataURL(bmp,it.autoAngle)}catch(e){}
+        return canvasToBlob(drawRot(bmp,it.autoAngle,MAX_EDGE)).then(function(b){
+          bFree(bmp);it.baseBlob=b;if(th)it.thumbUrl=th;renderStage();
+        },function(e){bFree(bmp);throw e});
+      }).catch(function(){renderStage()});
+      toast("自動判斷：轉 "+(it.autoAngle||0)+"°");
+    }else{
+      it.ocr=res||{ok:!1,reason:"unknown"};renderStage();
+      toast("判不出方向，請自行確認（可按「轉 180°」）",!0);
+    }
+  }
+  var guard=setTimeout(function(){finish({ok:!1,reason:"timeout"})},OCR_BUDGET+2000);
+  loadBitmap(it.srcFile).then(function(bmp){
+    return O.detect(bmp).then(function(r){bFree(bmp);return r},function(e){bFree(bmp);throw e});
+  }).then(function(res){clearTimeout(guard);finish(res)})
+    .catch(function(e){clearTimeout(guard);finish({ok:!1,reason:"error",error:e&&e.message?e.message:String(e)})});
+}
+
+/* ================= 事件 ================= */
+function bind(){
+  var fi=$("fileInput2");
+  fi&&C.on(fi,"change",function(){fi.files&&fi.files.length&&addFiles(fi.files);fi.value=""});
+  var ci=$("camInput2");
+  ci&&C.on(ci,"change",function(){ci.files&&ci.files.length&&addFiles(ci.files);ci.value=""});
+  C.on("tilePick","click",function(){fi&&fi.click()});
+  C.on("tileCam","click",function(){ci&&ci.click()});
+
+  var dz=$("dropZone");
+  if(dz){
+    ["dragenter","dragover"].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.add("drag")})});
+    ["dragleave","drop"].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.remove("drag")})});
+    dz.addEventListener("drop",function(e){e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length&&addFiles(e.dataTransfer.files)});
+  }
+
+  C.on("stageGrid","click",function(e){
+    var t=e.target;
+    var el=t&&t.closest?t.closest("[data-rot],[data-rot180],[data-rm],[data-ocr]"):null;
+    if(!el)return;
+    var key=el.getAttribute("data-rot")||el.getAttribute("data-rot180")||
+            el.getAttribute("data-rm")||el.getAttribute("data-ocr");
+    var it=null,i;
+    for(i=0;i<stage.length;i++){if(stage[i].key===key){it=stage[i];break}}
+    if(!it)return;
+    if(uploading){toast("上傳中，請稍候",!0);return}
+
+    if(el.hasAttribute("data-ocr")){runOneOcr(it.key);return}
+    if(el.hasAttribute("data-rm")){
+      var idx=stage.indexOf(it);idx>=0&&stage.splice(idx,1);
+      renderStage();toast("已從暫存區移除");return;
+    }
+    if(it.busy||!it.baseBlob){toast("照片還在處理，請稍候",!0);return}
+    var delta=el.hasAttribute("data-rot180")?180:90;
+    it.manualAngle=((it.manualAngle||0)+delta)%360;
+    it.busy=!0;renderStage();
+    thumbFromBlob(it.baseBlob,it.manualAngle).then(function(u){
+      if(u)it.thumbUrl=u;it.busy=!1;renderStage();
+    }).catch(function(){it.busy=!1;renderStage()});
+  });
+
+  var chk=$("chkWm2");
+  if(chk){
+    chk.checked=wmOn;
+    C.on(chk,"change",function(){
+      wmOn=!!chk.checked;saveWm();
+      var st=$("wmState2");st&&(st.textContent=wmOn?"開啟":"關閉");
+      updateGo();
+      toast(wmOn?"上傳時會壓上日期浮水印":"上傳時不壓日期浮水印");
+    });
+  }
+
+  var chkO=$("chkOrient2");
+  if(chkO){
+    chkO.checked=orientOn;
+    C.on(chkO,"change",function(){
+      orientOn=!!chkO.checked;saveOrient();
+      var st=$("orientState2");st&&(st.textContent=orientOn?"開啟":"關閉");
+      renderStage();
+      toast(orientOn?"新加入的照片會自動判斷方向（OCR）":"已關閉自動轉正，照片保持原方向");
+    });
+  }
+
+  C.on("fDate","change",updateGo);
+  C.on("fDate","input",updateGo);
+  C.on("fStation","change",updateGo);
+  /* 三重保險：C.on + onclick + document 代理，
+     確保任何情況下點「確認上傳」都會真的執行（不會被別的 handler 吃掉）。 */
+  C.on("btnGo","click",runUpload);
+  var bg=$("btnGo"); if(bg) bg.onclick=runUpload;
+  document.addEventListener("click",function(e){
+    var t=e.target;
+    if(t && (t.id==="btnGo" || (t.closest && t.closest("#btnGo")))){
+      if(!runUpload.__delegated){ runUpload(); }
+    }
+  },true);
+
+  C.on("btnClearStage","click",function(){
+    if(uploading){toast("上傳中，請稍候",!0);return}
+    if(!stage.length){toast("暫存區已經是空的");return}
+    if(window.confirm("要清空暫存區的 "+stage.length+" 張照片嗎？（不會影響已上傳的紀錄）")){
+      stage=[];prepQ=[];renderStage();toast("已清空暫存區");
+    }
+  });
+  C.on("btnClearDone","click",function(){
+    if(!doneList.length){toast("上傳完成區已經是空的");return}
+    doneList=[];saveDone();renderDone();
+    toast("已清空上傳完成區（已上傳紀錄不受影響）");
+  });
+}
+
+function init(){
+  window.__v2init="yes";
+  buildStations();loadWm();loadOrient();loadDone();
+  var d=$("fDate");d&&!d.value&&(d.value=todayISO());
+  var chk=$("chkWm2");chk&&(chk.checked=wmOn);
+  var st=$("wmState2");st&&(st.textContent=wmOn?"開啟":"關閉");
+  var chkO=$("chkOrient2");chkO&&(chkO.checked=orientOn);
+  var stO=$("orientState2");stO&&(stO.textContent=orientOn?"開啟":"關閉");
+  bind();renderStage();renderDone();updateGo();
+  try{
+    var O=window.PhotoOrientOCR;
+    if(O&&O.warmup)setTimeout(function(){O.warmup()},2000);
+  }catch(e){}
+}
+document.readyState==="loading"
+  ?document.addEventListener("DOMContentLoaded",init)
+  :init();
+})();

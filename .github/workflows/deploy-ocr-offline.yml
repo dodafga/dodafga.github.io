@@ -11,33 +11,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch and verify assets
+      - name: Fetch OCR assets into repo
         run: |
           set -e
           mkdir -p assets/ocr/lang
-          fetch() {
-            url="$1"; out="$2"; want="$3"
-            curl -fsSL --retry 3 --retry-delay 2 -o "$out" "$url"
-            got=$(sha256sum "$out" | cut -c1-16)
-            if [ "$want" != "SKIP" ] && [ "$got" != "$want" ]; then echo "SHA MISMATCH $out"; echo " want=$want"; echo " got =$got"; exit 1; fi
-            echo "OK $out $(wc -c < "$out") bytes"
-          }
-          fetch "https://static.teamily.ai/files/d31e1a3b-7c22-4256-9903-7ac4f23b9c0b/orient-ocr.js" "assets/orient-ocr.js" "b3c72b323c5b4ebf"
-          fetch "https://static.teamily.ai/files/14a1f746-aa98-4e93-bd8e-815864ed02ae/drive-v2.js" "assets/drive-v2.js" "314a1ca365052f1d"
-          fetch "https://static.teamily.ai/files/c848a1d3-647d-4331-99ee-996f20caf191/drive-v2.css" "assets/drive-v2.css" "c41836f64490f3c1"
-          fetch "https://static.teamily.ai/files/137c63e3-86c1-4161-94f7-d30f9278dd8e/sw-ocr.js" "sw-ocr.js" "b95bce46510f9b12"
-          fetch "https://static.teamily.ai/files/f324b547-d4bb-40b8-917f-396f3d0e4631/drive_index.html" "drive/index.html" "4988a14f577f95fb"
-          fetch "https://static.teamily.ai/files/fc435586-c636-4334-b8d0-791ce6e31d49/tesseract.min.js" "assets/ocr/tesseract.min.js" "SKIP"
-          fetch "https://static.teamily.ai/files/313df3e9-5ffa-47f3-a3a2-87f23d49556e/worker.min.js" "assets/ocr/worker.min.js" "SKIP"
-          fetch "https://static.teamily.ai/files/038b67cf-b718-49cf-bc15-e582c297dc52/tesseract-core-simd-lstm.wasm.js" "assets/ocr/tesseract-core-simd-lstm.wasm.js" "SKIP"
-          fetch "https://static.teamily.ai/files/e4774263-7e56-46c7-963d-a8adb2b79cc9/tesseract-core-lstm.wasm.js" "assets/ocr/tesseract-core-lstm.wasm.js" "SKIP"
-          fetch "https://static.teamily.ai/files/6d4b867f-b87f-444a-a4f9-6e5ef8bc90d3/chi_tra.traineddata.gz" "assets/ocr/lang/chi_tra.traineddata.gz" "SKIP"
+          # 部署時從公開 npm CDN 取檔（僅部署階段使用；網站執行時完全走本站相對路徑）
+          curl -fsSL --retry 3 -o assets/ocr/tesseract.min.js \
+            "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"
+          curl -fsSL --retry 3 -o assets/ocr/worker.min.js \
+            "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js"
+          curl -fsSL --retry 3 -o assets/ocr/tesseract-core-simd-lstm.wasm.js \
+            "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.0/tesseract-core-simd-lstm.wasm.js"
+          curl -fsSL --retry 3 -o assets/ocr/tesseract-core-lstm.wasm.js \
+            "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.0/tesseract-core-lstm.wasm.js"
+          curl -fsSL --retry 3 -o assets/ocr/lang/chi_tra.traineddata.gz \
+            "https://tessdata.projectnaptha.com/4.0.0_fast/chi_tra.traineddata.gz"
+          echo "--- sizes ---"
+          ls -l assets/ocr assets/ocr/lang
+          echo "--- sanity ---"
+          test -s assets/ocr/tesseract.min.js
+          test -s assets/ocr/worker.min.js
+          test -s assets/ocr/tesseract-core-simd-lstm.wasm.js
+          test -s assets/ocr/tesseract-core-lstm.wasm.js
+          gzip -t assets/ocr/lang/chi_tra.traineddata.gz
+          head -c 40 assets/ocr/tesseract.min.js
+          echo
+          echo "ALL OK"
       - name: Commit
         run: |
           git config user.name "dodafga"
           git config user.email "132368659+dodafga@users.noreply.github.com"
           git add -A
-          git commit -m "feat(drive): OCR 本地化 + 離線快取（assets/ocr + sw-ocr.js）" || echo "nothing to commit"
+          git commit -m "feat(drive): 加入本地 OCR 資產（tesseract + chi_tra 模型）" || echo "nothing to commit"
           git push
       - name: Self-remove workflow
         run: |

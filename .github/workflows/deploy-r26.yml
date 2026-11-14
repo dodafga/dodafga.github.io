@@ -1,0 +1,32 @@
+name: deploy-r26
+on:
+  push:
+    paths:
+      - '.deploy-r26/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply skew patch
+        run: |
+          set -e
+          python3 .deploy-r26/patch_r26.py
+          node --check assets/drive-v2.js
+          node --check assets/orient-ocr.js
+          node --check assets/orient-skew.js
+          grep -q "OrientSkew" assets/orient-ocr.js
+          grep -q "orient-skew.js" drive/index.html
+          grep -q "fmtDeg" assets/drive-v2.js
+          grep -q "Math.abs(Math.cos(rad))" assets/drive-v2.js
+          echo "ALL VERIFIED"
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add assets/drive-v2.js assets/orient-ocr.js drive/index.html
+          git commit -m "feat(drive): auto-orient supports fine skew within +/-45 degrees" || echo "nothing to commit"
+          git push

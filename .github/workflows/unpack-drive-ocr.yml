@@ -16,7 +16,8 @@ jobs:
           set -e
           unpack() {
             src="$1"; dst="$2"; want="$3"
-            base64 -d "$src" | gunzip > "$dst"
+            # GitHub API 會自動把內容做 base64 編碼，所以檔案是原始 gzip
+            gunzip -c "$src" > "$dst"
             got=$(sha256sum "$dst" | cut -c1-16)
             echo "$dst  $(wc -c < "$dst") bytes  sha=$got"
             if [ "$got" != "$want" ]; then echo "SHA MISMATCH for $dst (want $want)"; exit 1; fi

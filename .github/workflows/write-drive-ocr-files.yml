@@ -1,0 +1,17 @@
+name: write-drive-ocr-files
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/write-drive-ocr-files.yml'
+permissions:
+  contents: write
+jobs:
+  write:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write source files from public gist-like raw URLs
+        run: |
+          set -e
+          echo "This workflow is replaced below by base64 payload."

@@ -516,6 +516,7 @@ function bind(){
     C.on(chkO,"change",function(){
       orientOn=!!chkO.checked;saveOrient();
       var st=$("orientState2");st&&(st.textContent=orientOn?"開啟":"關閉");
+      if(orientOn&&!prepDone)startPrep();
       renderStage();
       toast(orientOn?"新加入的照片會自動判斷方向（OCR）":"已關閉自動轉正，照片保持原方向");
     });
@@ -549,6 +550,35 @@ function bind(){
   });
 }
 
+/* ================= OCR 模型準備進度 ================= */
+var prepDone=!1;
+function showPrep(st){
+  var box=$("ocrPrep");if(!box||!st)return;
+  if(st.ready){prepDone=!0;box.style.display="none";return}
+  if(st.failed){
+    prepDone=!0;box.style.display="";box.className="ocrprep bad";
+    var t=$("ocrPrepTxt"),p=$("ocrPrepPct"),b=$("ocrPrepBar"),s=$("ocrPrepSub");
+    t&&(t.textContent=st.offline?"目前離線，OCR 模型尚未下載":"OCR 模型載入失敗");
+    p&&(p.textContent="");
+    b&&(b.style.width="100%");
+    s&&(s.textContent="不影響上傳：照片會直接進暫存區，請自行確認方向（可按「轉 180°」或「↻」）。");
+    return;
+  }
+  box.style.display="";box.className="ocrprep";
+  var t2=$("ocrPrepTxt"),p2=$("ocrPrepPct"),b2=$("ocrPrepBar"),s2=$("ocrPrepSub");
+  t2&&(t2.textContent=st.msg||"正在準備 OCR 模型…");
+  p2&&(p2.textContent=(st.pct||0)+"%");
+  b2&&(b2.style.width=Math.max(2,st.pct||0)+"%");
+  s2&&(s2.textContent="首次使用需下載約 5.8 MB，之後完全離線也能用。");
+}
+function startPrep(){
+  var O=window.PhotoOrientOCR;
+  if(!O||!O.prepare||!orientOn)return;
+  O.prepare(showPrep).then(function(st){showPrep(st||{ready:!0})},function(){
+    showPrep(O.state?O.state():{failed:!0});
+  });
+}
+
 function init(){
   window.__v2init="yes";
   buildStations();loadWm();loadOrient();loadDone();
@@ -560,7 +590,7 @@ function init(){
   bind();renderStage();renderDone();updateGo();
   try{
     var O=window.PhotoOrientOCR;
-    if(O&&O.warmup)setTimeout(function(){O.warmup()},2000);
+    if(O&&O.prepare)setTimeout(startPrep,600);
   }catch(e){}
 }
 document.readyState==="loading"

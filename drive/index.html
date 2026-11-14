@@ -204,6 +204,12 @@ sweep(document)})();</script>
 
         <div class="uncertain" id="uncertainBar" style="display:none;"></div>
 
+        <div class="ocrprep" id="ocrPrep" style="display:none;">
+          <div class="op-h"><span class="op-t" id="ocrPrepTxt">正在準備 OCR 模型…</span><span class="op-p" id="ocrPrepPct">0%</span></div>
+          <div class="op-bar"><i id="ocrPrepBar"></i></div>
+          <div class="op-s" id="ocrPrepSub">首次使用需下載約 5.8 MB，之後完全離線也能用。</div>
+        </div>
+
         <div class="grid2t" id="stageGrid"></div>
 
         <div class="go2">
@@ -340,5 +346,15 @@ sweep(document)})();</script>
 <script src="../assets/drive-page.js"></script>
 <script src="../assets/batch-del.js"></script>
 <script src="../assets/drive-v2.js"></script>
+<script>
+/* 註冊離線快取（只影響 /drive/ 與 /assets/，其他頁面不受影響）。
+   失敗（例如 http:// 非 localhost、或瀏覽器不支援）不影響任何功能。 */
+(function(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    navigator.serviceWorker.register('../sw-ocr.js',{scope:'../'}).catch(function(){});
+  }catch(e){}
+})();
+</script>
 </body>
 </html>

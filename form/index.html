@@ -262,17 +262,30 @@ sweep(document)})();</script>
   .paper .supervisor{margin:0;padding-left:240.95pt;font-size:16pt;line-height:18pt;}
 
   /* v8：附件表單（依「活頁簿1」格式） */
-  .paper .att-page{margin-top:26pt;padding-top:18pt;border-top:1px dashed #c9d2dd;}
-  .paper .att-title{text-align:center;font-size:16pt;line-height:1.5;margin:0 0 6pt;}
+  /* 附件區塊：完全依「活頁簿1.xlsx」列印實測值
+     表格寬 494.5pt（Word 附件頁邊界 1008 twips 左右 → 595.3-100.8）
+     列高：標題 21pt、表頭 19.5pt、首列 45pt、資料 51.75pt、頁尾 16.5pt
+     欄寬比 10.5:41.75:9:12:13.625（總 86.875） */
+  .paper .att-page{margin:26pt auto 0;padding-top:18pt;border-top:1px dashed #c9d2dd;width:494.5pt;}
   .paper .att-tbl{width:100%;border-collapse:collapse;table-layout:fixed;}
-  .paper .att-tbl td{border:1px solid #000;padding:3px 5px;font-size:12pt;line-height:1.35;
+  .paper .att-tbl td{border:1px solid #000;padding:0 1.4pt;font-size:12pt;line-height:1.2;
     vertical-align:middle;word-break:break-word;}
-  .paper .att-tbl tr.att-head td{font-size:14pt;text-align:center;font-weight:400;}
+  .paper .att-tbl tr.att-title-row td{font-size:16pt;line-height:20.2pt;height:21pt;text-align:center;}
+  .paper .att-tbl tr.att-head td{font-size:14pt;line-height:18.6pt;height:19.5pt;
+    text-align:center;font-weight:400;}
+  .paper .att-tbl tr.att-first td{height:45pt;}
+  .paper .att-tbl tr.att-data td{height:51.75pt;}
   .paper .att-tbl td.c{text-align:center;}
   .paper .att-tbl td.l{text-align:left;}
-  .paper .att-tbl tr.att-foot td{font-size:12pt;}
+  /* 逐欄字型（依範例：契約項次細明體、查驗數量 Times New Roman、其餘標楷體） */
+  .paper .att-tbl td.f-no{font-family:"細明體","MingLiU","PMingLiU","Noto Serif CJK TC",serif;}
+  .paper .att-tbl td.f-qty{font-family:"Times New Roman",serif;}
+  /* 頁尾：無框線，施工單位靠左縮排 12.6pt、監造單位距左 388.4pt */
+  .paper .att-foot{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:31.5pt;}
+  .paper .att-foot td{font-size:12pt;line-height:16.5pt;padding:0;border:none;vertical-align:middle;}
+  .paper .att-foot td.f1{padding-left:11.5pt;}
   .paper .att-shared{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:6pt;}
-  .paper .att-shared td{border:1px solid #000;padding:3px 5px;font-size:11pt;line-height:1.35;
+  .paper .att-shared td{border:1px solid #000;padding:0 1.4pt;font-size:12pt;line-height:1.2;
     vertical-align:middle;word-break:break-word;}
   .paper .att-shared td.l{text-align:left;}
   .paper .empty{color:#c3ccd8;}
@@ -820,36 +833,46 @@ PR1-5（0K+154）"></textarea>
     /* v8：附件表單（勾選時接在查驗單之後，另起一頁） */
     if(state.attach.enabled){
       h += '<div class="att-page">';
-      h += '<p class="att-title">' + esc(state.attach.title || "預壘樁工程-布袋港") + '</p>';
 
-      /* 共用欄位（唯讀）：只保留查驗單本身就有的資料 */
-      h += '<table class="att-shared"><tr>' +
-           '<td class="l">工程名稱：' + esc(FIXED_PROJECT) + '</td>' +
-           '<td class="l">查驗日期：' + esc(state.date ? rocDate(state.date) : "") + '</td></tr>' +
-           '<tr><td class="l" colspan="2">查驗位置：' + esc(posLines().join("、")) + '</td></tr>' +
-           '</table>';
-
+      /* 附件表格：完全依「活頁簿1.xlsx」版面
+         欄寬比 10.5 : 41.75 : 9 : 12 : 13.625（總 86.875） */
       h += '<table class="att-tbl"><colgroup>' +
-           '<col style="width:12.4%"><col style="width:46.95%"><col style="width:10.74%">' +
-           '<col style="width:14.05%"><col style="width:15.86%"></colgroup>';
-      /* v9：附件表格不列表頭，直接從資料列開始 */
-      /* 第一列固定帶入查驗單的契約項次與契約名稱 */
-      h += '<tr>' +
-           '<td class="c">' + esc(state.itemNo || "") + '</td>' +
+           '<col style="width:12.086%"><col style="width:48.058%">' +
+           '<col style="width:10.360%"><col style="width:13.813%">' +
+           '<col style="width:15.683%"></colgroup>';
+
+      /* 列1：標題（A1:E1 合併，16pt 置中，列高 21pt） */
+      h += '<tr class="att-title-row"><td colspan="5">' +
+           esc(state.attach.title || "預壘樁工程-布袋港") + '</td></tr>';
+
+      /* 列2：表頭（14pt 置中，列高 19.5pt） */
+      h += '<tr class="att-head">' +
+           '<td>契約項次</td><td>項目及說明</td><td>單位</td>' +
+           '<td>查驗數量</td><td>監造覆核</td></tr>';
+
+      /* 列3：首列，自動帶入查驗單的契約項次與契約名稱（列高 45pt） */
+      h += '<tr class="att-first">' +
+           '<td class="c f-no">' + esc(state.itemNo || "") + '</td>' +
            '<td class="l">' + esc(state.itemName || "") + '</td>' +
-           '<td class="c"></td><td class="c"></td><td class="c"></td></tr>';
+           '<td class="c"></td><td class="c f-qty"></td><td class="c"></td></tr>';
+
+      /* 列4+：資料列（列高 51.75pt） */
       state.attach.rows.forEach(function(r){
-        h += '<tr>' +
-             '<td class="c">' + esc(r.no || "") + '</td>' +
+        h += '<tr class="att-data">' +
+             '<td class="c f-no">' + esc(r.no || "") + '</td>' +
              '<td class="l">' + esc(r.desc || "").replace(/\n/g,"<br>") + '</td>' +
              '<td class="c">' + esc(r.unit || "") + '</td>' +
-             '<td class="c">' + esc(r.qty || "") + '</td>' +
+             '<td class="c f-qty">' + esc(r.qty || "") + '</td>' +
              '<td class="c">' + esc(r.check || "") + '</td></tr>';
       });
-      h += '<tr class="att-foot">' +
-           '<td class="l" colspan="2">施工單位：' + esc(FIXED_CONTRACTOR) + '</td>' +
-           '<td class="l" colspan="3">監造單位：' + esc(state.attach.supervisor || "") + '</td></tr>';
-      h += '</table></div>';
+      h += '</table>';
+
+      /* 頁尾：無框線，施工單位靠左縮排、監造單位距左 388.4pt（依範例實測） */
+      h += '<table class="att-foot"><colgroup>' +
+           '<col style="width:79.75%"><col style="width:20.25%"></colgroup><tr>' +
+           '<td class="f1">施工單位: ' + esc(FIXED_CONTRACTOR) + '</td>' +
+           '<td>監造單位:' + esc(state.attach.supervisor || "") + '</td></tr></table>';
+      h += '</div>';
     }
 
     $("paper").innerHTML = h;

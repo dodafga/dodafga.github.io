@@ -1,0 +1,24 @@
+name: deploy-r29
+on:
+  push:
+    paths:
+      - '.deploy-r29/trigger.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply patch
+        run: python3 .deploy-r29/patch_r29.py
+      - name: Commit
+        run: |
+          git config user.name "Teamly Agent"
+          git config user.email "agent@teamly.ai"
+          git add form/index.html form/formbuilder.js
+          git diff --cached --quiet && echo "nothing to commit" || git commit -m "form: attachment table aligned to huoyebu1.xlsx sample"
+          git push origin main

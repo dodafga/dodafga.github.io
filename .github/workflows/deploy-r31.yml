@@ -1,0 +1,33 @@
+name: deploy-r31
+on:
+  push:
+    paths:
+      - '.deploy-r31/**'
+  workflow_dispatch:
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply patch
+        run: |
+          set -e
+          curl -sSL -o /tmp/log.patch "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/r31-payload/log-r31.patch"
+          wc -c /tmp/log.patch
+          sha256sum /tmp/log.patch
+          git apply --check /tmp/log.patch
+          git apply /tmp/log.patch
+          sha256sum log/index.html
+          wc -c log/index.html
+      - name: Commit and push
+        run: |
+          set -e
+          git config user.name "dodafga"
+          git config user.email "canon8741311@gmail.com"
+          git add log/index.html
+          git commit -m "feat(log): EL auto-fills topA, pile picker limited to that day's records, larger detail/search UI"
+          git push origin main

@@ -16,7 +16,7 @@ jobs:
       - name: Apply patch
         run: |
           set -e
-          curl -sSL -o /tmp/log.patch "https://static.teamily.ai/sites/37eb832d-9280-41aa-bf49-25ff6910a93a/documents/r31-payload/log-r31.patch"
+          curl -sSL -o /tmp/log.patch "https://paste.rs/zNzhl"
           wc -c /tmp/log.patch
           sha256sum /tmp/log.patch
           git apply --check /tmp/log.patch

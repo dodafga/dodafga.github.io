@@ -870,7 +870,7 @@ PR1-5（0K+154）"></textarea>
       /* 頁尾：無框線，施工單位靠左縮排、監造單位距左 388.4pt（依範例實測） */
       h += '<table class="att-foot"><colgroup>' +
            '<col style="width:79.75%"><col style="width:20.25%"></colgroup><tr>' +
-           '<td class="f1">施工單位: ' + esc(FIXED_CONTRACTOR) + '</td>' +
+           '<td class="f1">施工單位: </td>' +
            '<td>監造單位:' + esc(state.attach.supervisor || "") + '</td></tr></table>';
       h += '</div>';
     }
@@ -994,7 +994,7 @@ PR1-5（0K+154）"></textarea>
         enabled: true,
         title: state.attach.title,
         rows: state.attach.rows,
-        contractor: FIXED_CONTRACTOR,
+        contractor: "",   /* 留空供施工單位手寫簽名（依使用者要求） */
         supervisor: state.attach.supervisor || "",
         photos: state.attach.photos || []
       } : null

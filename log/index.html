@@ -165,6 +165,38 @@
   .qbar input,.qbar select{font-size:14px;padding:9px 11px;}
   .qbar .btn{flex:0 0 auto;padding:10px 18px;}
   .qbar .field label{font-size:12.5px;}
+
+  /* 查詢區下方的常駐條列清單：未輸入條件時列出全部，有條件時列出搜尋結果 */
+  .qlist{margin-top:12px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff;}
+  .qlist-h{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:9px 13px;background:#f4f7fb;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-2);}
+  .qlist-h b{font-size:13px;color:var(--ink);}
+  .qlist-h .qmode{font-size:11.5px;font-weight:700;border-radius:20px;padding:2px 9px;
+    background:rgba(21,128,61,.12);color:#15803d;white-space:nowrap;}
+  .qlist-h .qmode.search{background:rgba(37,99,235,.12);color:#1d4ed8;}
+  .qlist-b{max-height:340px;overflow-y:auto;}
+  .qitem{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--line-2);
+    font-size:13px;line-height:1.5;}
+  .qitem:last-child{border-bottom:0;}
+  .qitem:hover{background:#f8fafd;}
+  .qitem .qi-no{flex:0 0 26px;text-align:right;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;}
+  .qitem .qi-date{flex:0 0 84px;color:var(--ink-2);font-variant-numeric:tabular-nums;}
+  .qitem .qi-pile{flex:0 0 92px;font-weight:700;color:var(--steel-2);}
+  .qitem .qi-sum{flex:1;min-width:0;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .qitem .qi-btn{flex:0 0 auto;font-size:12px;font-weight:700;padding:5px 12px;border-radius:6px;
+    border:1px solid var(--line);background:#fff;color:var(--steel-2);cursor:pointer;font-family:inherit;}
+  .qitem .qi-btn:hover{background:#eef4fc;border-color:var(--steel-2);}
+  .qitem .qi-detail{flex-basis:100%;}
+  .qdetail{padding:10px 0 4px 36px;}
+  .qdetail .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 20px;}
+  .qdetail .di{font-size:13px;color:var(--ink-2);line-height:1.7;}
+  .qdetail .di b{color:var(--muted);font-weight:600;margin-right:6px;font-size:12px;}
+  .qdetail .di span{font-weight:700;color:var(--ink);font-size:13.5px;}
+  .qlist-e{padding:16px 13px;text-align:center;color:var(--muted);font-size:13px;}
+  @media (max-width:760px){
+    .qitem{flex-wrap:wrap;}
+    .qitem .qi-sum{flex-basis:100%;white-space:normal;}
+  }
   /* 儀器高自動帶入的 a 值：唯讀，用底色區分 */
   .mtable input[readonly]{background:#eef2f7;color:var(--steel-2);font-weight:700;cursor:default;}
   .mtable .autoTag{font-size:10.5px;font-weight:700;color:#15803d;background:rgba(21,128,61,.12);
@@ -447,6 +479,15 @@
           <button class="btn btn-ghost" id="btnQClear" type="button">清除查詢</button>
         </div>
         <div class="note" id="qResult" style="display:none;"></div>
+
+        <!-- 常駐條列清單：未輸入條件 → 列出全部；有條件 → 列出搜尋結果 -->
+        <div class="qlist" id="qList">
+          <div class="qlist-h">
+            <span><b id="qListTitle">樁位資料表紀錄</b>　<span id="qListSub"></span></span>
+            <span class="qmode" id="qListMode">全部</span>
+          </div>
+          <div class="qlist-b" id="qListBody"></div>
+        </div>
       </div>
 
       <div class="tblwrap" style="margin-top:14px;">
@@ -1141,7 +1182,8 @@
     });
 
     var qr = $('qResult');
-    if (pquery.pile || pquery.date || (pquery.text && pquery.text.trim())) {
+    var hasQuery = !!(pquery.pile || pquery.date || (pquery.text && pquery.text.trim()));
+    if (hasQuery) {
       qr.style.display = '';
       if (!list.length) {
         qr.innerHTML = '<b>查無紀錄：</b>' +
@@ -1158,7 +1200,99 @@
       qr.style.display = 'none';
     }
 
+    qRenderList(list, hasQuery);
+
     $('hPiles').textContent = pstate.rows.length;
+  }
+
+  /* ---- 查詢區下方的常駐條列清單 ---- */
+  var qexpanded = {};
+
+  function qRenderList(list, hasQuery){
+    var body = $('qListBody');
+    if (!body) return;
+    body.innerHTML = '';
+
+    var mode = $('qListMode');
+    var title = $('qListTitle');
+    var sub = $('qListSub');
+
+    if (hasQuery) {
+      mode.textContent = '搜尋結果';
+      mode.className = 'qmode search';
+      title.textContent = '搜尋結果';
+      sub.textContent = '共 ' + list.length + ' 筆';
+    } else {
+      mode.textContent = '全部';
+      mode.className = 'qmode';
+      title.textContent = '樁位資料表紀錄';
+      sub.textContent = '共 ' + list.length + ' 筆（未輸入搜尋條件，列出全部）';
+    }
+
+    if (!list.length) {
+      var e = document.createElement('div');
+      e.className = 'qlist-e';
+      e.textContent = pstate.rows.length
+        ? '查無符合條件的樁位紀錄，請調整樁號或日期。'
+        : '尚無樁位檢查紀錄，請於上方填寫後按「＋ 新增樁位檢查」';
+      body.appendChild(e);
+      return;
+    }
+
+    list.forEach(function(r, i){
+      var row = document.createElement('div');
+      row.className = 'qitem';
+
+      var no = document.createElement('span');
+      no.className = 'qi-no';
+      no.textContent = (i + 1);
+      row.appendChild(no);
+
+      var dt = document.createElement('span');
+      dt.className = 'qi-date';
+      dt.textContent = isoToSlash(r.date) || '—';
+      row.appendChild(dt);
+
+      var pl = document.createElement('span');
+      pl.className = 'qi-pile';
+      pl.textContent = r.pile || r.pier || '—';
+      row.appendChild(pl);
+
+      var sm = document.createElement('span');
+      sm.className = 'qi-sum';
+      sm.textContent = pSummary(r);
+      sm.title = pSummary(r);
+      row.appendChild(sm);
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'qi-btn';
+      btn.textContent = qexpanded[r.id] ? '收合' : '明細';
+      btn.addEventListener('click', function(){
+        qexpanded[r.id] = !qexpanded[r.id];
+        qRenderList(list, hasQuery);
+      });
+      row.appendChild(btn);
+
+      body.appendChild(row);
+
+      if (qexpanded[r.id]) {
+        var d = document.createElement('div');
+        d.className = 'qitem qi-detail';
+        var inner = document.createElement('div');
+        inner.className = 'qdetail';
+        inner.innerHTML = pDetailHtml(r).replace(/^<div class="dbox">/, '').replace(/<\/div><\/div>$/, '');
+        var ebtn = document.createElement('button');
+        ebtn.type = 'button';
+        ebtn.className = 'qi-btn';
+        ebtn.style.marginTop = '8px';
+        ebtn.textContent = '✎ 載入修改';
+        ebtn.addEventListener('click', function(){ loadForEdit(r); });
+        inner.appendChild(ebtn);
+        d.appendChild(inner);
+        body.appendChild(d);
+      }
+    });
   }
 
   /* ---- 防重複：同一支樁位、同一天只能一筆 ---- */

@@ -145,19 +145,30 @@
   .mtable .calc{font-weight:700;color:var(--steel-2);min-width:52px;display:inline-block;}
 
   table.rec .pile{font-weight:700;color:var(--steel-2);}
-  table.rec .exp{background:none;border:1px solid var(--line);color:var(--ink-2);cursor:pointer;
-    font-size:11.5px;padding:2px 8px;border-radius:5px;font-family:inherit;}
-  table.rec .exp:hover{background:#f5f8fb;}
+  /* 明細按鈕放大（原本 11.5px／22px 高，手指不好按） */
+  table.rec .exp{background:#fff;border:1px solid #c3cedb;color:var(--steel-2);cursor:pointer;
+    font-size:13px;font-weight:700;padding:7px 15px;border-radius:7px;font-family:inherit;
+    min-width:68px;line-height:1.25;}
+  table.rec .exp:hover{background:#eef4fc;border-color:var(--steel-2);}
+  table.rec .exp:active{background:#e2ecf9;}
   .detail td{background:#fbfcfe;padding:0 !important;}
-  .detail .dbox{padding:11px 13px;}
-  .detail .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:7px 16px;}
-  .detail .di{font-size:12.5px;color:var(--ink-2);}
-  .detail .di b{color:var(--muted);font-weight:600;margin-right:5px;}
-  .detail .di span{font-weight:700;color:var(--ink);}
+  .detail .dbox{padding:16px 18px;}
+  .detail .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px 22px;}
+  .detail .di{font-size:13.5px;color:var(--ink-2);line-height:1.7;}
+  .detail .di b{color:var(--muted);font-weight:600;margin-right:6px;font-size:12.5px;}
+  .detail .di span{font-weight:700;color:var(--ink);font-size:14px;}
 
-  .qbar{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;}
-  .qbar .field{margin-bottom:0;flex:1;min-width:180px;}
-  .qbar .btn{flex:0 0 auto;}
+  /* 查詢列：加大輸入框與按鈕，並讓關鍵字欄位更明顯 */
+  .qbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+  .qbar .field{margin-bottom:0;flex:1;min-width:200px;}
+  .qbar .field.wide{flex:1.4;min-width:240px;}
+  .qbar input,.qbar select{font-size:14px;padding:9px 11px;}
+  .qbar .btn{flex:0 0 auto;padding:10px 18px;}
+  .qbar .field label{font-size:12.5px;}
+  /* 儀器高自動帶入的 a 值：唯讀，用底色區分 */
+  .mtable input[readonly]{background:#eef2f7;color:var(--steel-2);font-weight:700;cursor:default;}
+  .mtable .autoTag{font-size:10.5px;font-weight:700;color:#15803d;background:rgba(21,128,61,.12);
+    border-radius:20px;padding:1px 7px;white-space:nowrap;}
 
   .note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:12px;
     background:#f7f9fc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
@@ -330,7 +341,7 @@
             <td class="rowno">1</td>
             <td class="design">儀器高：EL</td>
             <td class="actual">
-              <div class="inline"><span class="u">EL＝</span><input type="text" id="mEl" placeholder="0.000"></div>
+              <div class="inline"><span class="u">EL＝</span><input type="text" id="mEl" placeholder="0.000"><span class="autoTag">自動帶入下格 a</span></div>
             </td>
           </tr>
           <tr>
@@ -389,7 +400,7 @@
             <td class="design">鋼筋頂EL1.2</td>
             <td class="actual">
               <div class="inline">
-                <span class="u">EL：</span><input type="text" id="mTopA" placeholder="a"><span class="sep">－</span>
+                <span class="u">EL：</span><input type="text" id="mTopA" placeholder="a" readonly title="自動帶入上方「儀器高 EL」的數值"><span class="sep">－</span>
                 <input type="text" id="mTopB" placeholder="b"><span class="sep">＝</span>
                 <span class="calc" id="mTopCalc">—</span>
               </div>
@@ -418,8 +429,12 @@
 
       <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);">
         <div class="qbar">
+          <div class="field wide">
+            <label for="qText">關鍵字查詢 <span class="hint">樁號、備註、量測值都可搜；留空顯示全部</span></label>
+            <input type="text" id="qText" placeholder="例：PR4-1　或　樁頭　或　12.5">
+          </div>
           <div class="field">
-            <label for="qPier">依樁號查詢 <span class="hint">先選墩號，再選樁號；留空顯示全部</span></label>
+            <label for="qPier">依樁號查詢 <span class="hint">先選墩號，再選樁號</span></label>
             <div class="pilepick">
               <select id="qPier"></select>
               <select id="qPile" disabled></select>
@@ -506,7 +521,7 @@
 
   /* 樁位資料表狀態 */
   var pstate = { rows: [] };
-  var pquery = { pile: '', date: '' };
+  var pquery = { pile: '', date: '', text: '' };
   var pexpanded = {};
 
   function $(id){ return document.getElementById(id); }
@@ -807,10 +822,19 @@
       var el = $(M_IDS[k]);
       m[k] = el ? String(el.value || '').trim() : '';
     });
+    /* 鋼筋頂 EL1.2 的 a 一律等於儀器高 EL（使用者需求：a 自動帶入，b 自行填） */
+    m.topA = m.el;
     return m;
   }
   function clearM(){
     M_KEYS.forEach(function(k){ var el = $(M_IDS[k]); if (el) el.value = ''; });
+    syncTopA();
+  }
+
+  /* 儀器高 EL → 鋼筋頂 EL1.2 的 a：即時同步，b 與差值計算完全不變 */
+  function syncTopA(){
+    var el = $('mEl'), a = $('mTopA');
+    if (a) a.value = el ? numClean(String(el.value || '')) : '';
     updateTopCalc();
   }
   function updateTopCalc(){
@@ -964,6 +988,17 @@
       if (no !== q && no.indexOf(q) < 0) return false;
     }
     if (pquery.date && r.date !== pquery.date) return false;
+    /* 關鍵字：樁號、墩號、備註、量測摘要、日期（斜線格式）都可命中 */
+    if (pquery.text) {
+      var kw = pquery.text.trim().toUpperCase();
+      if (kw) {
+        var hay = [
+          r.pile, r.pier, r.note, r.inspector, r.supervisor,
+          pSummary(r), isoToSlash(r.date), r.date
+        ].join(' ').toUpperCase();
+        if (hay.indexOf(kw) < 0) return false;
+      }
+    }
     return true;
   }
 
@@ -994,10 +1029,12 @@
     h += di('主筋搭接 Ld', m.lap ? (m.lap + ' m') : '');
     h += di('銲道', m.weldCm ? (m.weldCm + ' cm' + (m.weldCnt ? ' ／ ' + m.weldCnt + ' 處' : '')) : '');
     h += di('垂直度', m.plumb);
-    if (m.topA || m.topB) {
-      var a = parseFloat(m.topA), b = parseFloat(m.topB);
+    /* a 一律顯示儀器高 EL（舊資料若沒存 topA，也以 EL 補上，與表單一致） */
+    var topA = m.topA || m.el || '';
+    if (topA || m.topB) {
+      var a = parseFloat(topA), b = parseFloat(m.topB);
       var calc = (isFinite(a) && isFinite(b)) ? (Math.round((a - b) * 1000) / 1000) : '';
-      h += di('鋼筋頂 EL', (m.topA || '') + ' － ' + (m.topB || '') + (calc !== '' ? ' ＝ ' + calc : ''));
+      h += di('鋼筋頂 EL', topA + ' － ' + (m.topB || '') + (calc !== '' ? ' ＝ ' + calc : ''));
     }
     h += di('D', m.dia ? (m.dia + ' cm') : '');
     h += di('備註', r.note);
@@ -1104,10 +1141,12 @@
     });
 
     var qr = $('qResult');
-    if (pquery.pile || pquery.date) {
+    if (pquery.pile || pquery.date || (pquery.text && pquery.text.trim())) {
       qr.style.display = '';
       if (!list.length) {
-        qr.innerHTML = '<b>查無紀錄：</b>' + escHtml(pquery.pile || '') +
+        qr.innerHTML = '<b>查無紀錄：</b>' +
+          (pquery.text && pquery.text.trim() ? '關鍵字「' + escHtml(pquery.text.trim()) + '」' : '') +
+          (pquery.pile ? '　' + escHtml(pquery.pile) : '') +
           (pquery.date ? '　' + escHtml(pquery.date) : '') + ' 尚無樁位檢查紀錄。';
       } else {
         var piles = {};
@@ -1180,7 +1219,8 @@
       /* 舊資料若含非數字，載入時清成數字，不報錯、不讓頁面空白 */
       el.value = (v == null) ? '' : numClean(String(v));
     });
-    updateTopCalc();
+    /* 舊資料的 a 可能與 EL 不同：載入時一律以 EL 為準（b 保留原值） */
+    syncTopA();
     setEditMode(r);
     try { document.getElementById('pileCard').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e){}
     toast('已載入 ' + (r.pile || '') + ' 的紀錄，修改後按「儲存修改」');
@@ -1231,9 +1271,16 @@
       return;
     }
     var nos = pileNosOfPier(pier);
-    /* 選了日期：樁號只列「當日查驗的樁號」 */
+    /* 選了日期：樁號只列「當日已有紀錄的樁號」
+       = 查驗紀錄表當日涵蓋的樁號 ∪ 樁位資料表當日已建檔的樁號
+       （只取查驗紀錄會讓「查驗紀錄被刪、但樁位資料表仍有紀錄」的樁號消失而無法載入修改） */
     if (d) {
-      var today = pilesInspectedOn(d);
+      var today = pilesInspectedOn(d).slice();
+      pstate.rows.forEach(function(r){
+        if (String(r.date || '') !== String(d)) return;
+        var no = String(r.pile || '');
+        if (no && today.indexOf(no) < 0) today.push(no);
+      });
       nos = nos.filter(function(no){ return today.indexOf(no) >= 0; });
     }
 
@@ -1509,6 +1556,8 @@
   });
   $('pDate').addEventListener('change', onPDateChange);
   $('pDate').addEventListener('input', onPDateChange);
+  $('mEl').addEventListener('input', syncTopA);
+  $('mEl').addEventListener('change', syncTopA);
   $('mTopA').addEventListener('input', updateTopCalc);
   $('mTopB').addEventListener('input', updateTopCalc);
   bindNumInputs();
@@ -1646,9 +1695,13 @@
     pquery.date = String(this.value || '');
     pRender();
   });
+  $('qText').addEventListener('input', function(){
+    pquery.text = String(this.value || '');
+    pRender();
+  });
   $('btnQClear').addEventListener('click', function(){
-    pquery.pile = ''; pquery.date = '';
-    $('qPier').value = ''; $('qDate').value = '';
+    pquery.pile = ''; pquery.date = ''; pquery.text = '';
+    $('qPier').value = ''; $('qDate').value = ''; $('qText').value = '';
     refreshQPileSelect();
     pRender();
   });

@@ -12,7 +12,7 @@ var $=C.$,esc=C.esc,pad2=C.pad2,todayISO=C.todayISO,fmtSize=C.fmtSize,safeName=C
     MAX_EDGE=2000,
     THUMB_EDGE=320,
     OCR_BUDGET=20000,
-    stage=[],doneList=[],wmOn=!0,orientOn=!0,uploading=!1,seq=0,dateFilterOn=!1;
+    stage=[],doneList=[],wmOn=!0,orientOn=!0,uploading=!1,seq=0,dateFilterOn=!0;
 
 function compactDate(iso){return String(iso||"").replace(/-/g,"")}
 /* 角度顯示：細部傾斜會是小數（例如 3.7°），四方向時仍是整數 90°。
@@ -26,8 +26,8 @@ function loadWm(){var v=C.store.get(WM_KEY,"");v==="0"?wmOn=!1:v==="1"&&(wmOn=!0
 function saveWm(){C.store.set(WM_KEY,wmOn?"1":"0")}
 function loadOrient(){var v=C.store.get(ORIENT_KEY,"");v==="0"?orientOn=!1:v==="1"&&(orientOn=!0)}
 function saveOrient(){C.store.set(ORIENT_KEY,orientOn?"1":"0")}
-/* 依所選日期篩選照片（預設關閉，由使用者自行開啟） */
-function loadDateFilter(){var v=C.store.get(DATEF_KEY,"");v==="1"?dateFilterOn=!0:v==="0"&&(dateFilterOn=!1)}
+/* 依所選日期篩選照片（預設開啟；使用者手動取消後會記住其選擇） */
+function loadDateFilter(){var v=C.store.get(DATEF_KEY,"");v==="0"?dateFilterOn=!1:dateFilterOn=!0}
 function saveDateFilter(){C.store.set(DATEF_KEY,dateFilterOn?"1":"0")}
 function applyDateFilterUI(){
   var chk=$("chkDateFilter");chk&&(chk.checked=dateFilterOn);

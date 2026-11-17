@@ -1,0 +1,19 @@
+name: deploy-r35
+on:
+  push:
+    paths:
+      - '.deploy-r35/trigger.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash .deploy-r35/apply.sh
+      - run: |
+          git config user.name "Teamily Agent"
+          git config user.email "agent@teamily.ai"
+          git add log/index.html
+          git commit -m "log: 鋼筋頂EL1.2 的 b 自動帶入 深度+0.1，差值下限 -20.45"
+          git push origin HEAD:main

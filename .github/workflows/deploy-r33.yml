@@ -1,0 +1,25 @@
+name: deploy-r33
+on:
+  push:
+    paths:
+      - '.deploy-r33/trigger.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply drive rotate buttons
+        run: bash .deploy-r33/apply.sh
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "canon8741311@gmail.com"
+          git add drive/index.html assets/drive-v2.js assets/drive-v2.css
+          git diff --cached --stat
+          git commit -m "feat(drive): add manual per-photo rotate buttons (left/right 90, auto-detect, remove)"
+          git push origin main

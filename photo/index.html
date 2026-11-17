@@ -103,6 +103,25 @@
   .pitem .fields textarea{min-height:46px;}
   .pitem .flabel{font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:3px;display:block;}
 
+  /* 手動轉向工具列 */
+  .pitem .rotbar{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;
+    padding:6px 8px;background:#f4f8fc;border:1px solid #dbe6f2;border-radius:7px;}
+  .pitem .rotbar .rlab{font-size:11.5px;font-weight:700;color:var(--steel-2);margin-right:2px;}
+  .pitem .rotbar button{font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
+    border:1px solid #c3d4e6;background:#fff;color:var(--steel);border-radius:6px;
+    padding:7px 11px;min-height:34px;display:inline-flex;align-items:center;gap:4px;
+    transition:.15s;line-height:1.2;}
+  .pitem .rotbar button:hover{background:#e8f1fa;border-color:var(--steel-2);}
+  .pitem .rotbar button.primary{background:var(--steel);color:#fff;border-color:var(--steel);}
+  .pitem .rotbar button.primary:hover{background:var(--steel-2);}
+  .pitem .rotbar .rdeg{font-size:11.5px;font-weight:700;color:var(--muted);
+    background:#fff;border:1px solid var(--line);border-radius:20px;padding:2px 9px;margin-left:auto;}
+  .pitem .rotbar .rdeg.on{color:var(--amber);background:var(--amber-bg);border-color:#f0dfb8;}
+  @media(max-width:520px){
+    .pitem .rotbar button{flex:1 1 calc(50% - 3px);justify-content:center;min-height:40px;}
+    .pitem .rotbar .rdeg{flex:1 1 100%;text-align:center;margin-left:0;}
+  }
+
   .empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13px;}
 
   /* 預覽：A4 紙張 */
@@ -411,7 +430,9 @@
             place: gPlace,
             item: gItem,
             date: gDate,
-            desc: ''
+            desc: '',
+            rot: 0,
+            rotUrl: null
           });
           if (--pending === 0) { render(); toast('已加入 ' + arr.length + ' 張照片'); }
         };
@@ -470,7 +491,7 @@
       var thumb = document.createElement('div');
       thumb.className = 'thumb';
       var im = document.createElement('img');
-      im.src = ph.dataUrl;
+      im.src = ph.rotUrl || ph.dataUrl;
       im.alt = '';
       thumb.appendChild(im);
 
@@ -569,7 +590,37 @@
       r3.appendChild(full);
       fields.appendChild(r3);
 
+      /* ---- 手動轉向工具列 ---- */
+      var rotbar = document.createElement('div');
+      rotbar.className = 'rotbar';
+      var rlab = document.createElement('span');
+      rlab.className = 'rlab';
+      rlab.textContent = '手動轉向';
+      rotbar.appendChild(rlab);
+
+      var bL = document.createElement('button');
+      bL.type = 'button'; bL.textContent = '\u21ba \u5de6\u8f49 90\u00b0';
+      bL.title = '\u9006\u6642\u91dd\u65cb\u8f49 90 \u5ea6';
+      bL.addEventListener('click', function(){ applyRot(ph, -90); });
+
+      var bR = document.createElement('button');
+      bR.type = 'button'; bR.className = 'primary'; bR.textContent = '\u21bb \u53f3\u8f49 90\u00b0';
+      bR.title = '\u9806\u6642\u91dd\u65cb\u8f49 90 \u5ea6';
+      bR.addEventListener('click', function(){ applyRot(ph, 90); });
+
+      var bZ = document.createElement('button');
+      bZ.type = 'button'; bZ.textContent = '\u27f2 \u91cd\u8a2d';
+      bZ.title = '\u56de\u5230\u539f\u59cb\u65b9\u5411';
+      bZ.addEventListener('click', function(){ applyRot(ph, 0, true); });
+
+      var rdeg = document.createElement('span');
+      rdeg.className = 'rdeg' + (ph.rot ? ' on' : '');
+      rdeg.textContent = ph.rot ? ('\u5df2\u8f49 ' + ph.rot + '\u00b0') : '\u539f\u59cb\u65b9\u5411';
+
+      rotbar.appendChild(bL); rotbar.appendChild(bR); rotbar.appendChild(bZ); rotbar.appendChild(rdeg);
+
       d.appendChild(top);
+      d.appendChild(rotbar);
       d.appendChild(fields);
       box.appendChild(d);
     });
@@ -621,7 +672,7 @@
       var ph = page[i];
       h += '<tr>';
       h += '<td class="photo" colspan="2">' +
-             (ph && ph.dataUrl ? '<img src="' + ph.dataUrl + '" alt="">' : '<div class="ph">（空白）</div>') +
+             (ph && (ph.rotUrl || ph.dataUrl) ? '<img src="' + (ph.rotUrl || ph.dataUrl) + '" alt="">' : '<div class="ph">（空白）</div>') +
            '</td>';
       if (i === 0) {
         h += '<td class="desc" colspan="2" rowspan="' + PER_PAGE + '">';
@@ -657,7 +708,38 @@
 
   function render(){ renderList(); renderPreview(); }
 
-  /* ---------- 下載 ---------- */
+  /* ---------- 手動轉向 ---------- */
+  function rotateDataUrl(dataUrl, deg){
+    return new Promise(function(resolve, reject){
+      if (!deg) { resolve(dataUrl); return; }
+      var img = new Image();
+      img.onload = function(){
+        var w = img.naturalWidth, h = img.naturalHeight;
+        var swap = (deg % 180) !== 0;
+        var c = document.createElement('canvas');
+        c.width  = swap ? h : w;
+        c.height = swap ? w : h;
+        var ctx = c.getContext('2d');
+        ctx.translate(c.width / 2, c.height / 2);
+        ctx.rotate(deg * Math.PI / 180);
+        ctx.drawImage(img, -w / 2, -h / 2);
+        resolve(c.toDataURL('image/jpeg', 0.92));
+      };
+      img.onerror = function(){ reject(new Error('\u65cb\u8f49\u5931\u6557')); };
+      img.src = dataUrl;
+    });
+  }
+
+  function applyRot(ph, delta, reset){
+    var next = reset ? 0 : ((((ph.rot || 0) + delta) % 360) + 360) % 360;
+    ph.rot = next;
+    if (!next) { ph.rotUrl = null; render(); return; }
+    rotateDataUrl(ph.dataUrl, next).then(function(u){
+      ph.rotUrl = u;
+      render();
+    }).catch(function(){ toast('\u65cb\u8f49\u5931\u6557', true); });
+  }
+
   function dataUrlToJpeg(dataUrl){
     return new Promise(function(resolve, reject){
       var img = new Image();
@@ -693,7 +775,7 @@
 
     loadTemplate().then(function(buf){
       return Promise.all(state.photos.map(function(ph){
-        return dataUrlToJpeg(ph.dataUrl).then(function(bytes){
+        return dataUrlToJpeg(ph.rotUrl || ph.dataUrl).then(function(bytes){
           return {
             place: ph.place, item: ph.item, date: ph.date, desc: ph.desc,
             data: bytes
@@ -1027,7 +1109,9 @@
             place: gPlace,
             item: rec.item || gItem,
             date: rec.date || gDate,
-            desc: rec.note || ''
+            desc: rec.note || '',
+            rot: 0,
+            rotUrl: null
           });
           done++;
         }).catch(function(){ failed++; });

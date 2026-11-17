@@ -1,0 +1,89 @@
+--- a/log/index.html
++++ b/log/index.html
+@@ -433,7 +433,7 @@
+             <td class="actual">
+               <div class="inline">
+                 <span class="u">EL：</span><input type="text" id="mTopA" placeholder="a" readonly title="自動帶入上方「儀器高 EL」的數值"><span class="sep">－</span>
+-                <input type="text" id="mTopB" placeholder="b"><span class="sep">＝</span>
++                <input type="text" id="mTopB" placeholder="b" readonly title="自動帶入該樁「深度 ＋ 0.1」"><span class="autoTag">深度＋0.1</span><span class="sep">＝</span>
+                 <span class="calc" id="mTopCalc">—</span>
+               </div>
+             </td>
+@@ -863,8 +863,9 @@
+       var el = $(M_IDS[k]);
+       m[k] = el ? String(el.value || '').trim() : '';
+     });
+-    /* 鋼筋頂 EL1.2 的 a 一律等於儀器高 EL（使用者需求：a 自動帶入，b 自行填） */
++    /* 鋼筋頂 EL1.2：a 一律等於儀器高 EL；b 一律等於該樁「深度 ＋ 0.1」（皆自動帶入） */
+     m.topA = m.el;
++    m.topB = depthToB(m.depth);
+     return m;
+   }
+   function clearM(){
+@@ -872,20 +873,38 @@
+     syncTopA();
+   }
+ 
+-  /* 儀器高 EL → 鋼筋頂 EL1.2 的 a：即時同步，b 與差值計算完全不變 */
++  /* 深度 → 鋼筋頂 EL1.2 的 b：b = 深度 ＋ 0.1（每隻樁依自己的深度計算） */
++  function depthToB(depth){
++    var d = parseFloat(String(depth == null ? '' : depth).replace(/[^\d.\-]/g, ''));
++    if (!isFinite(d)) return '';
++    return String(Math.round((d + 0.1) * 1000) / 1000);
++  }
++  /* 儀器高 EL → a；深度 → b：兩者即時同步，差值 a − b 公式不變 */
+   function syncTopA(){
+     var el = $('mEl'), a = $('mTopA');
+     if (a) a.value = el ? numClean(String(el.value || '')) : '';
++    var dp = $('mDepth'), b = $('mTopB');
++    if (b) b.value = dp ? depthToB(dp.value) : '';
+     updateTopCalc();
+   }
++  /* 鋼筋頂 EL1.2 差值下限：a − b 不得低於 −20.45（依使用者需求） */
++  var TOP_MIN = -20.45;
++  function clampTop(v){
++    var x = Math.round(v * 1000) / 1000;
++    return x < TOP_MIN ? TOP_MIN : x;
++  }
+   function updateTopCalc(){
+     var a = parseFloat(String($('mTopA').value || '').replace(/[^\d.\-]/g, ''));
+     var b = parseFloat(String($('mTopB').value || '').replace(/[^\d.\-]/g, ''));
+     var out = $('mTopCalc');
+     if (isFinite(a) && isFinite(b)) {
+-      out.textContent = (Math.round((a - b) * 1000) / 1000).toString();
++      var raw = Math.round((a - b) * 1000) / 1000;
++      var v = clampTop(raw);
++      out.textContent = v.toString();
++      out.title = (v !== raw) ? ('原值 ' + raw + '，已套用下限 ' + TOP_MIN) : '';
+     } else {
+       out.textContent = '—';
++      out.title = '';
+     }
+   }
+ 
+@@ -1072,10 +1091,12 @@
+     h += di('垂直度', m.plumb);
+     /* a 一律顯示儀器高 EL（舊資料若沒存 topA，也以 EL 補上，與表單一致） */
+     var topA = m.topA || m.el || '';
+-    if (topA || m.topB) {
+-      var a = parseFloat(topA), b = parseFloat(m.topB);
+-      var calc = (isFinite(a) && isFinite(b)) ? (Math.round((a - b) * 1000) / 1000) : '';
+-      h += di('鋼筋頂 EL', topA + ' － ' + (m.topB || '') + (calc !== '' ? ' ＝ ' + calc : ''));
++    /* b 一律以該樁深度 ＋ 0.1 重算（舊資料若沒存 topB 也一致） */
++    var topB = depthToB(m.depth) || m.topB || '';
++    if (topA || topB) {
++      var a = parseFloat(topA), b = parseFloat(topB);
++      var calc = (isFinite(a) && isFinite(b)) ? clampTop(a - b) : '';
++      h += di('鋼筋頂 EL', topA + ' － ' + topB + (calc !== '' ? ' ＝ ' + calc : ''));
+     }
+     h += di('D', m.dia ? (m.dia + ' cm') : '');
+     h += di('備註', r.note);
+@@ -1692,6 +1713,8 @@
+   $('pDate').addEventListener('input', onPDateChange);
+   $('mEl').addEventListener('input', syncTopA);
+   $('mEl').addEventListener('change', syncTopA);
++  $('mDepth').addEventListener('input', syncTopA);
++  $('mDepth').addEventListener('change', syncTopA);
+   $('mTopA').addEventListener('input', updateTopCalc);
+   $('mTopB').addEventListener('input', updateTopCalc);
+   bindNumInputs();

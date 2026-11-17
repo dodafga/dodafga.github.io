@@ -136,3 +136,210 @@
   .viewer .rotbar .rbspacer{display:none}
   .viewer .rotbar .rb.rm{flex:1 1 100%}
 }
+
+/* ===== 背景分批上傳：批次進度列 ===== */
+.progbatch{
+  margin-top:6px;font-size:12px;font-weight:700;color:#2c5282;
+  background:#eef4fb;border:1px solid #d6e4f5;border-radius:8px;
+  padding:6px 10px;line-height:1.5;
+}
+/* 單張上傳失敗提示 */
+.uperr{
+  margin-top:8px;padding:9px 11px;border-radius:9px;
+  background:#fdf2f1;border:1px solid #e8c4c1;border-left:4px solid #b3261e;
+  color:#8a1f18;font-size:12.5px;line-height:1.6;font-weight:600;
+}
+.viewer .rotbar .rb.retry{
+  color:#8a5a00;background:#fff8e6;border-color:#f0d08a;
+}
+.viewer .rotbar .rb.retry:hover:not(:disabled){background:#fdf0d5;border-color:#d99a1f}
+
+/* ===== iPhone 大按鈕介面（v5） =====
+   以 iPhone Safari 直向（390×844）為主要情境：
+   觸控目標 ≥ 48px、字級 ≥ 15px、單手可及、無水平捲動、
+   底部留出安全區避免被 Safari 工具列遮住。 */
+@media (max-width: 760px){
+  /* 版面：左右留白縮小、底部預留 Safari 工具列 + 安全區 */
+  .wrap{padding:12px 12px calc(96px + env(safe-area-inset-bottom,0px))!important}
+  .card{margin-bottom:14px;border-radius:14px}
+  .card-b{padding:14px 13px}
+  .card-h{padding:12px 13px;gap:8px}
+  .card-h h2{font-size:16px}
+
+  /* 標題區：縮小、避免擠壓 */
+  header{padding:14px 14px 12px!important}
+  header h1{font-size:19px!important;line-height:1.25}
+  header .sub{font-size:12px!important;line-height:1.5}
+  header .hmeta{font-size:11.5px!important;line-height:1.6}
+
+  /* ① 歸檔設定：日期／樁號輸入放大到 16px（避免 iOS 自動放大） */
+  .meta2 input[type=date],.meta2 select{
+    font-size:16px!important;padding:14px 13px!important;min-height:52px;
+    border-radius:11px;
+  }
+  .meta2 label{font-size:13.5px!important;margin-bottom:7px}
+  .meta2 .hint{font-size:12px!important;display:block;margin:3px 0 0}
+  .meta2 .sub2{font-size:12px!important;line-height:1.75}
+
+  /* ② 選取或拍照：兩個超大按鈕，直向堆疊、單手好按 */
+  .up2{grid-template-columns:1fr!important;gap:12px;margin-top:14px}
+  .up2 .tile{
+    padding:26px 16px!important;min-height:112px;border-radius:16px;
+    border-width:2.5px;gap:8px;
+  }
+  .up2 .tile .ic{font-size:38px!important}
+  .up2 .tile .t{font-size:17px!important;font-weight:800}
+  .up2 .tile .s{font-size:12.5px!important;line-height:1.5}
+
+  /* ③ 暫存預覽：開關列改成整齊的大顆開關 */
+  .stage2 .sh{gap:8px;margin-bottom:12px}
+  .stage2 .sh .t{font-size:14.5px}
+  .wmtog{
+    padding:11px 13px!important;font-size:13.5px!important;
+    min-height:48px;border-radius:11px;flex:1 1 calc(50% - 4px);
+    justify-content:center;
+  }
+  .wmtog .trk{width:44px;height:25px;flex:0 0 44px}
+  .wmtog .trk:after{width:21px;height:21px}
+  .wmtog input:checked+.trk:after{transform:translate(19px)}
+  .wmtog .st{font-size:12.5px}
+
+  /* 檢視器：圖片區更高、圓角更大 */
+  .viewer{gap:12px}
+  .viewer .vhead{gap:8px}
+  .viewer .vpos{font-size:13.5px;padding:5px 13px}
+  .viewer .vname{font-size:12.5px}
+  .viewer .vstage{
+    aspect-ratio:3 / 4;border-radius:16px;
+    max-height:56vh;
+  }
+  .viewer .vstage .bwrap{left:10px;top:10px;gap:6px}
+  .viewer .vstage .badge{font-size:11.5px;padding:4px 9px;border-radius:7px}
+
+  /* 「這樣對嗎？」提示條：按鈕放大 */
+  .q180{font-size:12.5px;padding:8px 10px;border-radius:14px 14px 0 0}
+  .q180 button{font-size:13px;padding:9px 14px;min-height:40px;border-radius:9px}
+
+  /* 手動轉向工具列：每顆 ≥ 52px 高、字 15px */
+  .viewer .rotbar{
+    gap:9px;padding:12px;border-radius:14px;
+  }
+  .viewer .rotbar .rblab{
+    width:100%;font-size:13px;letter-spacing:.04em;
+    padding-bottom:2px;
+  }
+  .viewer .rotbar .rb{
+    flex:1 1 calc(50% - 5px);
+    font-size:15px!important;font-weight:800;
+    padding:15px 10px!important;min-height:52px!important;
+    border-radius:12px;
+  }
+  .viewer .rotbar .rbdeg{
+    order:9;width:100%;text-align:center;
+    font-size:13px;padding:7px 12px;border-radius:22px;
+  }
+  .viewer .rotbar .rbspacer{display:none}
+  .viewer .rotbar .rb.rm{flex:1 1 100%;min-height:52px!important}
+  .viewer .rotbar .rb.retry{flex:1 1 100%;min-height:52px!important}
+
+  /* 上一張／下一張：並排大按鈕 */
+  .viewer .vnav{gap:10px;flex-wrap:nowrap}
+  .viewer .vbtn{
+    flex:1 1 0;min-height:54px;font-size:16px!important;
+    padding:14px 10px!important;border-radius:13px;
+  }
+  .viewer .vcount{font-size:15px;min-width:56px;flex:0 0 auto}
+
+  /* 跳到第 N 張 */
+  .viewer .vjump{gap:9px;font-size:13.5px}
+  .viewer .vjump label{font-size:13.5px}
+  .viewer .vjumpin{
+    font-size:17px!important;width:84px;padding:13px 8px!important;
+    min-height:52px;border-radius:11px;
+  }
+  .viewer .vjumpof{font-size:13px}
+  .viewer .vjumpgo{
+    font-size:15px!important;padding:14px 20px!important;
+    min-height:52px;border-radius:11px;
+  }
+
+  /* 確認上傳：整列超大主按鈕，固定在卡片底部好按 */
+  .go2{
+    flex-direction:column;align-items:stretch;gap:10px;
+    margin-top:16px;padding-top:16px;
+  }
+  .go2 .spacer{display:none}
+  .go2 .btn-go{
+    width:100%;min-height:60px;font-size:18px!important;font-weight:800;
+    border-radius:14px;letter-spacing:.02em;
+    box-shadow:0 3px 10px rgba(255,117,5,.28);
+  }
+  .go2 .btn-go:disabled{box-shadow:none}
+  .go2 .hint2{font-size:13px!important;line-height:1.6;text-align:center}
+  .go2 .hint2.gohelp{display:none}   /* 手機上隱藏長說明，減少擁擠 */
+
+  /* 卡片標頭的小按鈕也放大到好按 */
+  .card-h .btn-sm{min-height:44px;font-size:13.5px!important;padding:10px 14px!important;border-radius:10px}
+
+  /* 已上傳完成區 */
+  .done2 .row2{padding:11px 12px;gap:11px;border-radius:12px}
+  .done2 .row2 .th3{width:54px;height:54px;flex:0 0 54px;border-radius:9px}
+  .done2 .row2 .nm2{font-size:13.5px}
+  .done2 .row2 .sub3{font-size:12px}
+  .done2 .row2 a.open2{min-height:44px;display:inline-flex;align-items:center;font-size:13px;padding:9px 12px}
+
+  /* 已上傳紀錄：篩選與批次列改成可換行的大按鈕 */
+  .filterbar{gap:9px}
+  .filterbar .lbl{font-size:13px}
+  .seg button{min-height:46px;font-size:14px!important;padding:11px 16px!important}
+  .filterbar input[type=date]{font-size:16px!important;min-height:50px;padding:12px 11px!important}
+  .batchbar{gap:9px}
+  .batchbar .btn-sm{min-height:46px;font-size:13.5px!important;padding:11px 14px!important}
+  .chkbox{font-size:13.5px;min-height:44px;display:inline-flex;align-items:center;gap:8px}
+  .chkbox input{width:22px;height:22px}
+  #histList .item{padding:12px;border-radius:12px}
+  #histList .item .acts button,#histList .item .acts a{
+    min-height:44px;display:inline-flex;align-items:center;
+    font-size:13px!important;padding:9px 12px!important;
+  }
+
+  /* 進度列 */
+  .progwrap{margin-top:14px}
+  .progbar{height:12px;border-radius:99px}
+  .progtxt{font-size:13px;margin-top:7px;line-height:1.5}
+  .progbatch{font-size:12.5px;padding:8px 11px}
+
+  /* 連線卡 */
+  .conn{gap:10px}
+  .conn .txt{font-size:14px}
+  .conn .mail{font-size:12px}
+  .conn .sp{width:100%;display:flex;gap:9px;flex-wrap:wrap}
+  .conn .sp .btn{flex:1 1 auto;min-height:48px;font-size:14px!important}
+}
+
+/* 極窄機（iPhone SE 320~375）再收一點 */
+@media (max-width: 380px){
+  .viewer .rotbar .rb{font-size:14px!important;padding:14px 6px!important}
+  .viewer .vbtn{font-size:15px!important}
+  .go2 .btn-go{font-size:17px!important}
+  .up2 .tile .t{font-size:16px!important}
+}
+
+/* ===== 依所選日期篩選照片 ===== */
+.datefilter{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-top:12px;padding:11px 13px;border-radius:11px;
+  background:#f4f9ff;border:1px solid #cfe0f5;
+}
+.dfchk{display:inline-flex;align-items:center;gap:9px;cursor:pointer;font-size:13px;font-weight:800;color:#1f4e79;-webkit-tap-highlight-color:transparent}
+.dfchk input{width:20px;height:20px;accent-color:#2c5282;flex:0 0 auto;margin:0}
+.dfchk .dftxt{white-space:nowrap}
+.dfhint{font-size:11.5px;color:#6b7f95;line-height:1.5;flex:1 1 220px;min-width:0}
+.dfhint.on{color:#1f6f4a;font-weight:700}
+@media(max-width:760px){
+  .datefilter{padding:13px;gap:11px;border-radius:13px;margin-top:13px}
+  .dfchk{font-size:14.5px;min-height:48px;width:100%}
+  .dfchk input{width:26px;height:26px}
+  .dfchk .dftxt{white-space:normal;line-height:1.4}
+  .dfhint{font-size:12.5px;flex:1 1 100%}
+}

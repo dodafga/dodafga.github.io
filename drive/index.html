@@ -53,7 +53,7 @@ if(n instanceof HTMLMediaElement){harden(n)}else{sweep(n)}}}})
 document.addEventListener("DOMContentLoaded",function(){sweep(document)});
 sweep(document)})();</script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>照片上傳歸檔｜Google Drive 依日期與樁號歸檔</title>
 <link rel="stylesheet" href="../assets/drive-page.css">
 <link rel="stylesheet" href="../assets/photo-edit.css">
@@ -142,6 +142,13 @@ sweep(document)})();</script>
         樁號選單依「查驗紀錄表」中該日期的查驗紀錄產生，只列出當日有查驗的樁號。<br>
         自動轉正：先用 OCR 找「工程名稱／檢查項目／檢查日期」的位置判斷方向；判不出來時會在縮圖上顯示「這樣對嗎？」並可按一下轉 180°。
       </div>
+      <div class="datefilter">
+        <label class="dfchk">
+          <input type="checkbox" id="chkDateFilter">
+          <span class="dftxt">只加入「所選日期」拍的照片</span>
+        </label>
+        <span class="dfhint" id="dfHint">依檔案的拍攝／修改日期比對；開啟後選照片時會自動略過其他日期的照片。</span>
+      </div>
     </div>
   </div>
 
@@ -171,6 +178,7 @@ sweep(document)})();</script>
       <div class="progwrap" id="progWrap">
         <div class="progbar"><i id="progBar"></i></div>
         <div class="progtxt" id="progTxt">—</div>
+        <div class="progbatch" id="progBatch"></div>
       </div>
     </div>
   </div>
@@ -214,10 +222,10 @@ sweep(document)})();</script>
         <div class="grid2t" id="stageGrid"></div>
 
         <div class="go2">
-          <button class="btn btn-amber" id="btnGo" type="button" disabled>☁ 確認上傳</button>
+          <button class="btn btn-amber btn-go" id="btnGo" type="button" disabled>☁ 確認上傳</button>
           <span class="hint2" id="goHint">請先加入照片</span>
           <span class="spacer"></span>
-          <span class="hint2">用 <b>‹ 上一張 / 下一張 ›</b> 切換，或在「<b>跳到第</b>」輸入張數後按 <b>前往</b>（Enter 也可以）；目前這張可用下方的 <b>↺ 左轉 90°</b>／<b>↻ 右轉 90°</b>／<b>◎ 自動判斷</b>／<b>× 移除</b></span>
+          <span class="hint2 gohelp">用 <b>‹ 上一張 / 下一張 ›</b> 切換，或在「<b>跳到第</b>」輸入張數後按 <b>前往</b>（Enter 也可以）；目前這張可用下方的 <b>↺ 左轉 90°</b>／<b>↻ 右轉 90°</b>／<b>◎ 自動判斷</b>／<b>× 移除</b></span>
         </div>
       </div>
     </div>

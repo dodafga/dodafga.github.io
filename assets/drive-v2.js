@@ -8,10 +8,11 @@ var $=C.$,esc=C.esc,pad2=C.pad2,todayISO=C.todayISO,fmtSize=C.fmtSize,safeName=C
     DONE_KEY="inspection-drive-photo-done-session",
     WM_KEY="inspection-drive-photo-watermark",
     ORIENT_KEY="inspection-drive-photo-autoorient",
+    DATEF_KEY="inspection-drive-photo-datefilter",
     MAX_EDGE=2000,
     THUMB_EDGE=320,
     OCR_BUDGET=20000,
-    stage=[],doneList=[],wmOn=!0,orientOn=!0,uploading=!1,seq=0;
+    stage=[],doneList=[],wmOn=!0,orientOn=!0,uploading=!1,seq=0,dateFilterOn=!1;
 
 function compactDate(iso){return String(iso||"").replace(/-/g,"")}
 /* 角度顯示：細部傾斜會是小數（例如 3.7°），四方向時仍是整數 90°。
@@ -25,6 +26,23 @@ function loadWm(){var v=C.store.get(WM_KEY,"");v==="0"?wmOn=!1:v==="1"&&(wmOn=!0
 function saveWm(){C.store.set(WM_KEY,wmOn?"1":"0")}
 function loadOrient(){var v=C.store.get(ORIENT_KEY,"");v==="0"?orientOn=!1:v==="1"&&(orientOn=!0)}
 function saveOrient(){C.store.set(ORIENT_KEY,orientOn?"1":"0")}
+/* 依所選日期篩選照片（預設關閉，由使用者自行開啟） */
+function loadDateFilter(){var v=C.store.get(DATEF_KEY,"");v==="1"?dateFilterOn=!0:v==="0"&&(dateFilterOn=!1)}
+function saveDateFilter(){C.store.set(DATEF_KEY,dateFilterOn?"1":"0")}
+function applyDateFilterUI(){
+  var chk=$("chkDateFilter");chk&&(chk.checked=dateFilterOn);
+  var h=$("dfHint");
+  if(!h)return;
+  var d=$("fDate")&&$("fDate").value||"";
+  if(dateFilterOn){
+    h.textContent=d?("已開啟：選照片時只會加入 "+d+" 拍攝／修改的照片，其他日期自動略過。")
+                   :"已開啟：請先選擇日期，選照片時才會依該日期篩選。";
+    h.className="dfhint on";
+  }else{
+    h.textContent="依檔案的拍攝／修改日期比對；開啟後選照片時會自動略過其他日期的照片。";
+    h.className="dfhint";
+  }
+}
 function loadDone(){try{var r=sessionStorage.getItem(DONE_KEY);if(!r)return;var a=JSON.parse(r);Array.isArray(a)&&(doneList=a.slice(0,30))}catch(e){}}
 function saveDone(){try{sessionStorage.setItem(DONE_KEY,JSON.stringify(doneList.slice(0,30)))}catch(e){}}
 function readHist(){var a=C.store.getJSON(HIST_KEY,[]);return Array.isArray(a)?a:[]}
@@ -236,19 +254,50 @@ function addFiles(list){
   var files=[],i;
   for(i=0;i<list.length;i++){var f=list[i];f&&/^image\//.test(f.type)&&files.push(f)}
   if(!files.length){toast("沒有可用的圖片檔",!0);return}
+
+  /* 依所選日期篩選：只加入「該日期」拍攝／修改的照片 */
+  var skipped=0;
+  if(dateFilterOn){
+    var want=$("fDate")&&$("fDate").value||"";
+    if(want){
+      var keep=[];
+      files.forEach(function(f){
+        var d=fileDateISO(f);
+        if(!d||d===want)keep.push(f);else skipped++;
+      });
+      files=keep;
+      if(!files.length){
+        toast("所選日期（"+want+"）沒有符合的照片，已略過 "+skipped+" 張",!0);
+        return;
+      }
+    }
+  }
+
   files.forEach(function(f){
     var it={
       key:"s"+Date.now()+"_"+seq++,
       srcFile:f,baseBlob:null,thumbUrl:"",
       manualAngle:0,autoAngle:0,ocr:null,
-      busy:!0,ocrBusy:!1,err:"",
+      busy:!0,ocrBusy:!1,err:"",upBusy:!1,upFailed:!1,
       name:f.name||("photo_"+seq+".jpg"),size:f.size||0
     };
     stage.push(it);prepQ.push(it);
   });
   renderStage();
-  toast("已加入 "+files.length+" 張照片");
+  toast("已加入 "+files.length+" 張照片"+(skipped?"（已略過其他日期 "+skipped+" 張）":""));
   prepQueue();
+}
+
+/* 檔案的拍攝／修改日期 → YYYY-MM-DD（本地時區）。
+   手機相機拍的照片，lastModified 就是拍攝時間；從圖庫選的也一樣。
+   取不到就回空字串（不篩掉，避免誤刪使用者的照片）。 */
+function fileDateISO(f){
+  var t=0;
+  try{t=Number(f.lastModified)||0}catch(e){t=0}
+  if(!t)return "";
+  var d=new Date(t);
+  if(isNaN(d.getTime()))return "";
+  return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
 }
 
 function prepQueue(){
@@ -407,8 +456,10 @@ function renderStage(){
       '<button type="button" class="rb ghost" data-ocr="'+it.key+'" title="自動判斷方向（OCR）" aria-label="自動判斷方向">◎ 自動判斷</button>'+
       '<span class="rbdeg">'+(it.manualAngle?("已手動轉 "+fmtDeg(it.manualAngle)+"°"):"未手動轉向")+'</span>'+
       '<span class="rbspacer"></span>'+
+      (it.upFailed?'<button type="button" class="rb retry" data-retry="'+it.key+'" title="重新上傳這張" aria-label="重新上傳這張">↻ 重試上傳</button>':"")+
       '<button type="button" class="rb rm" data-rm="'+it.key+'" title="移除這張" aria-label="移除這張">× 移除</button>'+
     "</div>"+
+    (it.upFailed?'<div class="uperr">⚠ 上傳失敗（已自動重試 '+MAX_TRY+' 次）：'+esc(it.err||"未知原因")+"　可按「↻ 重試上傳」再試一次。</div>":"")+
     '<div class="vnav">'+
       '<button type="button" class="vbtn" data-prev="1"'+(stageIdx<=0?" disabled":"")+">‹ 上一張</button>"+
       '<span class="vcount">'+(stageIdx+1)+" / "+n+"</span>"+
@@ -492,6 +543,43 @@ function uploadOne(blob,name,folderId,desc){
   });
 }
 
+/* ================= 背景分批上傳 + 失敗自動重試 =================
+   分批：每 BATCH_SIZE 張為一批，批次之間依序進行，批內逐張處理並讓出主執行緒，
+         所以上傳期間頁面仍可操作（可繼續選照片、看已上傳紀錄、切換檢視）。
+   重試：單張失敗自動重試，最多 MAX_TRY 次（含第一次），每次間隔遞增；
+         次數用完仍失敗才標記失敗，並保留「↻ 重試上傳」手動按鈕。 */
+var BATCH_SIZE=3, MAX_TRY=3, RETRY_DELAY=900;
+var upJob=null;
+
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+function showProg(on){
+  var pw=$("progWrap");if(!pw)return;
+  on?pw.classList.add("on"):pw.classList.remove("on");
+}
+function progTick(job,msg){
+  var pb=$("progBar"),pt=$("progTxt"),pbt=$("progBatch");
+  var fin=job.done+job.fail;
+  var pct=job.total?Math.round(fin/job.total*100):0;
+  pb&&(pb.style.width=pct+"%");
+  pt&&(pt.textContent=msg||("已完成 "+job.done+" / "+job.total+" 張"+(job.fail?"（失敗 "+job.fail+" 張）":"")));
+  if(pbt){
+    pbt.textContent="第 "+Math.max(1,job.batch)+" / "+job.batches+" 批　·　已完成 "+job.done+" 張　·　剩 "+(job.total-fin)+" 張"+(job.fail?"　·　失敗 "+job.fail+" 張":"");
+  }
+}
+/* 單張上傳 + 自動重試。onTry(第幾次) 讓進度列顯示重試狀態。 */
+function uploadOneRetry(blob,name,folderId,desc,onTry){
+  var attempt=0;
+  function go(){
+    attempt++;
+    onTry&&onTry(attempt);
+    return uploadOne(blob,name,folderId,desc).catch(function(e){
+      if(attempt>=MAX_TRY)throw e;
+      return sleep(RETRY_DELAY*attempt).then(go);
+    });
+  }
+  return go();
+}
+
 function runUpload(){
   if(uploading)return;
   var G=window.GDrive;
@@ -503,62 +591,78 @@ function runUpload(){
       station=$("fStation")&&$("fStation").value||"";
   if(!dateISO){toast("請先選擇日期",!0);return}
   if(!station){toast("請先選擇樁號",!0);return}
-  var list=stage.filter(function(s){return !s.busy&&s.baseBlob});
+  var list=stage.filter(function(s){return !s.busy&&s.baseBlob&&!s.upBusy});
   if(!list.length){toast("暫存區沒有可上傳的照片",!0);return}
 
   uploading=!0;updateGo();
-  var pw=$("progWrap"),pb=$("progBar"),pt=$("progTxt");
-  pw&&pw.classList.add("on");
-  var total=list.length,ok=0,fail=0,n=1;
-  function tick(m){
-    var pct=Math.round((ok+fail)/total*100);
-    pb&&(pb.style.width=pct+"%");
-    pt&&(pt.textContent=m||("已完成 "+ok+" / "+total+" 張"+(fail?"（失敗 "+fail+" 張）":"")));
-  }
-  tick("準備資料夾…");
+  var job={total:list.length,done:0,fail:0,batch:0,batches:Math.ceil(list.length/BATCH_SIZE)};
+  upJob=job;
+  showProg(!0);
+  progTick(job,"準備資料夾…");
 
+  var n=1;
   ensureStationFolder(dateISO,station).then(function(folder){
-    var chain=Promise.resolve();
-    list.forEach(function(it){
-      chain=chain.then(function(){
-        tick("處理 "+(ok+fail+1)+" / "+total+"：壓浮水印…");
-        return renderFinal(it.baseBlob,dateISO,it.manualAngle).then(function(fin){
-          var name=buildName(dateISO,station,n);n++;
-          var desc=["樁號："+station,"歸檔日期："+dateISO,
-            it.ocr&&it.ocr.ok?("自動轉正："+fmtDeg(it.autoAngle||0)+"°"):"自動轉正：未判定",
-            it.manualAngle?("手動旋轉："+it.manualAngle+"°"):"",
-            wmOn?(fin.applied?"已壓日期浮水印":"未壓浮水印"):"未壓浮水印"].filter(Boolean).join("｜");
-          tick("上傳 "+(ok+fail+1)+" / "+total+"："+name);
-          return uploadOne(fin.blob,name,folder.stationId,desc).then(function(res){
-            var hist=readHist();
-            hist.unshift({id:res.id,name:res.name,link:res.link,date:dateISO,
-              item:station,note:"",size:res.size||0,
-              watermark:wmOn?(fin.applied?"applied":"off"):"off",
-              uploadedAt:new Date().toISOString()});
-            writeHist(hist);
-            doneList.unshift({name:res.name,link:res.link,date:dateISO,station:station,thumbUrl:it.thumbUrl||"",size:res.size||0});
-            saveDone();
-            var idx=stage.indexOf(it);idx>=0&&stage.splice(idx,1);
-            ok++;renderStage();renderDone();tick();
+    var bi=0;
+    function nextBatch(){
+      if(bi>=job.batches)return Promise.resolve();
+      var slice=list.slice(bi*BATCH_SIZE,(bi+1)*BATCH_SIZE);
+      job.batch=bi+1;bi++;
+      progTick(job,"第 "+job.batch+" / "+job.batches+" 批：開始上傳…");
+      var chain=Promise.resolve();
+      slice.forEach(function(it){
+        chain=chain.then(function(){
+          if(stage.indexOf(it)<0)return;      /* 上傳途中被移除就跳過 */
+          it.upBusy=!0;it.err="";it.upFailed=!1;
+          progTick(job,"處理中："+(it.name||""));
+          return renderFinal(it.baseBlob,dateISO,it.manualAngle).then(function(fin){
+            var name=buildName(dateISO,station,n);n++;
+            var desc=["樁號："+station,"歸檔日期："+dateISO,
+              it.ocr&&it.ocr.ok?("自動轉正："+fmtDeg(it.autoAngle||0)+"°"):"自動轉正：未判定",
+              it.manualAngle?("手動旋轉："+it.manualAngle+"°"):"",
+              wmOn?(fin.applied?"已壓日期浮水印":"未壓浮水印"):"未壓浮水印"].filter(Boolean).join("｜");
+            return uploadOneRetry(fin.blob,name,folder.stationId,desc,function(a){
+              progTick(job,"上傳中（第 "+a+" / "+MAX_TRY+" 次嘗試）："+name);
+            }).then(function(res){
+              var hist=readHist();
+              hist.unshift({id:res.id,name:res.name,link:res.link,date:dateISO,
+                item:station,note:"",size:res.size||0,
+                watermark:wmOn?(fin.applied?"applied":"off"):"off",
+                uploadedAt:new Date().toISOString()});
+              writeHist(hist);
+              doneList.unshift({name:res.name,link:res.link,date:dateISO,station:station,thumbUrl:it.thumbUrl||"",size:res.size||0});
+              saveDone();
+              var idx=stage.indexOf(it);idx>=0&&stage.splice(idx,1);
+              job.done++;renderStage();renderDone();progTick(job);
+              /* 讓已上傳紀錄（drive-page.js）即時更新，不必重整頁面 */
+              try{window.__drivePageRefresh&&window.__drivePageRefresh()}catch(e){}
+            });
+          }).catch(function(e){
+            it.upBusy=!1;it.upFailed=!0;
+            it.err=(e&&e.message?e.message:String(e))||"上傳失敗";
+            job.fail++;renderStage();progTick(job);
+          }).then(function(){
+            it.upBusy=!1;
+            return sleep(40);   /* 讓出主執行緒，維持介面可操作 */
           });
-        }).catch(function(e){
-          fail++;it.err=e&&e.message?e.message:"上傳失敗";renderStage();
-          tick("第 "+(ok+fail)+" 張失敗："+it.err);
         });
       });
-    });
-    return chain;
+      return chain.then(function(){return sleep(60)}).then(nextBatch);
+    }
+    return nextBatch();
   }).then(function(){
-    uploading=!1;updateGo();
-    pw&&pw.classList.remove("on");
-    if(fail)toast("已完成：成功 "+ok+" 張，失敗 "+fail+" 張（失敗的留在暫存區可重試）",!0);
-    else toast("已上傳 "+ok+" 張到 營建相片 / "+dateISO+" / "+station+" /");
-    ok>0&&setTimeout(function(){try{window.location.reload()}catch(e){}},1100);
+    uploading=!1;upJob=null;updateGo();
+    if(job.fail){
+      progTick(job,"已完成：成功 "+job.done+" 張，失敗 "+job.fail+" 張（可單張重試）");
+      toast("上傳完成：成功 "+job.done+" 張，失敗 "+job.fail+" 張（失敗的留在暫存區，可單張重試）",!0);
+    }else{
+      progTick(job,"已完成 "+job.done+" / "+job.total+" 張　✓ 全部完成");
+      toast("已上傳 "+job.done+" 張到 營建相片 / "+dateISO+" / "+station+" /");
+    }
+    renderStage();renderDone();
   }).catch(function(e){
-    uploading=!1;updateGo();
-    pw&&pw.classList.remove("on");
+    uploading=!1;upJob=null;updateGo();
     var msg=e&&e.message?e.message:String(e);
-    toast("上傳失敗："+msg,!0);tick("失敗："+msg);
+    toast("上傳失敗："+msg,!0);progTick(job,"失敗："+msg);
   });
 }
 
@@ -644,7 +748,6 @@ function bind(){
     /* 上一張 / 下一張 */
     var nav=t&&t.closest?t.closest("[data-prev],[data-next]"):null;
     if(nav){
-      if(uploading){toast("上傳中，請稍候",!0);return}
       if(nav.hasAttribute("data-prev")){
         if(stageIdx>0){stageIdx--;renderStage()}
       }else{
@@ -652,21 +755,60 @@ function bind(){
       }
       return;
     }
-    var el=t&&t.closest?t.closest("[data-rot],[data-rotl],[data-rot180],[data-rm],[data-ocr]"):null;
+    var el=t&&t.closest?t.closest("[data-rot],[data-rotl],[data-rot180],[data-rm],[data-ocr],[data-retry]"):null;
     if(!el)return;
     var key=el.getAttribute("data-rot")||el.getAttribute("data-rotl")||el.getAttribute("data-rot180")||
-            el.getAttribute("data-rm")||el.getAttribute("data-ocr");
+            el.getAttribute("data-rm")||el.getAttribute("data-ocr")||el.getAttribute("data-retry");
     var it=null,i;
     for(i=0;i<stage.length;i++){if(stage[i].key===key){it=stage[i];break}}
     if(!it)return;
-    if(uploading){toast("上傳中，請稍候",!0);return}
+
+    /* 單張重試上傳：只重傳這一張，不影響其他張 */
+    if(el.hasAttribute("data-retry")){
+      if(uploading){toast("上傳中，請稍候再重試",!0);return}
+      if(!it.baseBlob){toast("這張照片尚未處理完成，請稍候",!0);return}
+      var d0=$("fDate")&&$("fDate").value||"",s0=$("fStation")&&$("fStation").value||"";
+      if(!d0||!s0){toast("請先選擇日期與樁號",!0);return}
+      it.upFailed=!1;it.err="";it.upBusy=!0;renderStage();
+      toast("正在重新上傳這張…");
+      ensureStationFolder(d0,s0).then(function(folder){
+        return renderFinal(it.baseBlob,d0,it.manualAngle).then(function(fin){
+          var name=buildName(d0,s0,1);
+          var desc=["樁號："+s0,"歸檔日期："+d0,
+            it.ocr&&it.ocr.ok?("自動轉正："+fmtDeg(it.autoAngle||0)+"°"):"自動轉正：未判定",
+            it.manualAngle?("手動旋轉："+it.manualAngle+"°"):"",
+            wmOn?(fin.applied?"已壓日期浮水印":"未壓浮水印"):"未壓浮水印"].filter(Boolean).join("｜");
+          return uploadOneRetry(fin.blob,name,folder.stationId,desc,function(a){
+            if(a>1)toast("第 "+a+" 次嘗試…");
+          }).then(function(res){
+            var hist=readHist();
+            hist.unshift({id:res.id,name:res.name,link:res.link,date:d0,item:s0,note:"",size:res.size||0,
+              watermark:wmOn?(fin.applied?"applied":"off"):"off",uploadedAt:new Date().toISOString()});
+            writeHist(hist);
+            doneList.unshift({name:res.name,link:res.link,date:d0,station:s0,thumbUrl:it.thumbUrl||"",size:res.size||0});
+            saveDone();
+            var idx=stage.indexOf(it);idx>=0&&stage.splice(idx,1);
+            it.upBusy=!1;renderStage();renderDone();
+            try{window.__drivePageRefresh&&window.__drivePageRefresh()}catch(e){}
+            toast("已重新上傳成功："+res.name);
+          });
+        });
+      }).catch(function(e){
+        it.upBusy=!1;it.upFailed=!0;
+        it.err=(e&&e.message?e.message:String(e))||"上傳失敗";
+        renderStage();toast("重試仍失敗："+it.err,!0);
+      });
+      return;
+    }
 
     if(el.hasAttribute("data-ocr")){runOneOcr(it.key);return}
     if(el.hasAttribute("data-rm")){
-      var idx=stage.indexOf(it);idx>=0&&stage.splice(idx,1);
+      if(it.upBusy){toast("這張正在上傳，請稍候",!0);return}
+      var idx2=stage.indexOf(it);idx2>=0&&stage.splice(idx2,1);
       renderStage();toast("已從暫存區移除");return;
     }
     if(it.busy||!it.baseBlob){toast("照片還在處理，請稍候",!0);return}
+    if(it.upBusy){toast("這張正在上傳，請稍候",!0);return}
     /* 轉向：右轉 90°（預設）／左轉 90°／轉 180°；角度一律正規化到 0~359，
        負角度（左轉）也能正確顯示，不會出現 -90°。 */
     var delta=el.hasAttribute("data-rot180")?180:(el.hasAttribute("data-rotl")?-90:90);
@@ -702,8 +844,18 @@ function bind(){
   }
 
   /* 日期變更 → 樁號選單依該日查驗紀錄重算，再更新按鈕狀態 */
-  C.on("fDate","change",function(){buildStations();renderStage();updateGo()});
-  C.on("fDate","input",function(){buildStations();renderStage();updateGo()});
+  C.on("fDate","change",function(){buildStations();renderStage();updateGo();applyDateFilterUI()});
+  C.on("fDate","input",function(){buildStations();renderStage();updateGo();applyDateFilterUI()});
+
+  /* 只加入所選日期的照片 */
+  var chkDF=$("chkDateFilter");
+  if(chkDF){
+    chkDF.checked=dateFilterOn;
+    C.on(chkDF,"change",function(){
+      dateFilterOn=!!chkDF.checked;saveDateFilter();applyDateFilterUI();
+      toast(dateFilterOn?"已開啟：只加入所選日期的照片":"已關閉日期篩選，所有照片都會加入");
+    });
+  }
   C.on("fStation","change",updateGo);
   /* 三重保險：C.on + onclick + document 代理，
      確保任何情況下點「確認上傳」都會真的執行（不會被別的 handler 吃掉）。 */
@@ -761,14 +913,14 @@ function startPrep(){
 
 function init(){
   window.__v2init="yes";
-  loadWm();loadOrient();loadDone();
+  loadWm();loadOrient();loadDone();loadDateFilter();
   var d=$("fDate");d&&!d.value&&(d.value=todayISO());
   buildStations();   /* 日期先設好，再依該日查驗紀錄建立樁號選單 */
   var chk=$("chkWm2");chk&&(chk.checked=wmOn);
   var st=$("wmState2");st&&(st.textContent=wmOn?"開啟":"關閉");
   var chkO=$("chkOrient2");chkO&&(chkO.checked=orientOn);
   var stO=$("orientState2");stO&&(stO.textContent=orientOn?"開啟":"關閉");
-  bind();renderStage();renderDone();updateGo();
+  bind();renderStage();renderDone();updateGo();applyDateFilterUI();
   try{
     var O=window.PhotoOrientOCR;
     if(O&&O.prepare)setTimeout(startPrep,600);

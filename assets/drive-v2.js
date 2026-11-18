@@ -35,11 +35,11 @@ function applyDateFilterUI(){
   if(!h)return;
   var d=$("fDate")&&$("fDate").value||"";
   if(dateFilterOn){
-    h.textContent=d?("已開啟：選照片時只會加入 "+d+" 拍攝／修改的照片，其他日期自動略過。")
+    h.textContent=d?("已開啟：選照片時只會加入 "+d+" 拍攝的照片（讀 EXIF 拍攝日期，讀不到才用檔案日期），其他日期自動略過並列出原因。")
                    :"已開啟：請先選擇日期，選照片時才會依該日期篩選。";
     h.className="dfhint on";
   }else{
-    h.textContent="依檔案的拍攝／修改日期比對；開啟後選照片時會自動略過其他日期的照片。";
+    h.textContent="依照片的 EXIF 拍攝日期比對（讀不到才用檔案修改日期）；開啟後選照片時會自動略過其他日期的照片。";
     h.className="dfhint";
   }
 }
@@ -250,47 +250,108 @@ function buildStations(){
 /* ================= 加入照片（階段一：EXIF 轉正 + 縮圖） ================= */
 var prepQ=[],prepBusy=!1;
 
-function addFiles(list){
-  var files=[],i;
-  for(i=0;i<list.length;i++){var f=list[i];f&&/^image\//.test(f.type)&&files.push(f)}
-  if(!files.length){toast("沒有可用的圖片檔",!0);return}
+/* ================= EXIF 拍攝日期（優先） =================
+   為什麼需要：iPhone 從 iCloud／相簿匯出、或經 App 轉存的照片，
+   file.lastModified 常常是「今天」（複製／下載當天），不是拍攝當天。
+   只比對 lastModified 會把 11/5 拍的照片判成不是 11/5 而全部略過。
+   所以改成先讀 EXIF 的 DateTimeOriginal（拍攝時間），讀不到才退回 lastModified。
 
-  /* 依所選日期篩選：只加入「該日期」拍攝／修改的照片 */
-  var skipped=0;
-  if(dateFilterOn){
-    var want=$("fDate")&&$("fDate").value||"";
-    if(want){
-      var keep=[];
-      files.forEach(function(f){
-        var d=fileDateISO(f);
-        if(!d||d===want)keep.push(f);else skipped++;
-      });
-      files=keep;
-      if(!files.length){
-        toast("所選日期（"+want+"）沒有符合的照片，已略過 "+skipped+" 張",!0);
-        return;
-      }
+   解析方式：JPEG 的 APP1 與 HEIC 的 Exif item 內容都以 "Exif\0\0" + TIFF header 開頭，
+   所以直接在檔案前 3MB 內找這個標記，再依 TIFF 結構走 IFD，兩種格式共用同一支解析器。 */
+function _u16(b,o,le){return le?(b[o]|(b[o+1]<<8)):((b[o]<<8)|b[o+1])}
+function _u32(b,o,le){
+  return le?((b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0)
+           :(((b[o]<<24)|(b[o+1]<<16)|(b[o+2]<<8)|b[o+3])>>>0);
+}
+function _ascii(b,o,n){var s="",i,c;for(i=0;i<n;i++){c=b[o+i];if(!c)break;s+=String.fromCharCode(c)}return s}
+
+/* 在指定 IFD 裡找 tag，回傳 YYYY-MM-DD */
+function _ifdDate(buf,t,le,ifdOff,want){
+  if(ifdOff<=0||t+ifdOff+2>buf.length)return "";
+  var n=_u16(buf,t+ifdOff,le);
+  if(!n||n>600)return "";
+  var i,e,tag,type,cnt,vo,s,m;
+  for(i=0;i<n;i++){
+    e=t+ifdOff+2+i*12;
+    if(e+12>buf.length)break;
+    tag=_u16(buf,e,le);
+    if(want.indexOf(tag)<0)continue;
+    type=_u16(buf,e+2,le);cnt=_u32(buf,e+4,le);
+    if(type!==2||!cnt||cnt>64)continue;
+    vo=(cnt<=4)?(e+8):(t+_u32(buf,e+8,le));
+    if(vo+cnt>buf.length)continue;
+    s=_ascii(buf,vo,cnt);
+    m=/^(\d{4})[:\-\/](\d{1,2})[:\-\/](\d{1,2})/.exec(s);
+    if(m){
+      var yy=+m[1],mm=+m[2],dd=+m[3];
+      if(yy>=1900&&yy<=2200&&mm>=1&&mm<=12&&dd>=1&&dd<=31)
+        return yy+"-"+pad2(mm)+"-"+pad2(dd);
     }
   }
-
-  files.forEach(function(f){
-    var it={
-      key:"s"+Date.now()+"_"+seq++,
-      srcFile:f,baseBlob:null,thumbUrl:"",
-      manualAngle:0,autoAngle:0,ocr:null,
-      busy:!0,ocrBusy:!1,err:"",upBusy:!1,upFailed:!1,
-      name:f.name||("photo_"+seq+".jpg"),size:f.size||0
-    };
-    stage.push(it);prepQ.push(it);
-  });
-  renderStage();
-  toast("已加入 "+files.length+" 張照片"+(skipped?"（已略過其他日期 "+skipped+" 張）":""));
-  prepQueue();
+  return "";
 }
 
-/* 檔案的拍攝／修改日期 → YYYY-MM-DD（本地時區）。
-   手機相機拍的照片，lastModified 就是拍攝時間；從圖庫選的也一樣。
-   取不到就回空字串（不篩掉，避免誤刪使用者的照片）。 */
+/* 從檔案位元組解析拍攝日期；失敗回空字串 */
+function exifDateFromBuffer(buf){
+  var i,limit=Math.min(buf.length-6,3*1024*1024),start=-1;
+  for(i=0;i<limit;i++){
+    if(buf[i]===0x45&&buf[i+1]===0x78&&buf[i+2]===0x69&&buf[i+3]===0x66&&buf[i+4]===0&&buf[i+5]===0){
+      start=i+6;break;
+    }
+  }
+  if(start<0)return "";
+  var t=start;
+  if(t+8>buf.length)return "";
+  var b0=buf[t],b1=buf[t+1];
+  var le=(b0===0x49&&b1===0x49);
+  if(!le&&!(b0===0x4D&&b1===0x4D))return "";
+  var ifd0=_u32(buf,t+4,le);
+  if(!ifd0||t+ifd0+2>buf.length)return "";
+
+  /* IFD0 直接就有 DateTimeOriginal 的情況（少見但存在） */
+  var d=_ifdDate(buf,t,le,ifd0,[0x9003,0x9004,0x0132]);
+  if(d)return d;
+
+  /* 標準路徑：IFD0 → ExifIFD(0x8769) → DateTimeOriginal(0x9003) */
+  var n=_u16(buf,t+ifd0,le);
+  if(!n||n>600)return "";
+  var k,e,tag,off;
+  for(k=0;k<n;k++){
+    e=t+ifd0+2+k*12;
+    if(e+12>buf.length)break;
+    tag=_u16(buf,e,le);
+    if(tag===0x8769){
+      off=_u32(buf,e+8,le);
+      d=_ifdDate(buf,t,le,off,[0x9003,0x9004,0x0132]);
+      if(d)return d;
+    }
+  }
+  return "";
+}
+
+/* 讀單一檔案的拍攝日期（非同步，最多等 4 秒，逾時就當作讀不到） */
+function readPhotoDate(f){
+  return new Promise(function(res){
+    var done=!1;
+    function fin(v){if(done)return;done=!0;res(v||"")}
+    var tm=setTimeout(function(){fin("")},4000);
+    try{
+      var blob=f.slice(0,3*1024*1024);
+      if(!blob.arrayBuffer){clearTimeout(tm);fin("");return}
+      blob.arrayBuffer().then(function(ab){
+        clearTimeout(tm);
+        var d="";
+        try{d=exifDateFromBuffer(new Uint8Array(ab))}catch(e){d=""}
+        fin(d);
+      }).catch(function(){clearTimeout(tm);fin("")});
+    }catch(e){clearTimeout(tm);fin("")}
+  });
+}
+
+/* 供除錯／自動測試使用（唯讀，不影響任何流程） */
+try{window.__driveDateDebug={exifDateFromBuffer:exifDateFromBuffer,readPhotoDate:readPhotoDate,fileDateISO:fileDateISO}}catch(e){}
+
+/* 檔案的修改日期 → YYYY-MM-DD（本地時區）。只在 EXIF 讀不到時當備援。 */
 function fileDateISO(f){
   var t=0;
   try{t=Number(f.lastModified)||0}catch(e){t=0}
@@ -298,6 +359,87 @@ function fileDateISO(f){
   var d=new Date(t);
   if(isNaN(d.getTime()))return "";
   return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+}
+
+/* 11/05 這種短格式，給提示訊息用 */
+function shortMD(iso){
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||""));
+  return m?(+m[2])+"/"+(+m[3]):String(iso||"");
+}
+
+/* 把照片實際放進暫存區 */
+function pushFiles(files){
+  files.forEach(function(f){
+    var it={
+      key:"s"+Date.now()+"_"+seq++,
+      srcFile:f,baseBlob:null,thumbUrl:"",
+      manualAngle:0,autoAngle:0,ocr:null,
+      photoDate:f.__photoDate||"",dateSrc:f.__dateSrc||"",
+      busy:!0,ocrBusy:!1,err:"",upBusy:!1,upFailed:!1,
+      name:f.name||("photo_"+seq+".jpg"),size:f.size||0
+    };
+    stage.push(it);prepQ.push(it);
+  });
+  renderStage();
+  prepQueue();
+}
+
+function addFiles(list){
+  var files=[],i;
+  for(i=0;i<list.length;i++){var f=list[i];f&&/^image\//.test(f.type)&&files.push(f)}
+  if(!files.length){toast("沒有可用的圖片檔",!0);return}
+
+  var want=dateFilterOn?($("fDate")&&$("fDate").value||""):"";
+
+  /* 沒有要篩選：直接加入（仍會讀日期，讓每張照片顯示拍攝日期） */
+  if(!want){
+    toast("讀取照片拍攝日期…");
+    Promise.all(files.map(function(f){return readPhotoDate(f)})).then(function(ds){
+      files.forEach(function(f,idx){
+        f.__photoDate=ds[idx]||fileDateISO(f);
+        f.__dateSrc=ds[idx]?"exif":"mtime";
+      });
+      pushFiles(files);
+      toast("已加入 "+files.length+" 張照片");
+    });
+    return;
+  }
+
+  /* 要篩選：先讀完所有照片的拍攝日期，再依所選日期比對 */
+  toast("讀取照片拍攝日期…");
+  Promise.all(files.map(function(f){return readPhotoDate(f)})).then(function(ds){
+    var keep=[],skipMap={},skipOrder=[],noDate=0,exifHit=0;
+    files.forEach(function(f,idx){
+      var ex=ds[idx]||"";
+      var d=ex||fileDateISO(f);
+      f.__photoDate=d;
+      f.__dateSrc=ex?"exif":"mtime";
+      if(ex)exifHit++;
+      if(!d){noDate++;keep.push(f);return}      /* 完全取不到日期：保留，不默默丟掉 */
+      if(d===want){keep.push(f);return}
+      if(!skipMap[d]){skipMap[d]=0;skipOrder.push(d)}
+      skipMap[d]++;
+    });
+
+    var skipped=0;
+    skipOrder.forEach(function(d){skipped+=skipMap[d]});
+
+    if(!keep.length){
+      var why=skipOrder.map(function(d){return shortMD(d)+"（"+skipMap[d]+" 張）"}).join("、");
+      toast("所選日期（"+shortMD(want)+"）沒有符合的照片，已略過 "+skipped+" 張"+(why?"：拍攝日期 "+why:""),!0);
+      return;
+    }
+
+    pushFiles(keep);
+
+    var msg="已加入 "+keep.length+" 張照片";
+    if(skipped){
+      var why2=skipOrder.map(function(d){return shortMD(d)+"（"+skipMap[d]+" 張）"}).join("、");
+      msg+="；已略過 "+skipped+" 張（拍攝日期 "+why2+"）";
+    }
+    if(noDate)msg+="；另有 "+noDate+" 張讀不到拍攝日期，已保留";
+    toast(msg,!!skipped);
+  });
 }
 
 function prepQueue(){
@@ -441,6 +583,7 @@ function renderStage(){
     '<div class="vhead">'+
       '<span class="vpos">'+(stageIdx+1)+" / "+n+"</span>"+
       '<span class="vname">'+esc(it.name||"")+"</span>"+
+      (it.photoDate?'<span class="vdate'+(it.dateSrc==="exif"?" ex":"")+'" title="'+(it.dateSrc==="exif"?"EXIF 拍攝日期":"檔案修改日期（讀不到 EXIF）")+'">📅 '+esc(it.photoDate)+(it.dateSrc==="exif"?"":"（檔案日期）")+"</span>":'<span class="vdate warn" title="這張讀不到拍攝日期，不會被日期篩選略過">📅 讀不到拍攝日期</span>')+
     "</div>"+
     '<div class="vstage">'+
       (it.thumbUrl?'<img src="'+it.thumbUrl+'" alt="">':'<div class="vload">處理中…</div>')+

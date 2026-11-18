@@ -231,8 +231,10 @@
 
     var project = data.project || FIXED_PROJECT;
     var docTitle = (data.title != null && String(data.title) !== '') ? String(data.title) : DEFAULT_TITLE;
-    var startNo = (data.startNo != null && !isNaN(parseInt(data.startNo, 10)) && parseInt(data.startNo, 10) > 0)
-      ? parseInt(data.startNo, 10) : 1;
+    /* 拍攝編號可留空：留空（'' / null / 非正整數）時不編號，輸出空白 */
+    var startNoRaw = (data.startNo == null) ? '' : String(data.startNo).trim();
+    var startNo = parseInt(startNoRaw, 10);
+    var hasNo = (startNoRaw !== '' && !isNaN(startNo) && startNo >= 1);
     var pages = paginate(photos);
     if (!pages.length) pages = [[]];   /* 至少輸出一頁空白表 */
 
@@ -261,7 +263,7 @@
       /* R0：照片地點 | 值 | 拍攝編號 | 編號 */
       var r0 = kids(rows[0], 'tc');
       setCellText(r0[1], head.place || '');
-      setCellText(r0[3], pagePhotos.length ? String(startNo + seq) : '');
+      setCellText(r0[3], (pagePhotos.length && hasNo) ? String(startNo + seq) : '');
 
       /* R1：拍攝項目 | 值（跨 3 欄） */
       var r1 = kids(rows[1], 'tc');

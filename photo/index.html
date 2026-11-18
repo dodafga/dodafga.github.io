@@ -156,6 +156,15 @@
     padding:9px 10px;font-size:13.5px;line-height:1.6;font-family:inherit;resize:vertical;background:#fff;color:var(--ink);}
   .pagedesc textarea:focus{outline:none;border-color:#2c5282;box-shadow:0 0 0 3px rgba(44,82,130,.12);}
   .pagedesc-hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5;}
+  /* 一鍵複製到下一頁 */
+  .pagedesc-copy{display:flex;align-items:center;justify-content:center;gap:6px;
+    width:100%;box-sizing:border-box;margin-top:9px;padding:11px 12px;
+    border:1px solid #2c5282;background:#fff;color:#2c5282;border-radius:8px;
+    font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;line-height:1.2;
+    -webkit-tap-highlight-color:transparent;}
+  .pagedesc-copy:hover:not(:disabled){background:#eef4fb;}
+  .pagedesc-copy:active:not(:disabled){background:#e2ecf8;}
+  .pagedesc-copy:disabled{opacity:.4;cursor:not-allowed;border-color:var(--line);color:var(--muted);background:#fff;}
 
   .note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:12px;
     background:#f7f9fc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
@@ -188,12 +197,24 @@
   .pickbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
   .pickbar input[type=date]{width:auto;padding:6px 9px;font-size:13px;}
   .chkbox{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;}
-  .picklist{display:flex;flex-direction:column;gap:7px;}
-  .prow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:9px;
-    padding:8px 10px;background:#fcfdfe;cursor:pointer;transition:.15s;}
-  .prow:hover{background:#f5f8fb;}
-  .prow.on{border-color:var(--steel-2);background:#eef4fb;}
-  .prow input[type=checkbox]{width:17px;height:17px;flex:0 0 17px;}
+  .picklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:9px;}
+  /* 歸檔選擇：只看預覽圖，不顯示檔名 */
+  .pcell{position:relative;display:block;border:2px solid var(--line);border-radius:10px;
+    overflow:hidden;background:#e8edf3;cursor:pointer;transition:.15s;aspect-ratio:1/1;
+    -webkit-tap-highlight-color:transparent;}
+  .pcell:hover{border-color:#b9c6d6;}
+  .pcell.on{border-color:var(--steel-2);box-shadow:0 0 0 3px rgba(44,82,130,.16);}
+  .pcell .pthumb{width:100%;height:100%;border:0;border-radius:0;font-size:22px;}
+  .pcell .pthumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pcell .pchk{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;
+    background:rgba(255,255,255,.94);border:2px solid #c3cedb;display:flex;align-items:center;
+    justify-content:center;font-size:14px;font-weight:900;color:transparent;line-height:1;}
+  .pcell.on .pchk{background:var(--steel-2);border-color:var(--steel-2);color:#fff;}
+  .pcell .pdate{position:absolute;left:0;right:0;bottom:0;padding:3px 6px;font-size:10.5px;
+    color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.66));text-align:center;}
+  .pcell .padded{position:absolute;top:6px;left:6px;font-size:9.5px;font-weight:800;color:#fff;
+    background:rgba(20,120,70,.94);border-radius:20px;padding:2px 6px;}
+  .pcell input[type=checkbox]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
   .pthumb{width:64px;height:48px;flex:0 0 64px;border-radius:6px;overflow:hidden;background:#e8edf3;
     border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
     font-size:18px;color:#9aa6b4;}
@@ -206,6 +227,8 @@
     .modal{padding:0;}
     .modal-box{width:100%;max-height:100vh;height:100vh;border-radius:0;}
     .pthumb{width:54px;height:42px;flex:0 0 54px;}
+    .picklist{grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px;}
+    .pcell .pchk{width:22px;height:22px;font-size:13px;}
   }
 </style>
 </head>
@@ -243,7 +266,7 @@
               <input type="text" id="fTitle" placeholder="照片紀錄表">
             </div>
             <div class="field" style="margin-bottom:0;">
-              <label>起始拍攝編號</label>
+              <label>起始拍攝編號<span class="hint">可留空</span></label>
               <input type="number" id="fStartNo" min="1" step="1" value="1">
             </div>
           </div>
@@ -334,6 +357,7 @@
               <button class="pagedesc-nav" id="btnDescNext" type="button" title="下一頁的說明">→</button>
             </div>
             <textarea id="pageDesc" rows="3" placeholder="這一頁的說明（填一次即可，會套用到本頁所有照片）"></textarea>
+            <button class="pagedesc-copy" id="btnDescCopy" type="button" title="把這一頁的說明複製到下一頁">⧉ 複製到下一頁</button>
             <div class="pagedesc-hint">一頁填一個說明就好，不用每張照片各填。留空則不顯示說明。</div>
           </div>
         </div>
@@ -652,8 +676,9 @@
     /* 累計編號：前面各頁的照片數 */
     var base = 0;
     for (var pi = 0; pi < state.page; pi++) base += pages[pi].length;
+    /* 拍攝編號可留空：留空時不自動補號，輸出空白 */
     var startNo = parseInt(state.head.startNo, 10);
-    if (isNaN(startNo) || startNo < 1) startNo = 1;
+    var hasNo = !isNaN(startNo) && startNo >= 1;
 
     var h = '';
     h += '<p class="ptitle">' + escapeHtml(state.head.project) + '</p>';
@@ -665,7 +690,7 @@
 
     h += '<tr><td class="lbl">照片地點</td><td>' + escapeHtml(head.place || '') + '</td>' +
          '<td class="lbl">拍攝編號</td><td style="text-align:center">' +
-         (page.length ? String(startNo + base) : '') + '</td></tr>';
+         ((page.length && hasNo) ? String(startNo + base) : '') + '</td></tr>';
 
     h += '<tr><td class="lbl">拍攝項目</td><td colspan="3">' + escapeHtml(head.item || '') + '</td></tr>';
 
@@ -715,6 +740,17 @@
     var bp = $('btnDescPrev'), bn = $('btnDescNext');
     if (bp) bp.disabled = state.page <= 0;
     if (bn) bn.disabled = state.page >= (pageCount || paginate().length) - 1;
+
+    /* 一鍵複製到下一頁：最後一頁或本頁說明為空時停用 */
+    var bc = $('btnDescCopy');
+    if (bc) {
+      var total = pageCount || paginate().length;
+      var isLast = state.page >= total - 1;
+      var isEmpty = !ta.value || !String(ta.value).trim();
+      bc.disabled = isLast || isEmpty;
+      bc.title = isLast ? '已是最後一頁，沒有下一頁可複製'
+               : (isEmpty ? '這一頁的說明是空的，請先輸入' : '把這一頁的說明複製到下一頁');
+    }
   }
 
   function render(){ renderList(); renderPreview(); }
@@ -847,8 +883,11 @@
       state.head.title = fTitle.value; renderPreview();
     });
     fStartNo.addEventListener('input', function(){
-      var v = parseInt(fStartNo.value, 10);
-      state.head.startNo = (isNaN(v) || v < 1) ? 1 : v;
+      /* 可留空：空字串代表不編號，不自動補 1 */
+      var raw = String(fStartNo.value).trim();
+      if (raw === '') { state.head.startNo = ''; renderPreview(); return; }
+      var v = parseInt(raw, 10);
+      state.head.startNo = (isNaN(v) || v < 1) ? '' : v;
       renderPreview();
     });
     $('btnResetHead').addEventListener('click', function(){
@@ -918,6 +957,25 @@
       if(state.page < paginate().length - 1){ state.page++; renderPreview(); }
     });
 
+    /* 一鍵複製到下一頁：只寫入下一頁，其他頁的說明不動 */
+    var bc = $('btnDescCopy');
+    if (bc) bc.addEventListener('click', function(){
+      var total = paginate().length;
+      if (state.page >= total - 1) { toast('已是最後一頁，沒有下一頁可複製', true); return; }
+      var cur = $('pageDesc').value;
+      if (!cur || !String(cur).trim()) { toast('這一頁的說明是空的，請先輸入', true); return; }
+      /* 下一頁已有不同的說明時先確認，避免誤蓋 */
+      var nxt = state.pageDescs[state.page + 1];
+      if (nxt != null && String(nxt).trim() !== '' && String(nxt) !== cur) {
+        if (!confirm('第 ' + (state.page + 2) + ' 頁已經有說明，確定要覆蓋嗎？')) return;
+      }
+      state.pageDescs[state.page] = cur;
+      state.pageDescs[state.page + 1] = cur;
+      state.page++;
+      renderPreview();
+      toast('已複製到第 ' + (state.page + 1) + ' 頁');
+    });
+
     /* 從歸檔照片挑選 */
     $('btnPickArchive').addEventListener('click', openPick);
     $('pickClose').addEventListener('click', closePick);
@@ -942,7 +1000,7 @@
       if (!cb || !cb.getAttribute || !cb.getAttribute('data-pick')) return;
       var id = cb.getAttribute('data-pick');
       if (cb.checked) pickSel[id] = true; else delete pickSel[id];
-      var row = cb.closest ? cb.closest('.prow') : null;
+      var row = cb.closest ? cb.closest('.pcell') : null;
       if (row) row.classList.toggle('on', cb.checked);
       updatePickUI();
     });
@@ -976,13 +1034,15 @@
   }
 
   function updatePickUI(){
-    var n = Object.keys(pickSel).length;
+    /* 只計算「還沒加入記錄表」的張數，已加入的不重複算 */
+    var all = Object.keys(pickSel);
+    var n = all.filter(function(id){ return !isAlreadyAdded(id); }).length;
     var btn = $('pickAdd');
     btn.disabled = (n === 0);
     btn.textContent = n ? ('加入相片表（' + n + '）') : '加入相片表';
     var list = pickFiltered();
-    var all = list.length > 0 && list.every(function(r){ return pickSel[r.id]; });
-    $('pickAll').checked = all;
+    var every = list.length > 0 && list.every(function(r){ return pickSel[r.id]; });
+    $('pickAll').checked = every;
     $('pickAll').disabled = (list.length === 0);
   }
 
@@ -1001,16 +1061,13 @@
     var html = '';
     list.forEach(function(r){
       var on = !!pickSel[r.id];
-      html += '<label class="prow' + (on ? ' on' : '') + '">' +
+      var added = isAlreadyAdded(r.id);
+      html += '<label class="pcell' + (on ? ' on' : '') + '" title="' + escapeHtml(r.date || '') + '">' +
         '<input type="checkbox" data-pick="' + escapeHtml(r.id) + '"' + (on ? ' checked' : '') + '>' +
         '<span class="pthumb" data-thumb="' + escapeHtml(r.id) + '">🖼</span>' +
-        '<span class="pmeta">' +
-          '<span class="pnm">' + escapeHtml(r.name || '') + '</span>' +
-          '<span class="pdt">' + escapeHtml(r.date || '') +
-            (r.item ? '　' + escapeHtml(r.item) : '') +
-            (r.note ? '　' + escapeHtml(r.note) : '') +
-          '</span>' +
-        '</span>' +
+        '<span class="pchk">✓</span>' +
+        (added ? '<span class="padded">已加入</span>' : '') +
+        '<span class="pdate">' + escapeHtml(r.date || '') + '</span>' +
       '</label>';
     });
     box.innerHTML = html;
@@ -1077,7 +1134,9 @@
 
   function openPick(){
     pickRecords = loadArchive();
+    /* 已經加進記錄表的照片，進來就是勾選狀態 */
     pickSel = {};
+    state.photos.forEach(function(ph){ if (ph && ph.recId) pickSel[ph.recId] = true; });
     $('pickFrom').value = '';
     $('pickTo').value = '';
     $('pickMsg').textContent = '';
@@ -1086,11 +1145,25 @@
     ensureDriveToken();
   }
 
+  /* 這張歸檔照片是否已經在記錄表裡 */
+  function isAlreadyAdded(recId){
+    if (!recId) return false;
+    for (var i = 0; i < state.photos.length; i++){
+      if (state.photos[i] && state.photos[i].recId === recId) return true;
+    }
+    return false;
+  }
+
   function closePick(){ $('pickModal').classList.remove('on'); }
 
   function addPicked(){
-    var ids = Object.keys(pickSel);
-    if (!ids.length) return;
+    /* 已加入過的不重複加入 */
+    var ids = Object.keys(pickSel).filter(function(id){ return !isAlreadyAdded(id); });
+    if (!ids.length) {
+      var anySel = Object.keys(pickSel).length > 0;
+      toast(anySel ? '選取的照片都已經在記錄表裡了' : '請先點選要加入的照片', true);
+      return;
+    }
     var G = window.GDrive;
     if (!G || !G.fetchFile) { toast('Google Drive 模組未載入', true); return; }
     var btn = $('pickAdd');
@@ -1116,6 +1189,7 @@
         }).then(function(dataUrl){
           state.photos.push({
             name: rec.name || ('archive_' + (done + 1) + '.png'),
+            recId: id,
             dataUrl: dataUrl,
             place: gPlace,
             item: rec.item || gItem,

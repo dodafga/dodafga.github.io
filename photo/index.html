@@ -280,16 +280,20 @@
         <div class="card-h"><h2>照片群組預設值</h2><span class="tag">加速填寫</span></div>
         <div class="card-b">
           <div class="field">
-            <label>照片地點</label>
-            <input type="text" id="gPlace" placeholder="例：東岸洗車台沉砂池底板">
+            <label>照片地點<span class="hint">選日期後自動帶出當日查驗樁號</span></label>
+            <input type="text" id="gPlace" placeholder="例：PR2-8、PR3-1、2、3、4">
           </div>
           <div class="field">
-            <label>拍攝項目</label>
-            <input type="text" id="gItem" placeholder="例：洗車台沉砂池底板鋼筋模板及牆身鋼筋查驗">
+            <label>拍攝項目<span class="hint">選日期後自動帶出</span></label>
+            <input type="text" id="gItem" placeholder="例：東岸PR2-8、PR3-1、2、3、4預壘樁查驗">
           </div>
           <div class="field" style="margin-bottom:0;">
             <label>日期</label>
             <input type="date" id="gDate">
+          </div>
+          <div class="inlineacts" style="margin-top:10px;">
+            <button class="btn btn-ghost btn-sm" id="btnAutoFill" type="button">↻ 依當日查驗樁號重新帶入</button>
+            <span style="font-size:11.5px;color:var(--muted);align-self:center;" id="autoFillMsg"></span>
           </div>
           <div class="inlineacts">
             <button class="btn btn-primary btn-sm" id="btnApplyAll" type="button">套用至全部照片</button>
@@ -401,6 +405,7 @@
 
 <script src="../assets/jszip.min.js"></script>
 <script src="../assets/core.js"></script>
+<script src="../assets/store.js"></script>
 <script src="../assets/gdrive.js"></script>
 <script src="../assets/orient.js"></script>
 <script src="../assets/gdrive-photo.js"></script>
@@ -446,6 +451,20 @@
     var m = d.getMonth() + 1, day = d.getDate();
     return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
   }
+  /* 下載檔名用的日期：優先用「該次選擇的日期」，沒有才用今天 */
+  function docxDateStamp(){
+    var iso = '';
+    var gd = document.getElementById('gDate');
+    if (gd && gd.value) iso = gd.value;
+    if (!iso && state.photos.length) {
+      for (var i = 0; i < state.photos.length; i++) {
+        if (state.photos[i] && state.photos[i].date) { iso = state.photos[i].date; break; }
+      }
+    }
+    if (!iso) iso = todayISO();
+    return String(iso).replace(/[^0-9]/g, '').slice(0, 8);
+  }
+
   function rocDot(iso){
     if (!iso) return '';
     var p = String(iso).split('-');
@@ -846,7 +865,7 @@
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = '查驗相片表_' + todayISO().replace(/-/g, '') + '.docx';
+      a.download = '查驗相片表_' + docxDateStamp() + '.docx';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -903,6 +922,85 @@
 
     /* 群組預設值 */
     $('gDate').value = todayISO();
+
+    /* ---- 依「該日查驗的樁號」自動帶出照片地點／拍攝項目 ---- */
+    /* 同一墩號的連續樁號合併成「PR3-1、2、3、4」；不同墩號以「、」分隔 */
+    function pileLabelOf(no){
+      var s = String(no == null ? '' : no).trim();
+      var m = s.match(/^([A-Za-z]+\d+)-(.+)$/);
+      if (m) return { pier: m[1], seq: m[2] };
+      return { pier: s, seq: '' };
+    }
+
+    function composePileText(pileNos){
+      var order = [];      /* 墩號出現順序 */
+      var groups = {};     /* 墩號 → 樁號序號陣列（保留出現順序、去重） */
+      (pileNos || []).forEach(function(no){
+        var p = pileLabelOf(no);
+        if (!p.pier) return;
+        if (!groups[p.pier]) { groups[p.pier] = []; order.push(p.pier); }
+        if (p.seq && groups[p.pier].indexOf(p.seq) < 0) groups[p.pier].push(p.seq);
+      });
+      var parts = [];
+      order.forEach(function(pier){
+        var seqs = groups[pier];
+        if (!seqs.length) { parts.push(pier); return; }
+        parts.push(pier + '-' + seqs.join('、'));
+      });
+      return parts.join('、');
+    }
+
+    /* 取得某日所有查驗紀錄涵蓋的樁號（依紀錄順序、去重） */
+    function pileNosOfDate(iso){
+      var S = window.SuiteStore;
+      if (!S || !S.load) return null;
+      var d;
+      try { d = S.load(); } catch (e) { return null; }
+      if (!d) return null;
+      var out = [];
+      (d.logs || []).forEach(function(l){
+        if (String(l.date || '') !== String(iso || '')) return;
+        var nos = (S.logPileNos ? S.logPileNos(d, l) : (l.piles || [])) || [];
+        nos.forEach(function(no){
+          var s = String(no == null ? '' : no).trim();
+          if (s && out.indexOf(s) < 0) out.push(s);
+        });
+      });
+      return out;
+    }
+
+    /* 依日期帶入；force=true 時即使欄位已有內容也覆寫 */
+    function autoFillByDate(force){
+      var iso = $('gDate').value;
+      var msg = $('autoFillMsg');
+      if (!iso) { if (msg) msg.textContent = ''; return; }
+      var nos = pileNosOfDate(iso);
+      if (nos === null) {
+        if (msg) msg.textContent = '讀不到查驗紀錄';
+        return;
+      }
+      if (!nos.length) {
+        if (msg) msg.textContent = '該日沒有查驗紀錄';
+        return;
+      }
+      var txt = composePileText(nos);
+      var placeEl = $('gPlace'), itemEl = $('gItem');
+      if (force || !placeEl.value.trim()) placeEl.value = txt;
+      if (force || !itemEl.value.trim()) itemEl.value = '東岸' + txt + '預壘樁查驗';
+      if (msg) msg.textContent = '已帶入 ' + nos.length + ' 支樁號';
+    }
+
+    $('gDate').addEventListener('change', function(){ autoFillByDate(false); });
+    var baf = $('btnAutoFill');
+    if (baf) baf.addEventListener('click', function(){
+      if (!$('gDate').value) { toast('請先選擇日期', true); return; }
+      autoFillByDate(true);
+      toast('已依當日查驗樁號重新帶入');
+    });
+
+    /* 進頁面先試著帶一次（今天若有查驗紀錄） */
+    autoFillByDate(false);
+
     $('btnApplyAll').addEventListener('click', function(){
       if (!state.photos.length) { toast('尚未上傳照片', true); return; }
       var p = $('gPlace').value.trim();

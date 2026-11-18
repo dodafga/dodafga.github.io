@@ -144,6 +144,18 @@
   .pager button{background:#fff;border:1px solid var(--line);border-radius:6px;
     padding:4px 11px;cursor:pointer;font-family:inherit;font-size:12.5px;}
   .pager button:disabled{opacity:.4;cursor:not-allowed;}
+  /* 本頁說明：一頁一個說明 */
+  .pagedesc{margin-top:14px;padding:12px;background:#f7f9fc;border:1px solid var(--line);border-radius:10px;}
+  .pagedesc-h{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .pagedesc-t{font-size:13px;font-weight:800;color:var(--ink);}
+  .pagedesc-tag{font-size:11.5px;font-weight:700;color:#2c5282;background:#e8f0fa;border-radius:20px;padding:2px 9px;}
+  .pagedesc-nav{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:6px;
+    font-size:14px;font-weight:800;color:var(--ink-2);cursor:pointer;line-height:1;}
+  .pagedesc-nav:disabled{opacity:.35;cursor:not-allowed;}
+  .pagedesc textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;
+    padding:9px 10px;font-size:13.5px;line-height:1.6;font-family:inherit;resize:vertical;background:#fff;color:var(--ink);}
+  .pagedesc textarea:focus{outline:none;border-color:#2c5282;box-shadow:0 0 0 3px rgba(44,82,130,.12);}
+  .pagedesc-hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5;}
 
   .note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:12px;
     background:#f7f9fc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
@@ -290,8 +302,9 @@
           </div>
           <div class="note">
             <b>輸出規則：</b>每頁固定 3 張照片，照片尺寸與範本相同（9.53 × 7.14 cm）。
-            同一「照片地點＋拍攝項目＋日期」的照片會排在同一頁；說明欄依照片順序逐行列出。
-            表頭僅有「照片地點／拍攝編號／拍攝項目／日期／說明」，與範本一致。
+            同一「照片地點＋拍攝項目＋日期」的照片會排在同一頁。
+            <b>說明一頁填一個就好</b>（在右側預覽下方「本頁說明」填寫），不用每張照片各填。
+            表頭僅有「照片地點／拍攝編號／拍攝項目／日期／說明」，版面、字型、行高、表格線與範本一致。
           </div>
         </div>
       </div>
@@ -309,6 +322,19 @@
             <button id="prevPage">← 上一頁</button>
             <span id="pageInfo">1 / 1</span>
             <button id="nextPage">下一頁 →</button>
+          </div>
+
+          <!-- 本頁說明：一頁只要填一個說明，不用每張照片各填一次 -->
+          <div class="pagedesc">
+            <div class="pagedesc-h">
+              <span class="pagedesc-t">本頁說明</span>
+              <span class="pagedesc-tag" id="descPageTag">第 1 頁</span>
+              <span class="spacer"></span>
+              <button class="pagedesc-nav" id="btnDescPrev" type="button" title="上一頁的說明">←</button>
+              <button class="pagedesc-nav" id="btnDescNext" type="button" title="下一頁的說明">→</button>
+            </div>
+            <textarea id="pageDesc" rows="3" placeholder="這一頁的說明（填一次即可，會套用到本頁所有照片）"></textarea>
+            <div class="pagedesc-hint">一頁填一個說明就好，不用每張照片各填。留空則不顯示說明。</div>
           </div>
         </div>
       </div>
@@ -577,18 +603,7 @@
       r2.appendChild(mkField('日期', 'date', 'date', ph));
       fields.appendChild(r2);
 
-      var r3 = document.createElement('div');
-      var full = document.createElement('div');
-      var lb2 = document.createElement('span');
-      lb2.className = 'flabel';
-      lb2.textContent = '說明（可多行，Word 逐行輸出）';
-      var ta = document.createElement('textarea');
-      ta.rows = 2;
-      ta.value = ph.desc == null ? '' : ph.desc;
-      ta.addEventListener('input', function(){ ph.desc = ta.value; renderPreview(); });
-      full.appendChild(lb2); full.appendChild(ta);
-      r3.appendChild(full);
-      fields.appendChild(r3);
+      /* 說明已改為「一頁一個」，不再逐張填寫（見右側「本頁說明」） */
 
       /* ---- 手動轉向工具列 ---- */
       var rotbar = document.createElement('div');
@@ -658,14 +673,10 @@
          '</td><td class="lbl" colspan="2">說明</td></tr>';
 
     var descs = [];
-    /* 優先使用「本頁說明」；未填才退回逐張照片說明（與 Word 輸出一致） */
+    /* 說明改為「一頁一個」：只採用本頁說明，不再逐張照片各寫一段 */
     var pd = state.pageDescs[state.page];
     if (pd != null && String(pd).trim() !== '') {
       String(pd).split(/\r?\n/).forEach(function(ln){ descs.push(ln); });
-    } else {
-      page.forEach(function(p){
-        String(p.desc || '').split(/\r?\n/).forEach(function(ln){ descs.push(ln); });
-      });
     }
 
     for (var i = 0; i < PER_PAGE; i++) {

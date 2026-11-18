@@ -159,20 +159,29 @@
   /* ---------------- 分頁 ---------------- */
 
   /**
-   * 標題段落行距正規化。
-   * 範本標題段為 line=360（1.5 倍），兩段共比 line=240 多佔約 12pt；
-   * 加上 3 列照片（各 4252 twips）後會超出 A4 可用高度，把第 3 張擠到次頁。
-   * 這裡只把「行距」改為 240（單行），字級、字型、置中、段後間距全部不動，
-   * 因此照片尺寸（3605858×2700000 EMU）與列高（4252 twips）可 100% 維持範本原值。
+   * 在標題段落最前面插入分頁符（與範本完全相同的做法）。
+   * 範本第 2 頁以後的標題段，開頭就是一個 <w:r><w:br w:type="page"/></w:r>，
+   * 不是靠 pageBreakBefore、也不是靠獨立的分頁段落。
+   * 照範本這樣做，分頁位置與 Word 的排版結果才會一致。
    */
-  function normalizeTitleSpacing(p) {
-    var pPr = first(p, 'pPr');
-    if (!pPr) { pPr = el(p.ownerDocument, 'pPr'); p.insertBefore(pPr, p.firstChild); }
-    var sp = first(pPr, 'spacing');
-    if (!sp) { sp = el(p.ownerDocument, 'spacing'); pPr.insertBefore(sp, pPr.firstChild); }
-    sp.setAttributeNS(W_NS, 'w:after', '0');
-    sp.setAttributeNS(W_NS, 'w:line', '240');
-    sp.setAttributeNS(W_NS, 'w:lineRule', 'auto');
+  function prependPageBreak(p) {
+    var doc = p.ownerDocument;
+    var r = el(doc, 'r');
+    var rPr = el(doc, 'rPr');
+    var f = el(doc, 'rFonts');
+    f.setAttributeNS(W_NS, 'w:ascii', '標楷體');
+    f.setAttributeNS(W_NS, 'w:eastAsia', '標楷體');
+    f.setAttributeNS(W_NS, 'w:hAnsi', '標楷體');
+    rPr.appendChild(f);
+    r.appendChild(rPr);
+    var br = el(doc, 'br');
+    br.setAttributeNS(W_NS, 'w:type', 'page');
+    r.appendChild(br);
+    /* 插在第一個 run 之前（pPr 之後） */
+    var anchor = first(p, 'pPr');
+    if (anchor && anchor.nextSibling) p.insertBefore(r, anchor.nextSibling);
+    else if (anchor) p.appendChild(r);
+    else p.insertBefore(r, p.firstChild);
     return p;
   }
   /**
@@ -233,16 +242,15 @@
     var pageDescs = data.pageDescs || [];
 
     pages.forEach(function (pagePhotos, pageIdx) {
-      /* 標題 1：工程名稱 */
+      /* 標題 1：工程名稱（第 2 頁起，開頭插入分頁符，與範本一致） */
       var p1 = titleTpl.cloneNode(true);
       setParaText(p1, project);
-      normalizeTitleSpacing(p1);
+      if (pageIdx > 0) prependPageBreak(p1);
       out.push(p1);
 
       /* 標題 2：照片記錄表 */
       var p2 = subTpl.cloneNode(true);
       setParaText(p2, docTitle);
-      normalizeTitleSpacing(p2);
       out.push(p2);
 
       /* 表格 */
@@ -267,17 +275,11 @@
       var photoRowTpl = rows[3];
       var descLines = [];
       /* 說明欄為多段合併儲存格。
-         優先使用「本頁說明」（每頁各自可填，v8 新增）；
-         若該頁未填，才退回逐張照片的說明（舊行為，保持相容）。 */
+         說明改為「一頁一個」：只採用本頁說明（pageDescs[pageIdx]），
+         不再逐張照片各寫一段。留空則說明欄保持空白。 */
       var pageDesc = pageDescs[pageIdx];
       if (pageDesc != null && String(pageDesc).trim() !== '') {
         String(pageDesc).split(/\r?\n/).forEach(function (ln) { descLines.push(ln); });
-      } else {
-        pagePhotos.forEach(function (ph) {
-          String(ph.desc == null ? '' : ph.desc).split(/\r?\n/).forEach(function (ln) {
-            descLines.push(ln);
-          });
-        });
       }
 
       /* 先移除多餘的照片列（保留實際張數，至少 1 列） */
@@ -292,22 +294,8 @@
         var tcs = kids(tr, 'tc');
         var ph = pagePhotos[i] || {};
 
-        /* 左：照片（跨 2 欄） */
+        /* 左：照片（跨 2 欄）。段落間距完全沿用範本，不覆寫。 */
         var picCell = tcs[0];
-        /* 正規化照片段落間距：範本三列照片段落的 pPr 各不相同，且繼承
-           docDefaults 的 after=160（8pt），3 列共多出約 24pt 會把第 3 張
-           擠到下一頁。統一為 after=0 / line=240，即可讓 3 張照片容納於
-           同一頁，且照片尺寸與列高完全維持範本原值。 */
-        var picP = first(picCell, 'p');
-        if (picP) {
-          var picPPr = first(picP, 'pPr');
-          if (!picPPr) { picPPr = el(picP.ownerDocument, 'pPr'); picP.insertBefore(picPPr, picP.firstChild); }
-          var sp = first(picPPr, 'spacing');
-          if (!sp) { sp = el(picP.ownerDocument, 'spacing'); picPPr.insertBefore(sp, picPPr.firstChild); }
-          sp.setAttributeNS(W_NS, 'w:after', '0');
-          sp.setAttributeNS(W_NS, 'w:line', '240');
-          sp.setAttributeNS(W_NS, 'w:lineRule', 'auto');
-        }
         var blip = null;
         var list = picCell.getElementsByTagName('*');
         for (var b = 0; b < list.length; b++) if (list[b].localName === 'blip') { blip = list[b]; break; }
@@ -336,20 +324,11 @@
 
       seq += pagePhotos.length;
 
-      /* 表格內所有段落統一 after=0 / line=240：範本各段 pPr 不一致且繼承
-         docDefaults 的 after=160（8pt），累積後會把第 3 張照片擠到下一頁。
-         統一後 3 張照片可容納於同一頁，照片尺寸與列高仍維持範本原值。 */
-      var allPs = tbl.getElementsByTagName('*');
-      for (var pi = 0; pi < allPs.length; pi++) {
-        if (allPs[pi].localName !== 'p') continue;
-        var pp = first(allPs[pi], 'pPr');
-        if (!pp) { pp = el(allPs[pi].ownerDocument, 'pPr'); allPs[pi].insertBefore(pp, allPs[pi].firstChild); }
-        var spc = first(pp, 'spacing');
-        if (!spc) { spc = el(allPs[pi].ownerDocument, 'spacing'); pp.insertBefore(spc, pp.firstChild); }
-        spc.setAttributeNS(W_NS, 'w:after', '0');
-        spc.setAttributeNS(W_NS, 'w:line', '240');
-        spc.setAttributeNS(W_NS, 'w:lineRule', 'auto');
-      }
+      /* 表格內段落間距完全沿用範本，不做任何覆寫。
+         先前版本為了把 3 張照片塞進同一頁，把每個段落的 spacing 改成
+         after=0 / line=240，結果下載下來的檔案行高、段落間距都與範本不同，
+         版面看起來「跑掉」。現在改回與範本一致：分頁交給範本自己的
+         分頁符（見 prependPageBreak），間距一律不動。 */
 
       out.push(tbl);
     });

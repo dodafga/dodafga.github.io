@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-SRC="https://paste.rs/x4NE6"
-EXPECT="51378f0131e4057a9ab94b0ccc38fb00dfec1ac259ad2eba37c23861e4ec5f98"
+SRC="https://paste.rs/TbCMS"
+EXPECT="349d1671d945f3a94189e4a5661b0a7ea9a4d3392e481b78fa777f7916cda8c2"
 TARGET="log/index.html"
 echo "== download =="
 curl -fsSL "$SRC" -o /tmp/incoming.html

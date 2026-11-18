@@ -433,7 +433,8 @@
             <td class="actual">
               <div class="inline">
                 <span class="u">EL：</span><input type="text" id="mTopA" placeholder="a" readonly title="自動帶入上方「儀器高 EL」的數值"><span class="sep">－</span>
-                <input type="text" id="mTopB" placeholder="b" readonly title="自動帶入該樁「深度 ＋ 0.1」"><span class="autoTag">深度＋0.1</span><span class="sep">＝</span>
+                <input type="text" id="mTopB" placeholder="b" title="b：自行填寫（不自動帶入）"><span class="sep">－</span>
+                <input type="text" id="mTopC" placeholder="c" readonly title="自動帶入該樁「深度 ＋ 0.1」"><span class="autoTag">深度＋0.1</span><span class="sep">＝</span>
                 <span class="calc" id="mTopCalc">—</span>
               </div>
             </td>
@@ -863,9 +864,10 @@
       var el = $(M_IDS[k]);
       m[k] = el ? String(el.value || '').trim() : '';
     });
-    /* 鋼筋頂 EL1.2：a 一律等於儀器高 EL；b 一律等於該樁「深度 ＋ 0.1」（皆自動帶入） */
+    /* 鋼筋頂 EL1.2：a 一律等於儀器高 EL；b 保留使用者原填值；c 一律等於該樁「深度 ＋ 0.1」
+       最終算式：a － b － c */
     m.topA = m.el;
-    m.topB = depthToB(m.depth);
+    m.topC = depthToC(m.depth);
     return m;
   }
   function clearM(){
@@ -873,21 +875,21 @@
     syncTopA();
   }
 
-  /* 深度 → 鋼筋頂 EL1.2 的 b：b = 深度 ＋ 0.1（每隻樁依自己的深度計算） */
-  function depthToB(depth){
+  /* 深度 → 鋼筋頂 EL1.2 的 c：c = 深度 ＋ 0.1（每隻樁依自己的深度計算） */
+  function depthToC(depth){
     var d = parseFloat(String(depth == null ? '' : depth).replace(/[^\d.\-]/g, ''));
     if (!isFinite(d)) return '';
     return String(Math.round((d + 0.1) * 1000) / 1000);
   }
-  /* 儀器高 EL → a；深度 → b：兩者即時同步，差值 a − b 公式不變 */
+  /* 儀器高 EL → a；深度 → c：兩者即時同步；b 由使用者自行填寫，不自動帶入 */
   function syncTopA(){
     var el = $('mEl'), a = $('mTopA');
     if (a) a.value = el ? numClean(String(el.value || '')) : '';
-    var dp = $('mDepth'), b = $('mTopB');
-    if (b) b.value = dp ? depthToB(dp.value) : '';
+    var dp = $('mDepth'), c = $('mTopC');
+    if (c) c.value = dp ? depthToC(dp.value) : '';
     updateTopCalc();
   }
-  /* 鋼筋頂 EL1.2 差值下限：a − b 不得低於 −20.45（依使用者需求） */
+  /* 鋼筋頂 EL1.2 差值下限：a − b − c 不得低於 −20.45（依使用者需求） */
   var TOP_MIN = -20.45;
   function clampTop(v){
     var x = Math.round(v * 1000) / 1000;
@@ -896,9 +898,10 @@
   function updateTopCalc(){
     var a = parseFloat(String($('mTopA').value || '').replace(/[^\d.\-]/g, ''));
     var b = parseFloat(String($('mTopB').value || '').replace(/[^\d.\-]/g, ''));
+    var c = parseFloat(String($('mTopC').value || '').replace(/[^\d.\-]/g, ''));
     var out = $('mTopCalc');
-    if (isFinite(a) && isFinite(b)) {
-      var raw = Math.round((a - b) * 1000) / 1000;
+    if (isFinite(a) && isFinite(b) && isFinite(c)) {
+      var raw = Math.round((a - b - c) * 1000) / 1000;
       var v = clampTop(raw);
       out.textContent = v.toString();
       out.title = (v !== raw) ? ('原值 ' + raw + '，已套用下限 ' + TOP_MIN) : '';
@@ -910,7 +913,7 @@
 
   /* ---- 量測值：只接受數字（可含小數點） ---- */
   var NUM_IDS = ['mEl','mUpCm','mUpCnt','mLowCm','mLowCnt','mDepth','mLap',
-                 'mWeldCm','mWeldCnt','mPlumb','mTopA','mTopB','mDia'];
+                 'mWeldCm','mWeldCnt','mPlumb','mTopA','mTopB','mTopC','mDia'];
   var M_ID_BY_EL = {};
   M_KEYS.forEach(function(k){ if (M_IDS[k]) M_ID_BY_EL[M_IDS[k]] = k; });
 
@@ -1091,12 +1094,14 @@
     h += di('垂直度', m.plumb);
     /* a 一律顯示儀器高 EL（舊資料若沒存 topA，也以 EL 補上，與表單一致） */
     var topA = m.topA || m.el || '';
-    /* b 一律以該樁深度 ＋ 0.1 重算（舊資料若沒存 topB 也一致） */
-    var topB = depthToB(m.depth) || m.topB || '';
-    if (topA || topB) {
-      var a = parseFloat(topA), b = parseFloat(topB);
-      var calc = (isFinite(a) && isFinite(b)) ? clampTop(a - b) : '';
-      h += di('鋼筋頂 EL', topA + ' － ' + topB + (calc !== '' ? ' ＝ ' + calc : ''));
+    /* b 為使用者原填值（不重算）；c 一律以該樁「深度 ＋ 0.1」計算（舊資料若沒存 topC 也一致）
+       最終算式：a － b － c */
+    var topB = (m.topB == null ? '' : String(m.topB));
+    var topC = depthToC(m.depth) || (m.topC == null ? '' : String(m.topC));
+    if (topA || topB || topC) {
+      var a = parseFloat(topA), b = parseFloat(topB), c = parseFloat(topC);
+      var calc = (isFinite(a) && isFinite(b) && isFinite(c)) ? clampTop(a - b - c) : '';
+      h += di('鋼筋頂 EL', topA + ' － ' + (topB === '' ? '—' : topB) + ' － ' + (topC === '' ? '—' : topC) + (calc !== '' ? ' ＝ ' + calc : ''));
     }
     h += di('D', m.dia ? (m.dia + ' cm') : '');
     h += di('備註', r.note);
@@ -1717,12 +1722,13 @@
   $('mDepth').addEventListener('change', syncTopA);
   $('mTopA').addEventListener('input', updateTopCalc);
   $('mTopB').addEventListener('input', updateTopCalc);
+  $('mTopC').addEventListener('input', updateTopCalc);
   bindNumInputs();
 
   var NUM_LABEL = {
     el:'儀器高 EL', upCm:'上D19 ㎝', upCnt:'上D19 支數',
     lowCm:'下D19 ㎝', lowCnt:'下D19 支數', depth:'深度', lap:'主筋搭接 Ld',
-    weldCm:'銲道 ㎝', weldCnt:'銲道处數', plumb:'垂直度', topA:'鋼筋頂 EL(a)', topB:'鋼筋頂 EL(b)', dia:'D'
+    weldCm:'銲道 ㎝', weldCnt:'銲道处數', plumb:'垂直度', topA:'鋼筋頂 EL(a)', topB:'鋼筋頂 EL(b)', topC:'鋼筋頂 EL(c)', dia:'D'
   };
 
   /* 回傳第一個不是數字的欄位，全部合法則回 null */

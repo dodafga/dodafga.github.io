@@ -143,6 +143,7 @@
   .mtable .inline .u{font-size:12px;color:var(--muted);white-space:nowrap;}
   .mtable .inline .sep{color:var(--muted);font-size:12px;}
   .mtable .calc{font-weight:700;color:var(--steel-2);min-width:52px;display:inline-block;}
+  .mtable .calc.warn{color:#d92d20;}
 
   table.rec .pile{font-weight:700;color:var(--steel-2);}
   /* 明細按鈕放大（原本 11.5px／22px 高，手指不好按） */
@@ -157,6 +158,7 @@
   .detail .di{font-size:13.5px;color:var(--ink-2);line-height:1.7;}
   .detail .di b{color:var(--muted);font-weight:600;margin-right:6px;font-size:12.5px;}
   .detail .di span{font-weight:700;color:var(--ink);font-size:14px;}
+  .detail .di span .warnv{color:#d92d20;}
 
   /* 查詢列：加大輸入框與按鈕，並讓關鍵字欄位更明顯 */
   .qbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
@@ -889,24 +891,31 @@
     if (c) c.value = dp ? depthToC(dp.value) : '';
     updateTopCalc();
   }
-  /* 鋼筋頂 EL1.2 差值下限：a − b − c 不得低於 −20.45（依使用者需求） */
-  var TOP_MIN = -20.45;
-  function clampTop(v){
-    var x = Math.round(v * 1000) / 1000;
-    return x < TOP_MIN ? TOP_MIN : x;
+  /* 鋼筋頂 EL1.2：結果 = a − b − c，照實際值原樣顯示（不套用任何下限）；
+     若結果 ≤ −20.45 僅以紅字提醒，數值本身不變 */
+  var TOP_WARN = -20.45;
+  function topCalcValue(a, b, c){
+    if (!isFinite(a) || !isFinite(b) || !isFinite(c)) return null;
+    return Math.round((a - b - c) * 1000) / 1000;
   }
   function updateTopCalc(){
     var a = parseFloat(String($('mTopA').value || '').replace(/[^\d.\-]/g, ''));
     var b = parseFloat(String($('mTopB').value || '').replace(/[^\d.\-]/g, ''));
     var c = parseFloat(String($('mTopC').value || '').replace(/[^\d.\-]/g, ''));
     var out = $('mTopCalc');
-    if (isFinite(a) && isFinite(b) && isFinite(c)) {
-      var raw = Math.round((a - b - c) * 1000) / 1000;
-      var v = clampTop(raw);
+    var v = topCalcValue(a, b, c);
+    if (v !== null) {
       out.textContent = v.toString();
-      out.title = (v !== raw) ? ('原值 ' + raw + '，已套用下限 ' + TOP_MIN) : '';
+      if (v <= TOP_WARN) {
+        out.classList.add('warn');
+        out.title = 'a − b − c ＝ ' + a + ' − ' + b + ' − ' + c + ' ＝ ' + v + '（≤ ' + TOP_WARN + '，請確認）';
+      } else {
+        out.classList.remove('warn');
+        out.title = 'a − b − c ＝ ' + a + ' − ' + b + ' − ' + c + ' ＝ ' + v;
+      }
     } else {
       out.textContent = '—';
+      out.classList.remove('warn');
       out.title = '';
     }
   }
@@ -1084,6 +1093,11 @@
       if (!v) return '';
       return '<div class="di"><b>' + escHtml(k) + '</b><span>' + escHtml(v) + '</span></div>';
     }
+    /* 已自行組好 HTML（例如紅字提醒）的版本，不再 escape */
+    function diRaw(k, vHtml){
+      if (!vHtml) return '';
+      return '<div class="di"><b>' + escHtml(k) + '</b><span>' + vHtml + '</span></div>';
+    }
     var h = '<div class="dbox"><div class="dgrid">';
     h += di('儀器高 EL', m.el);
     h += di('上D19', m.upCm ? (m.upCm + ' cm' + (m.upCnt ? ' ／ ' + m.upCnt + ' 支' : '')) : '');
@@ -1100,8 +1114,11 @@
     var topC = depthToC(m.depth) || (m.topC == null ? '' : String(m.topC));
     if (topA || topB || topC) {
       var a = parseFloat(topA), b = parseFloat(topB), c = parseFloat(topC);
-      var calc = (isFinite(a) && isFinite(b) && isFinite(c)) ? clampTop(a - b - c) : '';
-      h += di('鋼筋頂 EL', topA + ' － ' + (topB === '' ? '—' : topB) + ' － ' + (topC === '' ? '—' : topC) + (calc !== '' ? ' ＝ ' + calc : ''));
+      var _cv = topCalcValue(a, b, c);
+      var calc = (_cv === null) ? '' : _cv;
+      var _warn = (_cv !== null && _cv <= TOP_WARN);
+      var _txt = escHtml(topA) + ' － ' + escHtml(topB === '' ? '—' : topB) + ' － ' + escHtml(topC === '' ? '—' : topC) + (calc !== '' ? ' ＝ ' + (_warn ? '<span class="warnv">' + escHtml(String(calc)) + '</span>' : escHtml(String(calc))) : '');
+      h += diRaw('鋼筋頂 EL', _txt);
     }
     h += di('D', m.dia ? (m.dia + ' cm') : '');
     h += di('備註', r.note);

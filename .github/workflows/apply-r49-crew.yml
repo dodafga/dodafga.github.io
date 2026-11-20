@@ -16,10 +16,10 @@ jobs:
       - name: Fetch new files and commit
         run: |
           set -e
-          curl -fsSL -o build/index.html "https://static.teamily.ai/files/7a9cd8c3-ce0f-4a3e-83f8-6a40e9deac64/index.html"
-          curl -fsSL -o assets/assistant.js "https://static.teamily.ai/files/b154aa01-0a84-4a97-8e2f-88005489c469/assistant.js"
-          curl -fsSL -o assets/gdrive-photo.js "https://static.teamily.ai/files/ff14dfae-a601-4efd-b2d3-aaca1a9ac97a/gdrive-photo.js"
-          curl -fsSL -o assets/site.css "https://static.teamily.ai/files/fb9d1c7e-5280-41a7-a484-cc3cbdc8cab2/site.css"
+          curl -fsSL -o build/index.html "https://static.teamily.ai/files/7a9cd8c3-ce0f-4a3e-83f8-6a40e9deac64/index.html?tk=ZmlsZTo3YTljZDhjMy1jZTBmLTRhM2UtODNmOC02YTQwZTlkZWFjNjQ6MTc5NTE5OTMxOA.ZWNjZTM4MmQ2ZDU2Mjc5ZGVlYjBkODVmM2FjOTIyOWY"
+          curl -fsSL -o assets/assistant.js "https://static.teamily.ai/files/b154aa01-0a84-4a97-8e2f-88005489c469/assistant.js?tk=ZmlsZTpiMTU0YWEwMS0wYTg0LTRhOTctOGUyZi04ODAwNTQ4OWM0Njk6MTc5NTE5OTMxOA.MDcyZmFiMGVhYTRmNjk0MTE5ZjA0MjljZmY4MTY0Y2I"
+          curl -fsSL -o assets/gdrive-photo.js "https://static.teamily.ai/files/ff14dfae-a601-4efd-b2d3-aaca1a9ac97a/gdrive-photo.js?tk=ZmlsZTpmZjE0ZGZhZS1hNjAxLTRlZmQtYjJkMy1hYWNhMWE5YWM5N2E6MTc5NTE5OTMxOA.NDljYWE2NmNlM2YzOWM3YmU0OWUxN2IyOTAyMTYwMDg"
+          curl -fsSL -o assets/site.css "https://static.teamily.ai/files/fb9d1c7e-5280-41a7-a484-cc3cbdc8cab2/site.css?tk=ZmlsZTpmYjlkMWM3ZS01MjgwLTQxYTctYTQ4NC1jYzNjYmRjOGNhYjI6MTc5NTE5OTMxOA.Mzk2ODc0Zjg4MDNkODFiYTE2Njg2MTlkOTljYjI2YzY"
           echo "--- sizes ---"
           wc -c build/index.html assets/assistant.js assets/gdrive-photo.js assets/site.css
           echo "--- sanity ---"

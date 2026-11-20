@@ -53,6 +53,16 @@
   input:focus,textarea:focus{outline:none;border-color:var(--steel-2);background:#fff;
     box-shadow:0 0 0 3px rgba(44,82,130,.12);}
   textarea{resize:vertical;min-height:56px;}
+  select{width:100%;padding:9px 11px;font-size:14px;border:1px solid var(--line);border-radius:7px;
+    background:#fcfdfe;color:var(--ink);font-family:inherit;line-height:1.5;}
+  select:focus{outline:none;border-color:var(--steel-2);background:#fff;
+    box-shadow:0 0 0 3px rgba(44,82,130,.12);}
+  input[readonly].locked{background:#eef2f7;color:var(--ink-2);border-color:#d7e0ea;cursor:not-allowed;
+    text-overflow:ellipsis;}
+  input[readonly].locked:focus{box-shadow:none;border-color:#d7e0ea;background:#eef2f7;}
+  .lockhint{display:none;font-size:11px;font-weight:700;color:var(--amber);background:var(--amber-bg);
+    border:1px solid #f0dfb8;border-radius:20px;padding:0 7px;margin-left:5px;}
+  .lockhint.on{display:inline-block;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .row3{display:grid;grid-template-columns:1.15fr .85fr;gap:10px;}
   @media (max-width:640px){ .row2,.row3{grid-template-columns:1fr;} }
@@ -263,7 +273,7 @@
           <div class="row3">
             <div class="field" style="margin-bottom:0;">
               <label>表單名稱<span class="hint">第 2 行標題</span></label>
-              <input type="text" id="fTitle" placeholder="照片紀錄表">
+              <input type="text" id="fTitle" placeholder="照片記錄表">
             </div>
             <div class="field" style="margin-bottom:0;">
               <label>起始拍攝編號<span class="hint">可留空</span></label>
@@ -280,11 +290,19 @@
         <div class="card-h"><h2>照片群組預設值</h2><span class="tag">加速填寫</span></div>
         <div class="card-b">
           <div class="field">
-            <label>照片地點<span class="hint">選日期後自動帶出當日查驗樁號</span></label>
+            <label>照片地點<span class="hint">選日期後自動帶出當日查驗樁號</span><span class="lockhint" id="lockHintPlace">🔒 已鎖定</span></label>
             <input type="text" id="gPlace" placeholder="例：PR2-8、PR3-1、2、3、4">
           </div>
           <div class="field">
-            <label>拍攝項目<span class="hint">選日期後自動帶出</span></label>
+            <label>岸別<span class="hint">決定「拍攝項目」的開頭</span></label>
+            <select id="gSide">
+              <option value="東岸">東岸</option>
+              <option value="西岸">西岸</option>
+              <option value="復舊">復舊</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>拍攝項目<span class="hint">選日期後自動帶出</span><span class="lockhint" id="lockHintItem">🔒 已鎖定</span></label>
             <input type="text" id="gItem" placeholder="例：東岸PR2-8、PR3-1、2、3、4預壘樁查驗">
           </div>
           <div class="field" style="margin-bottom:0;">
@@ -307,7 +325,7 @@
         <div class="card-b">
           <div class="inlineacts" style="margin:0 0 12px;">
             <button class="btn btn-primary btn-sm" id="btnPickArchive" type="button">📂 從歸檔照片挑選</button>
-            <span style="font-size:11.5px;color:var(--muted);align-self:center;">從「相片上傳歸檔」已上傳的照片挑選</span>
+            <span style="font-size:11.5px;color:var(--muted);align-self:center;">從「照片上傳歸檔」已上傳的照片挑選</span>
           </div>
           <div class="drop" id="drop">
             <div class="ic">📷</div>
@@ -398,7 +416,7 @@
       <span class="pickmsg" id="pickMsg"></span>
       <span class="spacer"></span>
       <button class="btn btn-ghost" id="pickCancel" type="button">取消</button>
-      <button class="btn btn-amber" id="pickAdd" type="button" disabled>加入相片表</button>
+      <button class="btn btn-amber" id="pickAdd" type="button" disabled>加入照片表</button>
     </div>
   </div>
 </div>
@@ -451,7 +469,7 @@
     var m = d.getMonth() + 1, day = d.getDate();
     return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
   }
-  /* 下載檔名用的日期：優先用「該次選擇的日期」，沒有才用今天 */
+  /* 下載檔名用的日期：優先「該次選擇的日期」，沒有才用今天 */
   function docxDateStamp(){
     var iso = '';
     var gd = document.getElementById('gDate');
@@ -969,28 +987,70 @@
       return out;
     }
 
+    /* 目前選定的岸別（東岸／西岸／復舊） */
+    function currentSide(){
+      var el = $('gSide');
+      return (el && el.value) ? el.value : '東岸';
+    }
+
+    /* 選了日期就鎖定「照片地點」「拍攝項目」；未選日期則可自由輸入 */
+    function setLocked(on){
+      var p = $('gPlace'), it = $('gItem');
+      [p, it].forEach(function(el){
+        if (!el) return;
+        if (on) {
+          el.setAttribute('readonly', 'readonly');
+          el.classList.add('locked');
+          el.title = (el.value || '') + '\n（已依日期鎖定；要修改請先清除日期）';
+        } else {
+          el.removeAttribute('readonly');
+          el.classList.remove('locked');
+          el.title = '';
+        }
+      });
+      var hp = $('lockHintPlace'), hi = $('lockHintItem');
+      if (hp) hp.classList.toggle('on', !!on);
+      if (hi) hi.classList.toggle('on', !!on);
+    }
+
     /* 依日期帶入；force=true 時即使欄位已有內容也覆寫 */
     function autoFillByDate(force){
       var iso = $('gDate').value;
       var msg = $('autoFillMsg');
-      if (!iso) { if (msg) msg.textContent = ''; return; }
+      if (!iso) { setLocked(false); if (msg) msg.textContent = ''; return; }
       var nos = pileNosOfDate(iso);
       if (nos === null) {
+        setLocked(false);
         if (msg) msg.textContent = '讀不到查驗紀錄';
         return;
       }
       if (!nos.length) {
+        setLocked(false);
         if (msg) msg.textContent = '該日沒有查驗紀錄';
         return;
       }
       var txt = composePileText(nos);
       var placeEl = $('gPlace'), itemEl = $('gItem');
       if (force || !placeEl.value.trim()) placeEl.value = txt;
-      if (force || !itemEl.value.trim()) itemEl.value = '東岸' + txt + '預壘樁查驗';
-      if (msg) msg.textContent = '已帶入 ' + nos.length + ' 支樁號';
+      if (force || !itemEl.value.trim()) itemEl.value = currentSide() + txt + '預壘樁查驗';
+      setLocked(true);
+      if (msg) msg.textContent = '已帶入 ' + nos.length + ' 支樁號（已鎖定）';
     }
 
     $('gDate').addEventListener('change', function(){ autoFillByDate(false); });
+
+    /* 換岸別：只重組「拍攝項目」，照片地點不動 */
+    var gSideEl = $('gSide');
+    if (gSideEl) gSideEl.addEventListener('change', function(){
+      var iso = $('gDate').value;
+      if (!iso) return;
+      var nos = pileNosOfDate(iso);
+      if (!nos || !nos.length) return;
+      $('gItem').value = currentSide() + composePileText(nos) + '預壘樁查驗';
+      $('gItem').title = $('gItem').value + '\n（已依日期鎖定；要修改請先清除日期）';
+      var msg = $('autoFillMsg');
+      if (msg) msg.textContent = '已依「' + currentSide() + '」重帶拍攝項目';
+    });
     var baf = $('btnAutoFill');
     if (baf) baf.addEventListener('click', function(){
       if (!$('gDate').value) { toast('請先選擇日期', true); return; }
@@ -1137,7 +1197,7 @@
     var n = all.filter(function(id){ return !isAlreadyAdded(id); }).length;
     var btn = $('pickAdd');
     btn.disabled = (n === 0);
-    btn.textContent = n ? ('加入相片表（' + n + '）') : '加入相片表';
+    btn.textContent = n ? ('加入照片表（' + n + '）') : '加入照片表';
     var list = pickFiltered();
     var every = list.length > 0 && list.every(function(r){ return pickSel[r.id]; });
     $('pickAll').checked = every;
@@ -1149,7 +1209,7 @@
     var list = pickFiltered();
     $('pickCount').textContent = list.length + ' 張';
     if (!pickRecords.length){
-      box.innerHTML = '<div class="empty">尚無歸檔照片。<br>請先到「相片上傳歸檔」上傳照片，或按「↻ 從 Drive 匯入」。</div>';
+      box.innerHTML = '<div class="empty">尚無歸檔照片。<br>請先到「照片上傳歸檔」上傳照片，或按「↻ 從 Drive 匯入」。</div>';
       updatePickUI(); return;
     }
     if (!list.length){
@@ -1225,7 +1285,7 @@
     }
     if (G.silentConnect) {
       G.silentConnect().then(function(){ renderPick(); }).catch(function(){
-        $('pickMsg').textContent = '需要授權才能讀取歸檔照片，請先到「相片上傳歸檔」連線 Google Drive。';
+        $('pickMsg').textContent = '需要授權才能讀取歸檔照片，請先到「照片上傳歸檔」連線 Google Drive。';
       });
     }
   }

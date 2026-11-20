@@ -16,20 +16,14 @@ jobs:
       - name: Fetch new files and commit
         run: |
           set -e
-          curl -fsSL -o assets/assistant.js "https://static.teamily.ai/files/f3d1d849-31e8-4298-b761-60a7c65c8ad3/assistant.js"
-          echo "--- sizes ---"
-          wc -c build/index.html assets/assistant.js assets/gdrive-photo.js assets/site.css
-          echo "--- sanity ---"
-          grep -c "crewblock" build/index.html
-          grep -c "crewTexts" assets/assistant.js
-          grep -c "crewType" assets/gdrive-photo.js
+          curl -fsSL -o assets/site.css "https://static.teamily.ai/files/9096cb63-5ba5-46f2-affa-a97c763e1c89/site.css"
+          wc -c assets/site.css
           grep -c "crewrow" assets/site.css
-          node --check assets/assistant.js
-          node --check assets/gdrive-photo.js
+          grep -c "white-space:normal" assets/site.css
           git config user.email "agent@teamily.ai"
           git config user.name "Teamily Agent"
           git add -A
-          git commit -m "機具工種：assistant.js 補上可條列多筆之工種/機具邏輯"
+          git commit -m "style: 已上傳照片的工種/機具標籤改為可換行完整顯示"
           git push
       - name: Self-delete this one-time workflow
         run: |

@@ -155,6 +155,31 @@ main{flex:1 1 auto;max-width:1100px;width:100%;margin:0 auto;padding:16px 16px 4
 .addbtn:hover{border-color:var(--steel-2);background:#f2f7fd;color:var(--steel)}
 .addbtn .big{font-size:26px;line-height:1}
 .addbtn .sm2{font-size:11.5px;font-weight:600;color:var(--muted)}
+.addrow3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.camloop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;
+  padding:9px 11px;border:1px solid #cfe0f2;border-radius:9px;background:#f2f7fd}
+.camloop .clstate{font-size:12.5px;font-weight:700;color:var(--steel-2)}
+.cnt{display:inline-block;min-width:22px;padding:0 7px;margin-left:4px;border-radius:20px;
+  background:var(--steel);color:#fff;font-size:12px;font-weight:800;text-align:center;
+  vertical-align:middle;line-height:19px}
+
+/* 常用班組 */
+.presetrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.presetrow input{flex:1 1 180px;min-width:0;font-family:inherit;font-size:14px;color:var(--ink);
+  padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.presetrow input:focus{outline:none;border-color:var(--steel-2);box-shadow:0 0 0 3px rgba(44,82,130,.12)}
+.presetlist{display:flex;flex-direction:column;gap:7px}
+.presetitem{display:flex;align-items:stretch;gap:6px}
+.presetitem .papply{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  text-align:left;font-family:inherit;padding:8px 11px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;color:var(--ink);cursor:pointer;transition:border-color .15s,background .15s}
+.presetitem .papply:hover{border-color:var(--steel-2);background:#f2f7fd}
+.presetitem .papply b{font-size:13.5px;font-weight:800;color:var(--steel)}
+.presetitem .psum{font-size:11.5px;color:var(--muted);line-height:1.45;word-break:break-word}
+.presetitem .pmini{flex:0 0 34px;border:1px solid var(--line);border-radius:8px;background:#fff;
+  color:var(--ink-2);font-size:13px;cursor:pointer;font-family:inherit;transition:background .15s}
+.presetitem .pmini:hover{background:#f2f5f9}
+.presetitem .pmini.del:hover{border-color:#e0a0a0;color:#c0392b;background:#fdf3f3}
 
 /* 照片清單 */
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
@@ -274,7 +299,9 @@ main{flex:1 1 auto;max-width:1100px;width:100%;margin:0 auto;padding:16px 16px 4
   .card{padding:12px 13px}
   .grid3,.grid2{grid-template-columns:1fr}
   .addrow{grid-template-columns:1fr}
+  .addrow3{grid-template-columns:repeat(2,minmax(0,1fr))}
   .addbtn{min-height:88px}
+  .presetrow input{flex:1 1 100%}
   .pgrid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
   .tabbar{gap:2px;padding:6px 8px}
   .tab{flex:1 1 0;min-width:0;padding:0 6px;font-size:12px;height:38px;gap:5px;justify-content:center}

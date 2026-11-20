@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1f3a5f">
+<title>營造助手｜施工照片歸檔 · 代辦事項 · 日期事項</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="logo">造</div>
+    <div class="brand">
+      <h1>營造助手</h1>
+      <div class="sub" id="sub">施工照片歸檔 · 代辦事項紀錄 · 日期事項紀錄</div>
+    </div>
+    <div class="hactions">
+      <a class="iconbtn" href="../settings/index.html" target="_blank" rel="noopener"
+         title="設定（Google Drive）" aria-label="設定"><span aria-hidden="true">⚙</span></a>
+    </div>
+  </div>
+
+  <!-- 系統切換：查驗助手 ⇄ 營造助手 -->
+  <div class="sysbar">
+    <div class="sysswitch" role="tablist" aria-label="系統切換">
+      <a href="../index.html" role="tab" aria-selected="false">
+        <span class="ic2" aria-hidden="true">📋</span>查驗助手
+      </a>
+      <a href="index.html" class="on" role="tab" aria-selected="true" aria-current="page">
+        <span class="ic2" aria-hidden="true">🏗️</span>營造助手
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- 功能分頁 -->
+<div class="tabbar" role="tablist" aria-label="營造助手功能">
+  <button type="button" class="tab on" data-panel="photo" role="tab" aria-selected="true">
+    <span class="ic" aria-hidden="true">📷</span>施工照片歸檔
+  </button>
+  <button type="button" class="tab" data-panel="todo" role="tab" aria-selected="false">
+    <span class="ic" aria-hidden="true">✅</span>代辦事項紀錄
+  </button>
+  <button type="button" class="tab" data-panel="event" role="tab" aria-selected="false">
+    <span class="ic" aria-hidden="true">📅</span>日期事項紀錄
+  </button>
+</div>
+
+<main>
+
+  <!-- ============ 1. 施工照片歸檔 ============ -->
+  <section class="panel on" id="p-photo" role="tabpanel" aria-label="施工照片歸檔">
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>歸檔設定</h2>
+        <span class="hintx">日期預設為今天</span>
+      </div>
+      <div class="grid3">
+        <label class="fld">
+          <span>歸檔日期</span>
+          <input type="date" id="fDate">
+        </label>
+        <label class="fld">
+          <span>工項 <em>（可留空）</em></span>
+          <input type="text" id="fItem" placeholder="例：預壘樁查驗" autocomplete="off">
+        </label>
+        <label class="fld">
+          <span>人員 <em>（可留空）</em></span>
+          <input type="text" id="fStaff" placeholder="例：王小明" autocomplete="off">
+        </label>
+      </div>
+      <div class="rowline">
+        <label class="chk">
+          <input type="checkbox" id="chkWm" checked>
+          壓上日期浮水印（格式與查驗助手相同）
+        </label>
+      </div>
+      <div class="connrow">
+        <span class="dot" id="connDot"></span>
+        <span id="connTxt">尚未連線</span>
+        <span style="margin-left:auto"></span>
+        <button type="button" class="btn ghost sm" id="connBtn">🔗 連線 Google Drive</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>加入照片</h2>
+        <span class="hintx">可一次多張</span>
+      </div>
+      <div class="addrow">
+        <label class="addbtn" for="fileCam">
+          <span class="big" aria-hidden="true">📷</span>
+          <span>拍照</span>
+          <span class="sm2">開啟相機，可連續拍多張</span>
+        </label>
+        <input type="file" id="fileCam" accept="image/*" capture="environment" multiple hidden>
+
+        <label class="addbtn" for="filePick">
+          <span class="big" aria-hidden="true">📁</span>
+          <span>從本機上傳</span>
+          <span class="sm2">可一次選取多個檔案</span>
+        </label>
+        <input type="file" id="filePick" accept="image/*" multiple hidden>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>待上傳照片</h2>
+        <span class="hintx" id="pProg"></span>
+      </div>
+      <div class="pgrid" id="pgrid"></div>
+      <div class="empty" id="pEmpty">尚未加入照片。用上面的「拍照」或「從本機上傳」加入。</div>
+      <div class="btnrow" style="margin-top:14px">
+        <button type="button" class="btn" id="btnUpload" disabled>☁ 上傳至 Google Drive（0）</button>
+        <button type="button" class="btn ghost" id="btnDownload" disabled>⬇ 下載到本機</button>
+        <button type="button" class="btn ghost" id="btnClear" disabled>清空</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============ 2. 代辦事項紀錄 ============ -->
+  <section class="panel" id="p-todo" role="tabpanel" aria-label="代辦事項紀錄">
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>新增代辦</h2>
+        <span class="hintx">分「期限」與「重複性任務」</span>
+      </div>
+      <div class="grid2">
+        <label class="fld">
+          <span>代辦內容</span>
+          <input type="text" id="tTitle" placeholder="例：PR4-1 樁位複測" autocomplete="off">
+        </label>
+        <label class="fld">
+          <span>類型</span>
+          <select id="tType">
+            <option value="due">期限（單次，有截止日）</option>
+            <option value="repeat">重複性任務</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid2" style="margin-top:12px">
+        <label class="fld" id="tDueWrap">
+          <span>期限</span>
+          <input type="date" id="tDue">
+        </label>
+        <label class="fld" id="tRepeatWrap" style="display:none">
+          <span>重複頻率</span>
+          <select id="tRepeat">
+            <option value="daily">每天</option>
+            <option value="weekly" selected>每週</option>
+            <option value="monthly">每月</option>
+            <option value="workday">每工作日</option>
+          </select>
+        </label>
+      </div>
+      <div class="btnrow" style="margin-top:14px">
+        <button type="button" class="btn" id="btnAddTodo">＋ 新增代辦</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>代辦清單</h2>
+        <span class="hintx" id="todoSum"></span>
+      </div>
+      <ul class="list" id="todoList"></ul>
+      <div class="empty" id="todoEmpty">尚無代辦事項。</div>
+    </div>
+
+  </section>
+
+  <!-- ============ 3. 日期事項紀錄 ============ -->
+  <section class="panel" id="p-event" role="tabpanel" aria-label="日期事項紀錄">
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>新增日期事項</h2>
+        <span class="hintx">依日期排序</span>
+      </div>
+      <div class="grid2">
+        <label class="fld">
+          <span>日期</span>
+          <input type="date" id="eDate">
+        </label>
+        <label class="fld">
+          <span>事項</span>
+          <input type="text" id="eTitle" placeholder="例：監造查驗" autocomplete="off">
+        </label>
+      </div>
+      <label class="fld" style="margin-top:12px">
+        <span>備註 <em>（可留空）</em></span>
+        <textarea id="eNote" placeholder="例：上午 9:00 現場集合，攜帶查驗單"></textarea>
+      </label>
+      <div class="btnrow" style="margin-top:14px">
+        <button type="button" class="btn" id="btnAddEvent">＋ 新增事項</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>日期事項</h2>
+        <span class="hintx" id="evSum"></span>
+      </div>
+      <div id="evList" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="empty" id="evEmpty">尚無日期事項。</div>
+    </div>
+
+  </section>
+
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="../assets/core.js"></script>
+<script src="../assets/gdrive.js"></script>
+<script src="../assets/watermark.js"></script>
+<script src="../assets/gdrive-photo.js"></script>
+<script src="../assets/assistant.js"></script>
+</body>
+</html>

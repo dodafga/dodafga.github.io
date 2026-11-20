@@ -1,0 +1,39 @@
+name: apply-r49-crew
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-r49-crew.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch new files and commit
+        run: |
+          set -e
+          curl -fsSL -o assets/assistant.js "https://static.teamily.ai/files/f3d1d849-31e8-4298-b761-60a7c65c8ad3/assistant.js"
+          echo "--- sizes ---"
+          wc -c build/index.html assets/assistant.js assets/gdrive-photo.js assets/site.css
+          echo "--- sanity ---"
+          grep -c "crewblock" build/index.html
+          grep -c "crewTexts" assets/assistant.js
+          grep -c "crewType" assets/gdrive-photo.js
+          grep -c "crewrow" assets/site.css
+          node --check assets/assistant.js
+          node --check assets/gdrive-photo.js
+          git config user.email "agent@teamily.ai"
+          git config user.name "Teamily Agent"
+          git add -A
+          git commit -m "機具工種：assistant.js 補上可條列多筆之工種/機具邏輯"
+          git push
+      - name: Self-delete this one-time workflow
+        run: |
+          set -e
+          git rm .github/workflows/apply-r49-crew.yml
+          git commit -m "chore: remove one-time workflow"
+          git push

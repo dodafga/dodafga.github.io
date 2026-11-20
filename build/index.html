@@ -69,6 +69,19 @@
         </label>
       </div>
 
+      <!-- 常用班組：存起來一鍵套用 -->
+      <div class="crewblock">
+        <div class="crewhead">
+          <span class="crewt">常用班組 <em>（存起來一鍵套用）</em></span>
+        </div>
+        <div class="presetrow">
+          <input type="text" id="presetName" maxlength="20" placeholder="班組名稱，例：鋼筋班" autocomplete="off">
+          <button type="button" class="btn sm" id="btnPresetSave">💾 存成常用班組</button>
+        </div>
+        <div class="presetlist" id="presetList"></div>
+        <div class="crewempty" id="presetEmpty">尚無常用班組。填好工種與機具後，輸入名稱按「存成常用班組」。</div>
+      </div>
+
       <!-- 機具工種：可條列多筆 -->
       <div class="crewblock">
         <div class="crewhead">
@@ -106,13 +119,20 @@
         <h2>加入照片</h2>
         <span class="hintx">可一次多張</span>
       </div>
-      <div class="addrow">
+      <div class="addrow addrow3">
         <label class="addbtn" for="fileCam">
           <span class="big" aria-hidden="true">📷</span>
           <span>拍照</span>
-          <span class="sm2">開啟相機，可連續拍多張</span>
+          <span class="sm2">開相機拍一張</span>
         </label>
-        <input type="file" id="fileCam" accept="image/*" capture="environment" multiple hidden>
+        <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
+
+        <button type="button" class="addbtn" id="btnCamLoop">
+          <span class="big" aria-hidden="true">📸</span>
+          <span>連續拍照</span>
+          <span class="sm2">拍完一張接著拍下一張</span>
+        </button>
+        <input type="file" id="fileCamLoop" accept="image/*" capture="environment" hidden>
 
         <label class="addbtn" for="filePick">
           <span class="big" aria-hidden="true">📁</span>
@@ -121,11 +141,17 @@
         </label>
         <input type="file" id="filePick" accept="image/*" multiple hidden>
       </div>
+      <div class="camloop" id="camLoopBar" style="display:none">
+        <span class="clstate" id="camLoopTxt">連續拍照中</span>
+        <span style="margin-left:auto"></span>
+        <button type="button" class="btn sm" id="btnCamAgain">＋ 再拍一張</button>
+        <button type="button" class="btn ghost sm" id="btnCamEnd">結束拍照</button>
+      </div>
     </div>
 
     <div class="card">
       <div class="cardhd">
-        <h2>待上傳照片</h2>
+        <h2>待上傳照片 <span class="cnt" id="pCount">0</span></h2>
         <span class="hintx" id="pProg"></span>
       </div>
       <div class="pgrid" id="pgrid"></div>

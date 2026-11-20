@@ -58,7 +58,7 @@
         <h2>歸檔設定</h2>
         <span class="hintx">日期預設為今天</span>
       </div>
-      <div class="grid3">
+      <div class="grid2">
         <label class="fld">
           <span>歸檔日期</span>
           <input type="date" id="fDate">
@@ -67,10 +67,25 @@
           <span>工項 <em>（可留空）</em></span>
           <input type="text" id="fItem" placeholder="例：預壘樁查驗" autocomplete="off">
         </label>
-        <label class="fld">
-          <span>人員 <em>（可留空）</em></span>
-          <input type="text" id="fStaff" placeholder="例：王小明" autocomplete="off">
-        </label>
+      </div>
+
+      <!-- 機具工種：可條列多筆 -->
+      <div class="crewblock">
+        <div class="crewhead">
+          <span class="crewt">工種 <em>（可留空，可多筆）</em></span>
+          <button type="button" class="btn ghost sm" id="btnAddType">＋ 新增工種</button>
+        </div>
+        <div class="crewrows" id="typeRows"></div>
+        <div class="crewempty" id="typeEmpty">尚未新增工種</div>
+      </div>
+
+      <div class="crewblock">
+        <div class="crewhead">
+          <span class="crewt">機具 <em>（可留空，可多筆）</em></span>
+          <button type="button" class="btn ghost sm" id="btnAddMach">＋ 新增機具</button>
+        </div>
+        <div class="crewrows" id="machRows"></div>
+        <div class="crewempty" id="machEmpty">尚未新增機具</div>
       </div>
       <div class="rowline">
         <label class="chk">

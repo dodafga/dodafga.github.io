@@ -1,0 +1,42 @@
+name: apply-r49-crew
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-r49-crew.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch new files and commit
+        run: |
+          set -e
+          curl -fsSL -o build/index.html "https://static.teamily.ai/files/7a9cd8c3-ce0f-4a3e-83f8-6a40e9deac64/index.html"
+          curl -fsSL -o assets/assistant.js "https://static.teamily.ai/files/b154aa01-0a84-4a97-8e2f-88005489c469/assistant.js"
+          curl -fsSL -o assets/gdrive-photo.js "https://static.teamily.ai/files/ff14dfae-a601-4efd-b2d3-aaca1a9ac97a/gdrive-photo.js"
+          curl -fsSL -o assets/site.css "https://static.teamily.ai/files/fb9d1c7e-5280-41a7-a484-cc3cbdc8cab2/site.css"
+          echo "--- sizes ---"
+          wc -c build/index.html assets/assistant.js assets/gdrive-photo.js assets/site.css
+          echo "--- sanity ---"
+          grep -c "crewblock" build/index.html
+          grep -c "crewTexts" assets/assistant.js
+          grep -c "crewType" assets/gdrive-photo.js
+          grep -c "crewrow" assets/site.css
+          node --check assets/assistant.js
+          node --check assets/gdrive-photo.js
+          git config user.email "agent@teamily.ai"
+          git config user.name "Teamily Agent"
+          git add -A
+          git commit -m "機具工種：人員改為可條列多筆之工種/機具欄位（含（　）型挖土機型號與其他自填）"
+          git push
+      - name: Self-delete this one-time workflow
+        run: |
+          set -e
+          git rm .github/workflows/apply-r49-crew.yml
+          git commit -m "chore: remove one-time workflow"
+          git push

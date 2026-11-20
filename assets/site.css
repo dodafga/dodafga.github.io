@@ -184,6 +184,46 @@ main{flex:1 1 auto;max-width:1100px;width:100%;margin:0 auto;padding:16px 16px 4
 /* 進度 */
 .prog{font-size:12.5px;color:var(--ink-2);margin-top:10px;min-height:18px}
 
+/* ---------------- 逾期未完成（紅色提醒區塊） ---------------- */
+.odbox{border:1px solid #e8b4ae;border-left:5px solid var(--err);border-radius:var(--radius);
+  background:#fdf3f2;padding:12px 14px;margin-bottom:14px}
+.odhd{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:var(--err);
+  margin-bottom:9px}
+.odhd .odn{font-size:12px;font-weight:700;color:#fff;background:var(--err);
+  border-radius:20px;padding:1px 9px;line-height:1.6}
+.odlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.odlist li{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #f0cfcc;
+  border-radius:8px;padding:9px 11px}
+.odlist .odt{flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:700;color:var(--ink);
+  word-break:break-word}
+.odlist .odd{flex:0 0 auto;font-size:11.5px;font-weight:800;color:var(--err);
+  background:#fbe4e1;border-radius:6px;padding:3px 8px;white-space:nowrap}
+.odlist .mini{flex:0 0 auto;padding:5px 9px;border:1px solid #f0cfcc;border-radius:6px;
+  background:#fff;font-size:11.5px;font-weight:700;color:var(--err);cursor:pointer}
+.odlist .mini:hover{background:#fdf3f2}
+
+/* ---------------- 已上傳照片（預覽／篩選／分享） ---------------- */
+.libbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 10px;
+  padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#f8fafc}
+.libsel{font-size:12.5px;font-weight:800;color:var(--steel)}
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(126px,1fr));gap:9px}
+.libitem{position:relative;margin:0;border:2px solid var(--line);border-radius:9px;
+  overflow:hidden;background:#fff;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.libitem:hover{border-color:#c3cedb}
+.libitem.sel{border-color:var(--steel-2);box-shadow:0 0 0 3px rgba(44,82,130,.14)}
+.libitem .limg{position:relative;aspect-ratio:1/1;background:#f2f5f9;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.libitem .limg img{width:100%;height:100%;object-fit:cover;display:block}
+.libitem .lno{color:var(--muted);font-size:11.5px;padding:0 6px;text-align:center}
+.libitem .lchk{position:absolute;left:6px;top:6px;width:22px;height:22px;border-radius:6px;
+  background:rgba(255,255,255,.92);border:2px solid #b9c6d6;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:900;color:transparent;line-height:1}
+.libitem.sel .lchk{background:var(--steel-2);border-color:var(--steel-2);color:#fff}
+.libitem figcaption{font-size:10.5px;color:var(--muted);padding:4px 6px;line-height:1.35;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.libitem .lmeta{font-size:10px;color:var(--muted);padding:0 6px 5px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 /* toast */
 .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);
   background:rgba(27,36,48,.94);color:#fff;font-size:13.5px;font-weight:600;
@@ -209,6 +249,7 @@ main{flex:1 1 auto;max-width:1100px;width:100%;margin:0 auto;padding:16px 16px 4
   .addrow{grid-template-columns:1fr}
   .addbtn{min-height:88px}
   .pgrid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+  .libgrid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
   .tabbar{gap:2px;padding:6px 8px}
   .tab{flex:1 1 0;min-width:0;padding:0 6px;font-size:12px;height:38px;gap:5px;justify-content:center}
   .tab .ic{font-size:14px}

@@ -122,10 +122,47 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="cardhd">
+        <h2>已上傳照片</h2>
+        <span class="hintx" id="libSum">選好日期後按「讀取這一天」</span>
+      </div>
+      <div class="grid3">
+        <label class="fld">
+          <span>單日日期</span>
+          <input type="date" id="libDate">
+        </label>
+        <label class="fld">
+          <span>當日工項</span>
+          <select id="libItem"><option value="">全部工項</option></select>
+        </label>
+        <label class="fld">
+          <span>&nbsp;</span>
+          <button type="button" class="btn wide" id="btnLibLoad">↻ 讀取這一天</button>
+        </label>
+      </div>
+      <div class="libbar" id="libBar" style="display:none">
+        <span class="libsel" id="libSel">已選 0 張</span>
+        <span style="margin-left:auto"></span>
+        <button type="button" class="btn ghost sm" id="btnLibAll">全選</button>
+        <button type="button" class="btn ghost sm" id="btnLibNone">取消全選</button>
+        <button type="button" class="btn sm" id="btnLibLine">分享到 LINE</button>
+        <button type="button" class="btn ghost sm" id="btnLibCopy">複製連結</button>
+        <button type="button" class="btn ghost sm" id="btnLibDl">下載所選</button>
+      </div>
+      <div class="libgrid" id="libGrid"></div>
+      <div class="empty" id="libEmpty">尚未讀取。選好日期後按「讀取這一天」。</div>
+    </div>
+
   </section>
 
   <!-- ============ 2. 代辦事項紀錄 ============ -->
   <section class="panel" id="p-todo" role="tabpanel" aria-label="代辦事項紀錄">
+
+    <div class="odbox" id="odBox" style="display:none">
+      <div class="odhd"><span aria-hidden="true">⚠</span> 逾期未完成 <span class="odn" id="odCount"></span></div>
+      <ul class="odlist" id="odList"></ul>
+    </div>
 
     <div class="card">
       <div class="cardhd">

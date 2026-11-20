@@ -61,7 +61,7 @@
   }
 
   /* ================= 一、施工照片歸檔 ================= */
-  var stage = [];
+  var stage = [];      /* {id,file,thumb,blob,status,msg,angle,name} */
   var seq = 0;
   var uploading = false;
   var wmOn = true;
@@ -297,6 +297,7 @@
         updateBtns();
         if (pProg) pProg.textContent = "完成：成功 " + okN + " 張" + (errN ? "，失敗 " + errN + " 張" : "") + "。";
         toast(errN ? ("上傳完成，成功 " + okN + " 張、失敗 " + errN + " 張") : ("已上傳 " + okN + " 張到 Google Drive"), !!errN);
+        if (okN) { try { window.__buildLibRefresh && window.__buildLibRefresh(); } catch (e) {} }
         return;
       }
       var it = stage[i];
@@ -385,6 +386,235 @@
   });
 
   renderStage();
+
+  /* ================= 一之二、已上傳照片（預覽／篩選／分享） ================= */
+  var libDate = $("libDate"), libItem = $("libItem"), libGrid = $("libGrid"),
+      libEmpty = $("libEmpty"), libBar = $("libBar"), libSel = $("libSel"), libSum = $("libSum");
+  var libAll = [];        /* 當日全部照片 */
+  var libPicked = {};     /* id -> true */
+  var libLoading = false;
+
+  if (libDate && !libDate.value) libDate.value = todayISO();
+
+  function libItemOf(rec) {
+    /* 工項：優先 description 的「工項：」，其次檔名中間段 */
+    var it = rec.item || "";
+    if (!it) {
+      var m = /^\d{8}_(.+?)_\d{2}\.[a-z0-9]+$/i.exec(rec.name || "");
+      if (m) {
+        var mid = m[1];
+        if (!/^\d{6}$/.test(mid)) it = mid;
+      }
+    }
+    return it;
+  }
+
+  function libFillItems() {
+    if (!libItem) return;
+    var seen = {}, list = [];
+    libAll.forEach(function (r) {
+      var it = libItemOf(r);
+      if (it && !seen[it]) { seen[it] = 1; list.push(it); }
+    });
+    list.sort();
+    var cur = libItem.value;
+    var html = '<option value="">全部工項</option>';
+    list.forEach(function (it) {
+      html += '<option value="' + esc(it) + '">' + esc(it) + '</option>';
+    });
+    libItem.innerHTML = html;
+    if (cur && seen[cur]) libItem.value = cur;
+  }
+
+  function libVisible() {
+    var want = libItem ? libItem.value : "";
+    if (!want) return libAll;
+    return libAll.filter(function (r) { return libItemOf(r) === want; });
+  }
+
+  function libCount() {
+    var n = 0;
+    for (var k in libPicked) if (libPicked[k]) n++;
+    return n;
+  }
+
+  function libRender() {
+    if (!libGrid) return;
+    var vis = libVisible();
+    if (!vis.length) {
+      libGrid.innerHTML = "";
+      if (libEmpty) {
+        libEmpty.style.display = "block";
+        libEmpty.textContent = libAll.length
+          ? "這個工項沒有照片，換一個工項或選「全部工項」。"
+          : "這一天在「義力 / 施工照片 / " + (libDate ? libDate.value : "") + "」沒有照片。";
+      }
+      if (libBar) libBar.style.display = "none";
+      if (libSum) libSum.textContent = libAll.length ? ("當日 " + libAll.length + " 張") : "沒有照片";
+      return;
+    }
+    if (libEmpty) libEmpty.style.display = "none";
+    if (libBar) libBar.style.display = "flex";
+
+    var html = "";
+    vis.forEach(function (r, i) {
+      var on = !!libPicked[r.id];
+      html += '<figure class="libitem' + (on ? " sel" : "") + '" data-id="' + esc(r.id) + '">' +
+        '<div class="limg">' +
+        '<span class="lchk" aria-hidden="true">✓</span>' +
+        '<span class="lno">第 ' + (i + 1) + ' 張</span>' +
+        '</div>' +
+        '<figcaption title="' + esc(r.name) + '">' + esc(r.name) + '</figcaption>' +
+        '<div class="lmeta">' + esc(libItemOf(r) || "（未填工項）") + '</div>' +
+        '</figure>';
+    });
+    libGrid.innerHTML = html;
+
+    /* 縮圖延遲載入（避免一次打太多 Drive 請求） */
+    var figs = libGrid.querySelectorAll(".libitem");
+    for (var j = 0; j < figs.length; j++) {
+      (function (fig, rec) {
+        var box = fig.querySelector(".limg");
+        var G = window.GDrivePhoto;
+        if (!G || !G.makeThumb) return;
+        G.makeThumb(rec.id, 260).then(function (url) {
+          if (!url) return;
+          var img = document.createElement("img");
+          img.src = url;
+          img.alt = rec.name || "";
+          img.loading = "lazy";
+          var no = box.querySelector(".lno");
+          if (no) no.remove();
+          box.insertBefore(img, box.firstChild);
+        }).catch(function () {});
+      })(figs[j], vis[j]);
+    }
+
+    if (libSum) libSum.textContent = "當日 " + libAll.length + " 張" +
+      (libItem && libItem.value ? "，本工項 " + vis.length + " 張" : "");
+    libUpdateSel();
+  }
+
+  function libUpdateSel() {
+    var n = libCount();
+    if (libSel) libSel.textContent = "已選 " + n + " 張";
+    var b = $("btnLibLine"); if (b) b.disabled = n === 0;
+    var c = $("btnLibCopy"); if (c) c.disabled = n === 0;
+    var d = $("btnLibDl"); if (d) d.disabled = n === 0;
+  }
+
+  function libLoad() {
+    var G = window.GDrivePhoto;
+    if (!G || !G.listDayPhotos) { toast("Drive 模組未載入", true); return; }
+    if (libLoading) return;
+    var d = (libDate && libDate.value) || "";
+    if (!d) { toast("請先選日期", true); return; }
+    libLoading = true;
+    if (libSum) libSum.textContent = "讀取中…";
+    if (libEmpty) { libEmpty.style.display = "block"; libEmpty.textContent = "正在讀取 Google Drive…"; }
+    if (libGrid) libGrid.innerHTML = "";
+    if (libBar) libBar.style.display = "none";
+
+    G.listDayPhotos(d).then(function (res) {
+      libAll = (res && res.records) || [];
+      libPicked = {};
+      libFillItems();
+      libRender();
+      if (!libAll.length) {
+        var why = res && res.reason;
+        if (libEmpty) {
+          libEmpty.style.display = "block";
+          libEmpty.textContent = why === "no-parent"
+            ? "Drive 上還沒有「義力」資料夾。"
+            : why === "no-root"
+              ? "「義力」裡還沒有「施工照片」資料夾。"
+              : "「義力 / 施工照片」裡沒有 " + d + " 這個日期的資料夾。";
+        }
+      }
+      toast("已讀取 " + libAll.length + " 張");
+    }).catch(function (e) {
+      if (libEmpty) { libEmpty.style.display = "block"; libEmpty.textContent = "讀取失敗：" + ((e && e.message) || "未知錯誤"); }
+      toast((e && e.message) || "讀取失敗", true);
+    }).then(function () { libLoading = false; });
+  }
+
+  C.on($("btnLibLoad"), "click", libLoad);
+  C.on(libItem, "change", function () { libRender(); });
+  C.on(libDate, "change", function () { libAll = []; libPicked = {}; libRender(); });
+
+  C.on(libGrid, "click", function (e) {
+    var fig = e.target.closest ? e.target.closest(".libitem") : null;
+    if (!fig) return;
+    var id = fig.getAttribute("data-id");
+    if (!id) return;
+    if (libPicked[id]) delete libPicked[id]; else libPicked[id] = true;
+    fig.classList.toggle("sel", !!libPicked[id]);
+    libUpdateSel();
+  });
+
+  C.on($("btnLibAll"), "click", function () {
+    libVisible().forEach(function (r) { libPicked[r.id] = true; });
+    libRender();
+  });
+  C.on($("btnLibNone"), "click", function () {
+    libPicked = {};
+    libRender();
+  });
+
+  function libPickedRecs() {
+    return libAll.filter(function (r) { return libPicked[r.id]; });
+  }
+
+  C.on($("btnLibCopy"), "click", function () {
+    var recs = libPickedRecs();
+    if (!recs.length) return;
+    var txt = recs.map(function (r) { return r.name + "\n" + r.link; }).join("\n\n");
+    function done() { toast("已複製 " + recs.length + " 張的連結"); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(done).catch(function () { C.download("photo-links.txt", txt, "text/plain"); done(); });
+    } else {
+      C.download("photo-links.txt", txt, "text/plain");
+      done();
+    }
+  });
+
+  C.on($("btnLibLine"), "click", function () {
+    var recs = libPickedRecs();
+    if (!recs.length) return;
+    /* LINE 沒有「一次貼多張雲端連結」的官方 API；
+       這裡用 LINE 的分享網址把「照片連結清單」帶進 LINE，由使用者選聊天室送出。 */
+    var body = recs.map(function (r) { return r.name + " " + r.link; }).join("\n");
+    var url = "https://line.me/R/msg/text/?" + encodeURIComponent(body);
+    if (url.length > 1900) {
+      /* 太長就只帶連結，不帶檔名 */
+      url = "https://line.me/R/msg/text/?" + encodeURIComponent(recs.map(function (r) { return r.link; }).join("\n"));
+    }
+    window.open(url, "_blank", "noopener");
+    toast("已開啟 LINE，選聊天室後送出（" + recs.length + " 張連結）");
+  });
+
+  C.on($("btnLibDl"), "click", function () {
+    var recs = libPickedRecs();
+    if (!recs.length) return;
+    var G = window.GDrivePhoto;
+    if (!G || !G.fetchFile) { toast("Drive 模組未載入", true); return; }
+    var i = 0;
+    function step() {
+      if (i >= recs.length) { toast("已下載 " + recs.length + " 張"); return; }
+      var r = recs[i];
+      G.fetchFile(r.id).then(function (blob) {
+        C.download(r.name || ("photo_" + (i + 1) + ".png"), blob, blob.type || "image/png");
+        i++; setTimeout(step, 350);
+      }).catch(function () { i++; step(); });
+    }
+    step();
+  });
+
+  /* 上傳完成後自動刷新當日清單 */
+  window.__buildLibRefresh = function () {
+    if (libDate && fDate && fDate.value) libDate.value = fDate.value;
+    libLoad();
+  };
 
   /* ================= 二、代辦事項紀錄 ================= */
   var todo = [];
@@ -478,6 +708,34 @@
     todoList.innerHTML = html;
     if (todoEmpty) todoEmpty.style.display = todo.length ? "none" : "block";
 
+    /* ---- 逾期未完成紅色提醒區塊 ---- */
+    var odBox = $("odBox"), odList = $("odList"), odCount = $("odCount");
+    if (odBox && odList) {
+      var overdue = todo.filter(function (t) {
+        if (t.done || t.type === "repeat" || !t.due) return false;
+        var d = daysBetween(today, t.due);
+        return d !== null && d < 0;
+      }).sort(function (a, b) { return String(a.due).localeCompare(String(b.due)); });
+
+      if (!overdue.length) {
+        odBox.style.display = "none";
+        odList.innerHTML = "";
+      } else {
+        odBox.style.display = "block";
+        if (odCount) odCount.textContent = overdue.length + " 筆";
+        var oh = "";
+        overdue.forEach(function (t) {
+          var d = daysBetween(today, t.due);
+          oh += '<li data-id="' + t.id + '">' +
+            '<span class="odt">' + esc(t.title) + '</span>' +
+            '<span class="odd">逾期 ' + Math.abs(d) + ' 天（' + esc(fmtMD(t.due)) + '）</span>' +
+            '<button type="button" class="mini" data-act="oddone" data-id="' + t.id + '">完成</button>' +
+            '</li>';
+        });
+        odList.innerHTML = oh;
+      }
+    }
+
     if (todoSum) {
       var open = todo.filter(function (t) { return !t.done; }).length;
       var over = todo.filter(function (t) {
@@ -529,6 +787,18 @@
       }
       writeTodo(); renderTodo();
     }
+  });
+
+  /* 逾期區塊的「完成」按鈕 */
+  C.on($("odList"), "click", function (e) {
+    var el = e.target;
+    if (!el.getAttribute || el.getAttribute("data-act") !== "oddone") return;
+    var id = el.getAttribute("data-id");
+    for (var i = 0; i < todo.length; i++) {
+      if (todo[i].id === id) { todo[i].done = true; break; }
+    }
+    writeTodo(); renderTodo();
+    toast("已標記完成");
   });
 
   readTodo();

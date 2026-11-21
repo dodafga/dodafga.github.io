@@ -57,11 +57,11 @@ sweep(document)})();</script>
 <title>查驗單 Word 模板產生器｜工程施工中請驗單</title>
 <style>
   :root{
-    --ink:#1b2430; --ink-2:#3d4a5c; --muted:#6b7a8d;
-    --line:#d8dee7; --line-2:#e8edf3; --bg:#eef1f5; --card:#fff;
-    --steel:#1f3a5f; --steel-2:#2c5282;
-    --amber:#c47f17; --amber-bg:#fdf6e7;
-    --ok:#1f7a4d; --danger:#b3261e; --radius:10px;
+    --ink:#1b1b1d; --ink-2:#3a3a3e; --muted:#6e6e74;
+    --line:#dcd8d4; --line-2:#eae7e3; --bg:#f4f3f0; --card:#fff;
+    --steel:#976666; --steel-2:#7a4f4e;
+    --amber:#93939b;--amber-ink:#5f5f66; --amber-bg:#f0eff1;
+    --ok:#5f7a63; --danger:#a34a45; --radius:10px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -70,13 +70,13 @@ sweep(document)})();</script>
     background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
     font-size:15px;line-height:1.6;
   }
-  header{background:var(--steel);color:#fff;padding:18px 22px 16px;border-bottom:3px solid var(--amber);}
+  header{background:var(--steel);color:#fff;padding:18px 22px 16px;border-bottom:3px solid #c09d9b;}
   .hwrap{max-width:1500px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
-  .logo{width:38px;height:38px;flex:0 0 38px;border-radius:8px;background:var(--amber);color:#1b2430;
+  .logo{width:38px;height:38px;flex:0 0 38px;border-radius:8px;background:var(--amber);color:#1b1b1d;
     display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;}
   h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.3px;}
-  .sub{font-size:12.5px;color:#b9c8da;margin-top:2px;}
-  .hmeta{margin-left:auto;font-size:12px;color:#b9c8da;text-align:right;line-height:1.5;}
+  .sub{font-size:12.5px;color:#f0e6e5;margin-top:2px;}
+  .hmeta{margin-left:auto;font-size:12px;color:#f0e6e5;text-align:right;line-height:1.5;}
   .hmeta b{color:#fff;font-weight:600;}
 
   .wrap{max-width:1500px;margin:0 auto;padding:20px 22px 60px;}
@@ -91,8 +91,8 @@ sweep(document)})();</script>
     box-shadow:0 1px 2px rgba(27,36,48,.05);}
   .card-h{padding:13px 16px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:9px;}
   .card-h h2{font-size:14.5px;margin:0;font-weight:700;}
-  .card-h .tag{font-size:11px;background:var(--amber-bg);color:var(--amber);
-    border:1px solid #f0dfb8;padding:1px 7px;border-radius:20px;font-weight:600;}
+  .card-h .tag{font-size:11px;background:var(--amber-bg);color:var(--amber-ink);
+    border:1px solid #dcd8d4;padding:1px 7px;border-radius:20px;font-weight:600;}
   .card-b{padding:16px;}
 
   .field{margin-bottom:15px;}
@@ -102,7 +102,7 @@ sweep(document)})();</script>
   label .hint{font-weight:400;color:var(--muted);font-size:11.5px;margin-left:5px;}
   input[type=text],input[type=date],input[type=time],textarea,select{
     width:100%;padding:9px 11px;font-size:14px;border:1px solid var(--line);border-radius:7px;
-    background:#fcfdfe;color:var(--ink);font-family:inherit;line-height:1.5;
+    background:#fcfbfa;color:var(--ink);font-family:inherit;line-height:1.5;
     transition:border-color .15s,box-shadow .15s,background .15s;
   }
   input:focus,textarea:focus,select:focus{outline:none;border-color:var(--steel-2);background:#fff;
@@ -111,7 +111,7 @@ sweep(document)})();</script>
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 
   .quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
-  .chip{font-size:12px;padding:4px 9px;border-radius:20px;background:#f2f5f9;
+  .chip{font-size:12px;padding:4px 9px;border-radius:20px;background:#f7f5f3;
     border:1px solid var(--line);color:var(--ink-2);cursor:pointer;transition:.15s;
     display:inline-flex;align-items:center;gap:5px;}
   .chip:hover{background:var(--steel);color:#fff;border-color:var(--steel);}
@@ -124,21 +124,21 @@ sweep(document)})();</script>
   .pilepick .btn{flex:0 0 auto;}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
   .chips:empty{display:none;}
-  .chips .chip{background:#e8effa;color:#2F5597;border-color:#c9d9f0;cursor:default;}
-  .chips .chip:hover{background:#e8effa;color:#2F5597;border-color:#c9d9f0;}
-  .chips .chip.pier{background:#fdf6e7;color:#c47f17;border-color:#f0dfb8;}
-  .chips .chip.pier:hover{background:#fdf6e7;color:#c47f17;border-color:#f0dfb8;}
+  .chips .chip{background:#f2e8e7;color:#7a4f4e;border-color:#dccbc9;cursor:default;}
+  .chips .chip:hover{background:#f2e8e7;color:#7a4f4e;border-color:#dccbc9;}
+  .chips .chip.pier{background:#f0eff1;color:#93939b;border-color:#dcd8d4;}
+  .chips .chip.pier:hover{background:#f0eff1;color:#93939b;border-color:#dcd8d4;}
   .chips .chip button{background:none;border:none;color:inherit;cursor:pointer;
     font-size:14px;line-height:1;padding:0 2px;opacity:.6;font-family:inherit;}
-  .chips .chip button:hover{opacity:1;color:#b3261e;}
+  .chips .chip button:hover{opacity:1;color:#a34a45;}
 
   /* 附件共用區塊（唯讀） */
-  .sharedbox{border:1px solid #dde4ec;border-radius:9px;background:#f8fafc;
+  .sharedbox{border:1px solid #dcd8d4;border-radius:9px;background:#f9f7f5;
     padding:11px 13px;margin-bottom:13px;}
   .sharedhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
     font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:9px;}
-  .sharedhead .lk{font-size:10.5px;color:var(--ok);background:#e9f5ee;
-    border:1px solid #cfe6da;padding:0 7px;border-radius:20px;font-weight:600;}
+  .sharedhead .lk{font-size:10.5px;color:var(--ok);background:#edf1ed;
+    border:1px solid #d3ded5;padding:0 7px;border-radius:20px;font-weight:600;}
   .sharedgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;}
   .sharedgrid .si{font-size:12.5px;line-height:1.6;min-width:0;}
   .sharedgrid .si .k{color:var(--muted);font-size:11px;font-weight:600;display:block;}
@@ -147,7 +147,7 @@ sweep(document)})();</script>
   @media (max-width:560px){ .sharedgrid{grid-template-columns:1fr;} }
 
   .freebox{width:100%;min-height:150px;padding:11px 12px;font-size:14px;line-height:1.75;
-    border:1px solid var(--line);border-radius:7px;background:#fcfdfe;color:var(--ink);
+    border:1px solid var(--line);border-radius:7px;background:#fcfbfa;color:var(--ink);
     font-family:inherit;resize:vertical;transition:border-color .15s,box-shadow .15s,background .15s;}
   .freebox:focus{outline:none;border-color:var(--steel-2);background:#fff;
     box-shadow:0 0 0 3px rgba(44,82,130,.12);}
@@ -161,8 +161,8 @@ sweep(document)})();</script>
   .two-col .freebox{min-height:172px;}
   .two-col .colhead{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;
     color:var(--ink-2);margin-bottom:5px;}
-  .two-col .colhead .badge{font-size:10.5px;font-weight:700;color:#2f7d54;background:#e4f2ea;
-    border:1px solid #cfe6da;padding:1px 7px;border-radius:20px;}
+  .two-col .colhead .badge{font-size:10.5px;font-weight:700;color:#5f7a63;background:#edf1ed;
+    border:1px solid #d3ded5;padding:1px 7px;border-radius:20px;}
   .two-col .colhead .cnt{margin-left:auto;font-size:11px;color:var(--muted);font-weight:500;
     font-variant-numeric:tabular-nums;}
   .freefoot{display:flex;align-items:center;gap:10px;margin-top:7px;flex-wrap:wrap;}
@@ -172,11 +172,11 @@ sweep(document)})();</script>
     font-weight:600;cursor:pointer;user-select:none;}
   .chk input{width:15px;height:15px;accent-color:var(--steel);cursor:pointer;margin:0;}
   .fixedrow{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:7px;
-    background:#f2f8f4;border:1px solid #d5e8dd;font-size:13.5px;color:var(--ink-2);}
+    background:#f2f5f2;border:1px solid #d3ded5;font-size:13.5px;color:var(--ink-2);}
   .fixedrow .k{font-size:12.5px;font-weight:600;color:var(--muted);min-width:96px;}
   .fixedrow .v{font-weight:700;color:var(--ink);}
   .fixedrow .lk{margin-left:auto;font-size:11px;color:var(--ok);font-weight:600;
-    background:#e4f2ea;border:1px solid #cfe6da;padding:1px 8px;border-radius:20px;white-space:nowrap;}
+    background:#edf1ed;border:1px solid #d3ded5;padding:1px 8px;border-radius:20px;white-space:nowrap;}
 
   .btn{font-family:inherit;font-size:13.5px;font-weight:600;padding:9px 15px;
     border-radius:7px;border:1px solid transparent;cursor:pointer;transition:.15s;line-height:1.3;}
@@ -184,7 +184,7 @@ sweep(document)})();</script>
   .btn-primary{background:var(--steel);color:#fff;border-color:var(--steel);}
   .btn-primary:hover:not(:disabled){background:var(--steel-2);border-color:var(--steel-2);}
   .btn-ghost{background:#fff;color:var(--ink-2);border-color:var(--line);}
-  .btn-ghost:hover{background:#f7f9fc;border-color:#c3ccd8;}
+  .btn-ghost:hover{background:#f8f6f4;border-color:#d5d0cb;}
   .btn-sm{font-size:12px;padding:6px 11px;}
 
   .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--line-2);}
@@ -193,7 +193,7 @@ sweep(document)})();</script>
   .note{margin-top:15px;padding:11px 13px;border-radius:8px;background:#f6f9fc;
     border:1px solid var(--line-2);font-size:11.5px;color:var(--muted);line-height:1.65;}
   .note b{color:var(--ink-2);}
-  .note.lockbox{background:#f2f8f4;border-color:#d5e8dd;margin-top:0;margin-bottom:15px;}
+  .note.lockbox{background:#f2f5f2;border-color:#d3ded5;margin-top:0;margin-bottom:15px;}
   .note.lockbox .lock{color:var(--ok);font-weight:600;}
 
   .pv-bar{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line-2);}
@@ -202,7 +202,7 @@ sweep(document)})();</script>
   .zoom{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);}
   .zoom button{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);
     background:#fff;color:var(--ink-2);cursor:pointer;font-size:14px;line-height:1;padding:0;transition:.15s;}
-  .zoom button:hover{background:#f2f5f9;}
+  .zoom button:hover{background:#f7f5f3;}
   .zoom span{min-width:42px;text-align:center;font-variant-numeric:tabular-nums;}
 
   .pv-stage{background:#e3e8ef;padding:16px;overflow:hidden;border-radius:0 0 var(--radius) var(--radius);
@@ -288,7 +288,7 @@ sweep(document)})();</script>
   .paper .att-shared td{border:1px solid #000;padding:0 1.4pt;font-size:12pt;line-height:1.2;
     vertical-align:middle;word-break:break-word;}
   .paper .att-shared td.l{text-align:left;}
-  .paper .empty{color:#c3ccd8;}
+  .paper .empty{color:#d5d0cb;}
 
   /* 附件照片挑選（沿用相片表頁的樣式，維持全站一致） */
   .modal{position:fixed;inset:0;background:rgba(15,23,35,.55);display:none;align-items:center;justify-content:center;z-index:60;padding:18px;}
@@ -302,16 +302,16 @@ sweep(document)})();</script>
   .pickbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
   .pickbar input[type=date]{padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:12.5px;}
   .picklist{display:flex;flex-direction:column;gap:6px;}
-  .prow{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line-2);border-radius:8px;cursor:pointer;background:#fcfdfe;}
-  .prow.on{border-color:var(--amber);background:#fffaf0;}
-  .pthumb{width:44px;height:44px;flex:0 0 44px;border-radius:6px;background:#eef1f5;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;}
+  .prow{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line-2);border-radius:8px;cursor:pointer;background:#fcfbfa;}
+  .prow.on{border-color:var(--amber-ink);background:#faf9fa;}
+  .pthumb{width:44px;height:44px;flex:0 0 44px;border-radius:6px;background:#f4f3f0;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;}
   .pthumb img{width:100%;height:100%;object-fit:cover;}
   .pmeta{display:flex;flex-direction:column;gap:2px;min-width:0;}
   .pnm{font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .pdt{font-size:11.5px;color:var(--muted);}
   .pickmsg{font-size:12px;color:var(--muted);}
   .chkbox{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-2);}
-  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,18px);background:#1b2430;
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,18px);background:#1b1b1d;
     color:#fff;font-size:13px;padding:10px 18px;border-radius:24px;
     box-shadow:0 6px 22px rgba(27,36,48,.3);opacity:0;pointer-events:none;transition:.22s;
     z-index:99;max-width:90vw;}
@@ -376,13 +376,13 @@ sweep(document)})();</script>
           <div class="field">
             <label for="fProject">工程名稱
               <span style="display:inline-block;margin-left:6px;font-size:11px;font-weight:700;
-                color:#2f7d54;background:#e4f2ea;border:1px solid #cfe6da;padding:1px 8px;
+                color:#5f7a63;background:#edf1ed;border:1px solid #d3ded5;padding:1px 8px;
                 border-radius:20px;vertical-align:middle;">固定值</span>
             </label>
             <input type="text" id="fProject" readonly aria-readonly="true"
-              style="background:#f2f8f4;border-color:#d5e8dd;font-weight:700;color:#1d2b3a;cursor:not-allowed;"
+              style="background:#f2f5f2;border-color:#d3ded5;font-weight:700;color:#1d2b3a;cursor:not-allowed;"
               placeholder="布袋商港聯外道路新闢工程">
-            <div style="font-size:11.5px;color:#6b7a8d;margin-top:6px;line-height:1.6;">
+            <div style="font-size:11.5px;color:#6e6e74;margin-top:6px;line-height:1.6;">
               此欄位為固定值，不需也不能修改；Word 輸出時一律帶入此名稱。
             </div>
           </div>
@@ -409,12 +409,12 @@ sweep(document)})();</script>
                   <div>
                     <input type="text" id="fItemNo" placeholder="壹.二.43"
                       aria-label="契約項次">
-                    <div style="font-size:11px;color:#8b98a8;margin-top:4px;">契約項次</div>
+                    <div style="font-size:11px;color:#8a8a90;margin-top:4px;">契約項次</div>
                   </div>
                   <div>
                     <input type="text" id="fItemName" placeholder="預壘樁，280kgf/cm²，直徑=60cm"
                       aria-label="契約名稱／規格">
-                    <div style="font-size:11px;color:#8b98a8;margin-top:4px;">契約名稱／規格</div>
+                    <div style="font-size:11px;color:#8a8a90;margin-top:4px;">契約名稱／規格</div>
                   </div>
                 </div>
               </div>
@@ -431,7 +431,7 @@ sweep(document)})();</script>
 
               <div>
                 <div class="colhead">
-                  <span>契約細項 <span style="font-weight:400;color:#8b98a8;">（選填，留空則不輸出）</span></span>
+                  <span>契約細項 <span style="font-weight:400;color:#8a8a90;">（選填，留空則不輸出）</span></span>
                   <span class="badge">選填</span>
                   <span class="cnt" id="detailCnt">0 行</span>
                 </div>
@@ -446,7 +446,7 @@ sweep(document)})();</script>
             <div style="margin-top:8px;display:flex;gap:7px;">
               <button class="btn btn-ghost btn-sm" id="btnSaveItem" type="button">＋ 存為常用項目</button>
             </div>
-            <div style="font-size:11.5px;color:#6b7a8d;margin-top:7px;line-height:1.6;">
+            <div style="font-size:11.5px;color:#6e6e74;margin-top:7px;line-height:1.6;">
               <b>輸出順序：</b>契約項次及契約名稱 → 單元位置 →（契約細項，若有填）。<br>
               <b>項次與名稱合併同一格：</b>「契約項次」＋一個半形空格＋「契約名稱／規格」，
               例如 <b>壹.二.43 預壘樁，280kgf/cm²，直徑=60cm</b>；項次在前、名稱規格在後。<br>
@@ -486,11 +486,11 @@ PR1-5（0K+154）"></textarea>
               <span class="spacer"></span>
               <label class="chk"><input type="checkbox" id="fAutoNum" checked> 自動套用（一）（二）…編號</label>
             </div>
-            <div style="font-size:11.5px;color:#6b7a8d;margin-top:7px;line-height:1.6;">
+            <div style="font-size:11.5px;color:#6e6e74;margin-top:7px;line-height:1.6;">
               <b>固定兩列：</b>（一）查驗位置、（二）查驗內容各固定一列，<b>不會因為你多填而新增列</b>；
               整段文字原樣放入該列，由 Word 依欄寬自動換行（同一段落內，段落數不變）。<br>
               <b>兩欄各自獨立：</b>左欄「查驗位置」一行一個位置（多筆以「、」串接）、右欄「查驗內容」一行一個項目（多筆以「；」串接）。
-              <span id="allocHint" style="color:#2f7d54;font-weight:600;"></span>
+              <span id="allocHint" style="color:#5f7a63;font-weight:600;"></span>
             </div>
           </div>
 
@@ -543,12 +543,12 @@ PR1-5（0K+154）"></textarea>
                 <label>附件照片 <span class="hint">（選用；從「相片上傳歸檔」已上傳的照片挑選，會接在附件表格下方）</span></label>
                 <div class="inlineacts" style="margin:0 0 8px;">
                   <button class="btn btn-ghost btn-sm" id="btnAttPick" type="button">📂 從歸檔照片挑選</button>
-                  <span style="font-size:11.5px;color:#6b7a8d;align-self:center;" id="attPhotoCnt">尚未選擇照片</span>
+                  <span style="font-size:11.5px;color:#6e6e74;align-self:center;" id="attPhotoCnt">尚未選擇照片</span>
                 </div>
                 <div id="attPhotoList" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
               </div>
 
-              <div style="font-size:11.5px;color:#6b7a8d;margin-top:8px;line-height:1.6;">
+              <div style="font-size:11.5px;color:#6e6e74;margin-top:8px;line-height:1.6;">
                 <b>欄位：</b>契約項次／項目及說明／單位／查驗數量／監造覆核，與參考檔「活頁簿1」一致；
                 表頭 14pt、內容 12pt、標楷體、細框線、置中，標題 16pt 置中。<br>
                 <b>第一列自動帶入：</b>「契約項次」與「項目及說明」直接取自查驗單上方的契約項次與契約名稱，
@@ -566,7 +566,7 @@ PR1-5（0K+154）"></textarea>
           <div class="field" style="margin-top:16px;">
             <label>Google Drive 雲端備份 <span class="hint">（純前端 · 不需後端）</span></label>
             <div id="gdMount"></div>
-            <div style="font-size:11.5px;color:#6b7a8d;margin-top:8px;line-height:1.6;">
+            <div style="font-size:11.5px;color:#6e6e74;margin-top:8px;line-height:1.6;">
               表單內容同時存在瀏覽器本機；按「☁ 存到 Google Drive」可備份到雲端硬碟
               <code>營建查驗資料</code> 資料夾，換裝置時按「⬇ 從 Google Drive 載入」取回。
             </div>
@@ -590,7 +590,7 @@ PR1-5（0K+154）"></textarea>
       <div class="card">
         <div class="pv-bar">
           <span class="lbl">即時預覽</span>
-          <span class="tag" style="font-size:11px;background:#eef4fb;color:var(--steel-2);border:1px solid #d3e2f2;padding:1px 7px;border-radius:20px;font-weight:600;">A4 直式</span>
+          <span class="tag" style="font-size:11px;background:#f6edec;color:var(--steel-2);border:1px solid #e3d2d0;padding:1px 7px;border-radius:20px;font-weight:600;">A4 直式</span>
           <div class="spacer"></div>
           <div class="zoom">
             <button id="zOut" type="button">−</button>
@@ -750,7 +750,7 @@ PR1-5（0K+154）"></textarea>
 
     var q = $("quickList");
     if(!arr.length){
-      q.innerHTML = '<span style="font-size:11.5px;color:#8b98a8;">尚無常用項目，填好施工項目後按「存為常用項目」。</span>';
+      q.innerHTML = '<span style="font-size:11.5px;color:#8a8a90;">尚無常用項目，填好施工項目後按「存為常用項目」。</span>';
       return;
     }
     q.innerHTML = arr.map(function(v,i){
@@ -1089,18 +1089,18 @@ PR1-5（0K+154）"></textarea>
 
     rows.forEach(function(r, i){
       var wrap = document.createElement("div");
-      wrap.style.cssText = "border:1px solid #e8edf3;border-radius:8px;padding:9px;background:#fcfdfe;";
+      wrap.style.cssText = "border:1px solid #eae7e3;border-radius:8px;padding:9px;background:#fcfbfa;";
 
       var head = document.createElement("div");
       head.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:7px;";
       var no = document.createElement("span");
-      no.style.cssText = "font-size:11px;font-weight:700;color:#c47f17;background:#fdf6e7;border:1px solid #f0dfb8;padding:0 7px;border-radius:20px;";
+      no.style.cssText = "font-size:11px;font-weight:700;color:#93939b;background:#f0eff1;border:1px solid #dcd8d4;padding:0 7px;border-radius:20px;";
       no.textContent = "第 " + (i+1) + " 列";
       var del = document.createElement("button");
       del.type = "button";
       del.textContent = "×";
       del.title = "刪除此列";
-      del.style.cssText = "margin-left:auto;background:none;border:none;color:#b3261e;cursor:pointer;font-size:17px;line-height:1;padding:2px 6px;border-radius:5px;";
+      del.style.cssText = "margin-left:auto;background:none;border:none;color:#a34a45;cursor:pointer;font-size:17px;line-height:1;padding:2px 6px;border-radius:5px;";
       del.addEventListener("click", function(){
         state.attach.rows.splice(i,1);
         renderAttRows();
@@ -1115,13 +1115,13 @@ PR1-5（0K+154）"></textarea>
         var d = document.createElement("div");
         if(f.key === "desc") d.style.gridColumn = "1 / -1";
         var lb = document.createElement("div");
-        lb.style.cssText = "font-size:11px;font-weight:600;color:#6b7a8d;margin-bottom:3px;";
+        lb.style.cssText = "font-size:11px;font-weight:600;color:#6e6e74;margin-bottom:3px;";
         lb.textContent = f.label;
         var inp = document.createElement("input");
         inp.type = "text";
         inp.value = r[f.key] == null ? "" : r[f.key];
         inp.placeholder = f.ph;
-        inp.style.cssText = "width:100%;padding:7px 9px;font-size:13px;border:1px solid #d8dee7;border-radius:6px;background:#fff;font-family:inherit;";
+        inp.style.cssText = "width:100%;padding:7px 9px;font-size:13px;border:1px solid #dcd8d4;border-radius:6px;background:#fff;font-family:inherit;";
         inp.addEventListener("input", function(){
           r[f.key] = inp.value;
           renderPreview();
@@ -1216,11 +1216,11 @@ PR1-5（0K+154）"></textarea>
     var list = attPickFiltered();
     $("attPickCount").textContent = list.length + " 張";
     if (!attPickRecords.length){
-      box.innerHTML = '<div style="padding:22px;text-align:center;color:#6b7a8d;font-size:12.5px;">尚無歸檔照片。<br>請先到「相片上傳歸檔」上傳照片。</div>';
+      box.innerHTML = '<div style="padding:22px;text-align:center;color:#6e6e74;font-size:12.5px;">尚無歸檔照片。<br>請先到「相片上傳歸檔」上傳照片。</div>';
       updateAttPickUI(); return;
     }
     if (!list.length){
-      box.innerHTML = '<div style="padding:22px;text-align:center;color:#6b7a8d;font-size:12.5px;">此日期區間沒有符合的歸檔照片。</div>';
+      box.innerHTML = '<div style="padding:22px;text-align:center;color:#6e6e74;font-size:12.5px;">此日期區間沒有符合的歸檔照片。</div>';
       updateAttPickUI(); return;
     }
     var html = "";
@@ -1310,7 +1310,7 @@ PR1-5（0K+154）"></textarea>
         '<span class="pthumb" data-atthumb2="' + escapeHtml(p.id) + '" style="width:56px;height:56px;">🖼</span>' +
         '<button type="button" data-attdel="' + i + '" title="移除" ' +
           'style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;border:none;' +
-          'background:#b3261e;color:#fff;font-size:11px;line-height:1;cursor:pointer;padding:0;">×</button>' +
+          'background:#a34a45;color:#fff;font-size:11px;line-height:1;cursor:pointer;padding:0;">×</button>' +
       '</span>';
     });
     box.innerHTML = html;

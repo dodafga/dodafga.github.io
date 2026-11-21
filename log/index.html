@@ -7,11 +7,11 @@
 <title>查驗紀錄表｜逐筆記錄 · 樁位資料表</title>
 <style>
   :root{
-    --ink:#1b2430; --ink-2:#3d4a5c; --muted:#6b7a8d;
-    --line:#d8dee7; --line-2:#e8edf3; --bg:#eef1f5; --card:#fff;
-    --steel:#1f3a5f; --steel-2:#2c5282;
-    --amber:#c47f17; --amber-bg:#fdf6e7;
-    --ok:#1f7a4d; --danger:#b3261e; --radius:10px;
+    --ink:#1b1b1d; --ink-2:#3a3a3e; --muted:#6e6e74;
+    --line:#dcd8d4; --line-2:#eae7e3; --bg:#f4f3f0; --card:#fff;
+    --steel:#976666; --steel-2:#7a4f4e;
+    --amber:#93939b;--amber-ink:#5f5f66; --amber-bg:#f0eff1;
+    --ok:#5f7a63; --danger:#a34a45; --radius:10px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -21,13 +21,13 @@
     background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
     font-size:15px;line-height:1.6;
   }
-  header{background:var(--steel);color:#fff;padding:18px 22px 16px;border-bottom:3px solid var(--amber);}
+  header{background:var(--steel);color:#fff;padding:18px 22px 16px;border-bottom:3px solid #c09d9b;}
   .hwrap{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
-  .logo{width:38px;height:38px;flex:0 0 38px;border-radius:8px;background:var(--amber);color:#1b2430;
+  .logo{width:38px;height:38px;flex:0 0 38px;border-radius:8px;background:var(--amber);color:#1b1b1d;
     display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;}
   h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.3px;}
-  .sub{font-size:12.5px;color:#b9c8da;margin-top:2px;}
-  .hmeta{margin-left:auto;font-size:12px;color:#b9c8da;text-align:right;line-height:1.5;}
+  .sub{font-size:12.5px;color:#f0e6e5;margin-top:2px;}
+  .hmeta{margin-left:auto;font-size:12px;color:#f0e6e5;text-align:right;line-height:1.5;}
   .hmeta b{color:#fff;font-weight:600;}
 
   .wrap{max-width:1180px;margin:0 auto;padding:20px 22px 60px;}
@@ -35,11 +35,11 @@
     box-shadow:0 1px 2px rgba(27,36,48,.05);margin-bottom:16px;}
   .card-h{padding:13px 16px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
   .card-h h2{font-size:14.5px;margin:0;font-weight:700;}
-  .card-h .tag{font-size:11px;background:var(--amber-bg);color:var(--amber);
-    border:1px solid #f0dfb8;padding:1px 7px;border-radius:20px;font-weight:600;}
-  .card-h .tag.ok{background:#e9f5ee;color:var(--ok);border-color:#cfe6da;}
+  .card-h .tag{font-size:11px;background:var(--amber-bg);color:var(--amber-ink);
+    border:1px solid #dcd8d4;padding:1px 7px;border-radius:20px;font-weight:600;}
+  .card-h .tag.ok{background:#edf1ed;color:var(--ok);border-color:#d3ded5;}
   /* 樁位資料表標題旁的「本日已建檔／未建檔」統計 */
-  .card-h .tag.stat{background:#eef3fb;color:#2f5d9e;border-color:#d3e0f2;font-variant-numeric:tabular-nums;}
+  .card-h .tag.stat{background:#f6edec;color:#2f5d9e;border-color:#d3e0f2;font-variant-numeric:tabular-nums;}
   .card-h .tag.stat b{font-weight:700;}
   .card-h .tag.stat .sd{color:var(--ok);}
   .card-h .tag.stat .st{color:#8a6d1f;}
@@ -52,7 +52,7 @@
   label .hint{font-weight:400;color:var(--muted);font-size:11.5px;margin-left:5px;}
   input[type=text],input[type=date],select,textarea{
     width:100%;padding:9px 11px;font-size:14px;border:1px solid var(--line);border-radius:7px;
-    background:#fcfdfe;color:var(--ink);font-family:inherit;line-height:1.5;
+    background:#fcfbfa;color:var(--ink);font-family:inherit;line-height:1.5;
     transition:border-color .15s,box-shadow .15s,background .15s;
   }
   select{appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7a8d'/%3E%3C/svg%3E");
@@ -66,9 +66,9 @@
   .btn-primary{background:var(--steel);color:#fff;}
   .btn-primary:hover{background:var(--steel-2);}
   .btn-ghost{background:#fff;color:var(--ink-2);border-color:var(--line);}
-  .btn-ghost:hover{background:#f5f8fb;border-color:#c3cedb;}
-  .btn-danger{background:#fff;color:var(--danger);border-color:#f0cfcc;}
-  .btn-danger:hover{background:#fdf3f2;}
+  .btn-ghost:hover{background:#f6f4f2;border-color:#d5d0cb;}
+  .btn-danger{background:#fff;color:var(--danger);border-color:#e5cfcd;}
+  .btn-danger:hover{background:#f8edec;}
   .btn:disabled{opacity:.5;cursor:not-allowed;}
   .btn-sm{font-size:12px;padding:6px 11px;border-radius:6px;}
 
@@ -86,24 +86,24 @@
     color:var(--muted);margin-top:6px;line-height:1.55;}
   .plegend .lg{display:inline-flex;align-items:center;gap:4px;font-weight:800;
     padding:1px 8px;border-radius:20px;font-size:11px;white-space:nowrap;}
-  .plegend .lg-done{background:rgba(21,128,61,.13);color:#15803d;}
+  .plegend .lg-done{background:rgba(21,128,61,.13);color:#5f7a63;}
   .plegend .lg-todo{background:rgba(107,122,141,.14);color:#5d6b7d;}
-  option.optDone{color:#15803d;font-weight:700;}
-  option.optTodo{color:#6b7a8d;}
+  option.optDone{color:#5f7a63;font-weight:700;}
+  option.optTodo{color:#6e6e74;}
   .chipall{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
   .chipall:empty{display:none;}
   .bulkbtn{font-family:inherit;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;
     background:#fff;color:var(--steel-2);border:1px dashed #b9cbe4;cursor:pointer;transition:.15s;}
-  .bulkbtn:hover{background:#eef4fc;border-style:solid;}
+  .bulkbtn:hover{background:#f6edec;border-style:solid;}
   .bulkbtn:disabled{opacity:.45;cursor:not-allowed;}
 
   .fixedrow{display:flex;align-items:center;gap:9px;padding:8px 11px;border:1px solid var(--line-2);
-    border-radius:7px;background:#f7f9fc;margin-bottom:7px;font-size:13px;}
+    border-radius:7px;background:#f8f6f4;margin-bottom:7px;font-size:13px;}
   .fixedrow:last-child{margin-bottom:0;}
   .fixedrow .k{flex:0 0 74px;color:var(--muted);font-size:12px;font-weight:600;}
   .fixedrow .v{flex:1;min-width:0;color:var(--ink);font-weight:600;word-break:break-all;}
-  .fixedrow .lk{flex:0 0 auto;font-size:10.5px;color:var(--ok);background:#e9f5ee;
-    border:1px solid #cfe6da;padding:0 6px;border-radius:20px;font-weight:600;}
+  .fixedrow .lk{flex:0 0 auto;font-size:10.5px;color:var(--ok);background:#edf1ed;
+    border:1px solid #d3ded5;padding:0 6px;border-radius:20px;font-weight:600;}
 
   .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;}
   table.rec{width:100%;border-collapse:collapse;min-width:620px;}
@@ -113,28 +113,28 @@
   table.rec th:nth-child(4){width:82px;}
   table.rec th:nth-child(5){width:auto;min-width:220px;}
   table.rec th:nth-child(6){width:46px;}
-  table.rec th{background:#eef2f7;color:var(--ink-2);font-size:12px;font-weight:700;
+  table.rec th{background:#f2f0ed;color:var(--ink-2);font-size:12px;font-weight:700;
     padding:8px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
   table.rec th.c,table.rec td.c{text-align:center;}
   table.rec td{padding:6px 6px;border-bottom:1px solid var(--line-2);vertical-align:top;font-size:13px;}
   table.rec tr:last-child td{border-bottom:none;}
-  table.rec tr:hover td{background:#fafcfe;}
-  table.rec .seq{font-weight:700;color:var(--amber);font-size:12.5px;width:44px;}
+  table.rec tr:hover td{background:#fbfaf9;}
+  table.rec .seq{font-weight:700;color:var(--amber-ink);font-size:12.5px;width:44px;}
   table.rec input,table.rec select{font-size:12.5px;padding:6px 8px;border-radius:6px;}
   table.rec .del{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;
     line-height:1;padding:3px 7px;border-radius:5px;}
-  table.rec .del:hover{background:#fdf3f2;}
+  table.rec .del:hover{background:#f8edec;}
   table.rec .dup{display:inline-block;margin-left:5px;font-size:10px;font-weight:700;color:var(--danger);
-    background:#fdecea;border:1px solid #f5c9c4;border-radius:20px;padding:0 6px;vertical-align:middle;}
+    background:#f8edec;border:1px solid #e5cfcd;border-radius:20px;padding:0 6px;vertical-align:middle;}
   .empty{text-align:center;padding:26px 12px;color:var(--muted);font-size:13px;}
 
   /* 樁位資料表：量測表 */
   .mtable{width:100%;border-collapse:collapse;margin-top:4px;}
-  .mtable th{background:#eef2f7;color:var(--ink-2);font-size:12px;font-weight:700;
+  .mtable th{background:#f2f0ed;color:var(--ink-2);font-size:12px;font-weight:700;
     padding:8px 10px;text-align:left;border:1px solid var(--line);white-space:nowrap;}
   .mtable th.c{text-align:center;}
   .mtable td{border:1px solid var(--line-2);padding:7px 10px;font-size:13px;vertical-align:middle;}
-  .mtable td.design{background:#f7f9fc;color:var(--ink-2);font-weight:600;width:38%;}
+  .mtable td.design{background:#f8f6f4;color:var(--ink-2);font-weight:600;width:38%;}
   .mtable td.actual{background:#fff;}
   .mtable .rowno{width:34px;text-align:center;color:var(--muted);font-size:11.5px;font-weight:700;}
   .mtable input{font-size:13px;padding:6px 8px;}
@@ -143,16 +143,16 @@
   .mtable .inline .u{font-size:12px;color:var(--muted);white-space:nowrap;}
   .mtable .inline .sep{color:var(--muted);font-size:12px;}
   .mtable .calc{font-weight:700;color:var(--steel-2);min-width:52px;display:inline-block;}
-  .mtable .calc.warn{color:#d92d20;}
+  .mtable .calc.warn{color:#a34a45;}
 
   table.rec .pile{font-weight:700;color:var(--steel-2);}
   /* 明細按鈕放大（原本 11.5px／22px 高，手指不好按） */
-  table.rec .exp{background:#fff;border:1px solid #c3cedb;color:var(--steel-2);cursor:pointer;
+  table.rec .exp{background:#fff;border:1px solid #d5d0cb;color:var(--steel-2);cursor:pointer;
     font-size:13px;font-weight:700;padding:7px 15px;border-radius:7px;font-family:inherit;
     min-width:68px;line-height:1.25;}
-  table.rec .exp:hover{background:#eef4fc;border-color:var(--steel-2);}
+  table.rec .exp:hover{background:#f6edec;border-color:var(--steel-2);}
   table.rec .exp:active{background:#e2ecf9;}
-  .detail td{background:#fbfcfe;padding:0 !important;}
+  .detail td{background:#fbfaf9;padding:0 !important;}
   .detail .dbox{padding:16px 18px;}
   .detail .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px 22px;}
   .detail .di{font-size:13.5px;color:var(--ink-2);line-height:1.7;}
@@ -160,7 +160,7 @@
   .detail .di span{font-weight:700;color:var(--ink);font-size:14px;}
   .detail .di span .warnv,
   .qdetail .di span .warnv,
-  .warnv{color:#d92d20;}
+  .warnv{color:#a34a45;}
 
   /* 查詢列：加大輸入框與按鈕，並讓關鍵字欄位更明顯 */
   .qbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
@@ -173,23 +173,23 @@
   /* 查詢區下方的常駐條列清單：未輸入條件時列出全部，有條件時列出搜尋結果 */
   .qlist{margin-top:12px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff;}
   .qlist-h{display:flex;align-items:center;justify-content:space-between;gap:10px;
-    padding:9px 13px;background:#f4f7fb;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-2);}
+    padding:9px 13px;background:#f9f4f3;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-2);}
   .qlist-h b{font-size:13px;color:var(--ink);}
   .qlist-h .qmode{font-size:11.5px;font-weight:700;border-radius:20px;padding:2px 9px;
-    background:rgba(21,128,61,.12);color:#15803d;white-space:nowrap;}
+    background:rgba(21,128,61,.12);color:#5f7a63;white-space:nowrap;}
   .qlist-h .qmode.search{background:rgba(37,99,235,.12);color:#1d4ed8;}
   .qlist-b{max-height:340px;overflow-y:auto;}
   .qitem{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--line-2);
     font-size:13px;line-height:1.5;}
   .qitem:last-child{border-bottom:0;}
-  .qitem:hover{background:#f8fafd;}
+  .qitem:hover{background:#f9f7f5;}
   .qitem .qi-no{flex:0 0 26px;text-align:right;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;}
   .qitem .qi-date{flex:0 0 84px;color:var(--ink-2);font-variant-numeric:tabular-nums;}
   .qitem .qi-pile{flex:0 0 92px;font-weight:700;color:var(--steel-2);}
   .qitem .qi-sum{flex:1;min-width:0;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .qitem .qi-btn{flex:0 0 auto;font-size:12px;font-weight:700;padding:5px 12px;border-radius:6px;
     border:1px solid var(--line);background:#fff;color:var(--steel-2);cursor:pointer;font-family:inherit;}
-  .qitem .qi-btn:hover{background:#eef4fc;border-color:var(--steel-2);}
+  .qitem .qi-btn:hover{background:#f6edec;border-color:var(--steel-2);}
   .qitem .qi-detail{flex-basis:100%;}
   .qdetail{padding:10px 0 4px 36px;}
   .qdetail .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 20px;}
@@ -202,12 +202,12 @@
     .qitem .qi-sum{flex-basis:100%;white-space:normal;}
   }
   /* 儀器高自動帶入的 a 值：唯讀，用底色區分 */
-  .mtable input[readonly]{background:#eef2f7;color:var(--steel-2);font-weight:700;cursor:default;}
-  .mtable .autoTag{font-size:10.5px;font-weight:700;color:#15803d;background:rgba(21,128,61,.12);
+  .mtable input[readonly]{background:#f2f0ed;color:var(--steel-2);font-weight:700;cursor:default;}
+  .mtable .autoTag{font-size:10.5px;font-weight:700;color:#5f7a63;background:rgba(21,128,61,.12);
     border-radius:20px;padding:1px 7px;white-space:nowrap;}
 
   .note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:12px;
-    background:#f7f9fc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
+    background:#f8f6f4;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px;}
   .note b{color:var(--ink-2);}
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
     background:var(--ink);color:#fff;padding:11px 20px;border-radius:9px;font-size:13.5px;

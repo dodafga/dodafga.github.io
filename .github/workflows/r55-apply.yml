@@ -1,0 +1,35 @@
+name: r55 apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r55-apply.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download files
+        run: |
+          set -e
+          curl -fsSL -o assets/site.css "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/site/site.css"
+          curl -fsSL -o assets/assistant.js "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/assistant/assistant.js"
+          curl -fsSL -o build/index.html "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/index/index.html"
+          echo "--- sizes ---"
+          wc -c assets/site.css assets/assistant.js build/index.html
+          echo "--- sha ---"
+          sha256sum assets/site.css assets/assistant.js build/index.html
+          echo "--- sanity ---"
+          grep -c "\u66ab\u5b58\u5340" build/index.html
+          grep -c "btnStageLine" assets/assistant.js
+          node --check assets/assistant.js
+      - name: Commit
+        run: |
+          set -e
+          git config user.name "Teamily Agent"
+          git config user.email "agent@teamily.ai"
+          git add assets/site.css assets/assistant.js build/index.html
+          git commit -m "\u7248\u9762\u91cd\u6574\uff1a\u83ab\u862d\u8fea\u914d\u8272\u3001\u624b\u6a5f\u512a\u5148\u3001\u66ab\u5b58\u5340\uff08\u5206\u4eab\u524d\u5148\u8f09\u5165\uff09" || echo "nothing to commit"
+          git push

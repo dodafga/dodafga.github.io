@@ -1,0 +1,30 @@
+name: apply-r52
+on:
+  push:
+    paths:
+      - '.github/workflows/apply52.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fetch and verify
+        run: |
+          set -euo pipefail
+          curl -fsSL --max-time 60 --retry 3 https://paste.rs/5l4rr -o assets/assistant.js
+          curl -fsSL --max-time 60 --retry 3 https://paste.rs/O7ZiH -o build/index.html
+          echo "6a5917495cf7bbf960536ca7462636b9b6f787d4f30c0d5c0b565cbaaff01840  assets/assistant.js" | sha256sum -c -
+          echo "30b2a4deee65a197ae480ee22faa7124b5806c4214cf0bc88d1b9a80a603f553  build/index.html" | sha256sum -c -
+          wc -c assets/assistant.js build/index.html
+          grep -c libPngFile assets/assistant.js
+          grep -c '分享 PNG 到 LINE' build/index.html
+      - name: commit
+        run: |
+          set -euo pipefail
+          git config user.name dodafga
+          git config user.email dodafga@users.noreply.github.com
+          git add assets/assistant.js build/index.html
+          git commit -m "施工照片歸檔：分享改為真正的 PNG 圖檔（強制轉檔），不支援時改為下載 PNG" || echo nothing
+          git push

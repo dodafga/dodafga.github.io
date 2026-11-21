@@ -62,6 +62,10 @@
           <input type="text" id="fItem" placeholder="例：預壘樁查驗" autocomplete="off">
         </label>
       </div>
+      <label class="fld" style="margin-top:10px">
+        <span>廠商名稱</span>
+        <input type="text" id="fVendor" placeholder="例：義力營造" autocomplete="off">
+      </label>
 
       <div class="crewblock">
         <div class="crewhead">
@@ -106,31 +110,12 @@
       <div class="cardhd">
         <h2>加入照片</h2>
       </div>
-      <div class="addrow addrow3">
-        <label class="addbtn" for="fileCam">
-          <span class="big" aria-hidden="true">📷</span>
-          <span>拍照</span>
-        </label>
-        <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
-
-        <button type="button" class="addbtn" id="btnCamLoop">
-          <span class="big" aria-hidden="true">📸</span>
-          <span>連續拍照</span>
-        </button>
-        <input type="file" id="fileCamLoop" accept="image/*" capture="environment" hidden>
-
-        <label class="addbtn" for="filePick">
-          <span class="big" aria-hidden="true">📁</span>
-          <span>本機上傳</span>
-        </label>
-        <input type="file" id="filePick" accept="image/*" multiple hidden>
-      </div>
-      <div class="camloop" id="camLoopBar" style="display:none">
-        <span class="clstate" id="camLoopTxt">連續拍照中</span>
-        <span style="margin-left:auto"></span>
-        <button type="button" class="btn sm" id="btnCamAgain">＋ 再拍</button>
-        <button type="button" class="btn ghost sm" id="btnCamEnd">結束</button>
-      </div>
+      <label class="addbtn wide" for="filePick">
+        <span class="big" aria-hidden="true">📷</span>
+        <span>加入照片</span>
+        <span class="sm2">可一次多選；手機可直接拍照</span>
+      </label>
+      <input type="file" id="filePick" accept="image/*" multiple hidden>
     </div>
 
     <div class="card">
@@ -141,6 +126,11 @@
       <div class="pgrid" id="pgrid"></div>
       <div class="empty" id="pEmpty">拍照或本機上傳後，照片會先放在這裡</div>
       <div class="prog" id="pProg"></div>
+      <label class="chk" style="margin-top:12px">
+        <input type="checkbox" id="chkShareText">
+        分享到 LINE 時附上文字說明
+      </label>
+      <div class="hintx" id="shareTextPreview" style="margin:2px 0 0;display:none"></div>
       <div class="btnrow" style="margin-top:12px">
         <button type="button" class="btn ibtn" id="btnUpload" disabled title="上傳至 Google Drive" aria-label="上傳至 Google Drive"><span class="ic">☁</span><span class="cnt" id="upCount">0</span></button>
         <button type="button" class="btn ghost ibtn" id="btnDownload" disabled title="下載到本機" aria-label="下載到本機"><span class="ic">⬇</span></button>

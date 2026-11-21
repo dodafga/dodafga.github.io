@@ -316,10 +316,6 @@ main{flex:1 1 auto;max-width:760px;width:100%;margin:0 auto;
 .rdyitem.err .rdyst{color:var(--rose);font-weight:700}
 
 /* 分享診斷 */
-.diag{margin:0 0 10px;border-radius:11px;background:#F7F6F3;padding:8px 12px}
-.diag summary{cursor:pointer;font-size:13px;font-weight:800;color:var(--ink2);padding:10px 0;min-height:44px;display:flex;align-items:center}
-.dgbody{margin-top:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.7;color:var(--ink2);word-break:break-all}
-.dgline{padding:1px 0}
 
 /* 圖示按鈕 */
 .btn.ibtn{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:52px;padding:0 14px}
@@ -376,3 +372,6 @@ main{flex:1 1 auto;max-width:760px;width:100%;margin:0 auto;
   .sysswitch a{padding:0 11px;font-size:12.5px}
   .sysswitch a .ic2{display:none}
 }
+
+.hintx:empty{display:none}
+.crewempty:empty{display:none}

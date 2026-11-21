@@ -13,15 +13,60 @@ function paintShareText(){
   if(!shareTextPreview)return;
   var on=!!(chkShareText&&chkShareText.checked),txt=buildShareText();
   if(!on||!txt){shareTextPreview.style.display="none";shareTextPreview.textContent="";return}
-  shareTextPreview.style.display="block";shareTextPreview.textContent="將附上："+txt;
+  shareTextPreview.style.display="block";shareTextPreview.textContent="照片送出後附上："+txt;
 }
 C.on(chkShareText,"change",function(){C.store.set("build-assistant-sharetext",chkShareText.checked?"1":"0"),paintShareText()});
-/* 組分享內容：勾選附文字時才帶 text（不帶 title，避免多一行「施工照片 N 張」） */
-function sharePayload(files){
-  var p={files:files};
-  if(chkShareText&&chkShareText.checked){var t=buildShareText();if(t)p.text=t}
-  return p;
+/* ---- 分享：照片先送完，文字說明在照片送出後才附 ---- */
+var pendingShareText="",btnShareText=$("btnShareText");
+function copyText(txt){
+  return new Promise(function(res){
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){res(true)}).catch(function(){res(false)});
+    }else res(false);
+  });
 }
+function showShareTextBtn(txt){
+  pendingShareText=txt||"";
+  if(!btnShareText)return;
+  if(!pendingShareText){btnShareText.style.display="none";return}
+  btnShareText.style.display="";
+  btnShareText.textContent="附上文字說明";
+}
+function shareTextOnly(txt){
+  if(!txt)return Promise.resolve("none");
+  var pr;
+  try{pr=navigator.share({text:txt})}
+  catch(e){return copyText(txt).then(function(ok){return ok?"copied":"fail"})}
+  return Promise.resolve(pr).then(function(){return "shared"}).catch(function(e){
+    if(e&&e.name==="AbortError")return "abort";
+    return copyText(txt).then(function(ok){return ok?"copied":"fail"});
+  });
+}
+/* 第一段只送照片（不帶 text、不帶 title）；照片送出後才送文字 */
+function sharePhotosThenText(files){
+  var txt=(chkShareText&&chkShareText.checked)?buildShareText():"";
+  var pr;
+  try{pr=navigator.share({files:files})}
+  catch(e){return Promise.reject(e)}
+  return Promise.resolve(pr).then(function(){
+    if(!txt)return "photos";
+    showShareTextBtn(txt);
+    return shareTextOnly(txt).then(function(r){
+      if(r==="shared"){showShareTextBtn("");toast("照片已送出，文字說明已附上")}
+      else if(r==="copied"){toast("照片已送出，文字已複製，貼到 LINE 即可")}
+      else if(r==="abort"){toast("照片已送出；文字未附，可按「附上文字說明」")}
+      return "photos+text";
+    });
+  });
+}
+C.on(btnShareText,"click",function(){
+  var txt=pendingShareText||buildShareText();
+  if(!txt){toast("沒有可附的文字",!0);return}
+  shareTextOnly(txt).then(function(r){
+    if(r==="shared"){showShareTextBtn("");toast("文字說明已附上")}
+    else if(r==="copied"){toast("文字已複製，貼到 LINE 即可")}
+  });
+});
 (function(){var v=C.store.get("build-assistant-sharetext","");chkShareText&&(chkShareText.checked=v==="1");paintShareText()})();crewLoad(),crewRender(),crewBind("typeRows","type"),crewBind("machRows","mach"),C.on($("btnAddType"),"click",function(){crewAdd("type")}),C.on($("btnAddMach"),"click",function(){crewAdd("mach")});
 /* ---- 常用班組 ---- */
 var K_PRESET="build-assistant-presets",presets=[],presetSeq=0;
@@ -79,7 +124,7 @@ function stagePreparePng(it){
     updateBtns();
     return it.pngFile;
   }).catch(function(){it.pngFile=null;updateBtns();return null});
-}C.on($("filePick"),"change",function(e){addFiles(e.target.files),e.target.value=""}),C.on(pgrid,"click",function(e){var b=e.target.closest?e.target.closest("button[data-act]"):null;if(b){for(var id=b.getAttribute("data-id"),idx=-1,i=0;i<stage.length;i++)if(stage[i].id===id){idx=i;break}if(!(idx<0)){var act=b.getAttribute("data-act");if(act==="del")stage.splice(idx,1),renderStage();else if(act==="rot"){var it=stage[idx];it.angle=(it.angle+90)%360,it.status="idle",it.pngFile=null,loadBitmap(it.file).then(function(bmp){var cv=drawTo(bmp,it.angle,THUMB_EDGE);it.thumb=thumbURL(cv),freeBmp(bmp),renderStage()}).catch(function(){renderStage()}),stagePreparePng(it).then(function(){updateBtns()})}}}}),C.on(btnClear,"click",function(){stage.length&&confirm("要清空目前暫存的 "+stage.length+" 張照片嗎？（已上傳到 Drive 的不受影響）")&&(stage=[],renderStage())});function buildName(dateISO,item,n){var d=String(dateISO||todayISO()).replace(/-/g,""),mid=safeName(item||"",24);if(!mid){var now=new Date;mid=pad2(now.getHours())+pad2(now.getMinutes())+pad2(now.getSeconds())}return d+"_"+mid+"_"+pad2(n)+".png"}function finalize(it,dateISO,index){return loadBitmap(it.file).then(function(bmp){var cv=drawTo(bmp,it.angle,MAX_EDGE);freeBmp(bmp);var applied=!1;if(wmOn)try{applied=stampDate(cv,dateISO)}catch(e){applied=!1}return canvasToPng(cv).then(function(blob){return{blob,applied,width:cv.width,height:cv.height}})})}C.on(btnUpload,"click",function(){if(uploading||!stage.length)return;var G=window.GDrivePhoto;if(!G){toast("Drive 模組未載入",!0);return}var dateISO=fDate&&fDate.value||todayISO(),item=(fItem&&fItem.value||"").trim(),vendor=(fVendor&&fVendor.value||"").trim(),typeTxt=crewTexts("type").join("、"),machTxt=crewTexts("mach").join("、");uploading=!0,updateBtns(),pProg&&(pProg.textContent="正在連線 Google Drive…");var okN=0,errN=0,i=0;function step(){if(i>=stage.length){if(uploading=!1,updateBtns(),pProg&&(pProg.textContent="完成：成功 "+okN+" 張"+(errN?"，失敗 "+errN+" 張":"")+"。"),toast(errN?"上傳完成，成功 "+okN+" 張、失敗 "+errN+" 張":"已上傳 "+okN+" 張到 Google Drive",!!errN),okN)try{window.__buildLibRefresh&&window.__buildLibRefresh()}catch(e){}return}var it=stage[i];if(it.status==="done"){i++,step();return}it.status="busy",renderStage(),pProg&&(pProg.textContent="處理第 "+(i+1)+" / "+stage.length+" 張…"),finalize(it,dateISO,i+1).then(function(fin){var name=buildName(dateISO,item,i+1),desc=[];return item&&desc.push("工項："+item),vendor&&desc.push("廠商："+vendor),typeTxt&&desc.push("工種："+typeTxt),machTxt&&desc.push("機具："+machTxt),desc.push("浮水印："+(fin.applied?dateISO:"未套用")),G.uploadPhoto({blob:fin.blob,filename:name,date:dateISO,mime:"image/png",description:desc.join("｜")}).then(function(res){it.status="done",it.msg=res.name||name,it.name=res.name||name,okN++})}).catch(function(e){it.status="err",it.msg=e&&e.message?e.message:"上傳失敗",errN++}).then(function(){i++,renderStage(),step()})}G.ensureToken?G.ensureToken().then(step).catch(function(e){uploading=!1,updateBtns();var msg=e&&e.message?e.message:"需要授權";pProg&&(pProg.textContent="⚠ "+msg),toast(msg,!0)}):step()}),C.on(btnDownload,"click",function(){if(uploading||!stage.length)return;var dateISO=fDate&&fDate.value||todayISO(),item=(fItem&&fItem.value||"").trim(),i=0;function step(){if(i>=stage.length){toast("已下載 "+stage.length+" 張");return}var it=stage[i];finalize(it,dateISO,i+1).then(function(fin){C.download(buildName(dateISO,item,i+1),fin.blob,"image/png"),i++,setTimeout(step,320)}).catch(function(){i++,step()})}step()});var connDot=$("connDot"),connTxt=$("connTxt"),connBtn=$("connBtn");function paintConn(st){if(!(!connDot||!connTxt)){var map={connected:["ok","已連線 Google Drive"],connecting:["wait","連線中…"],silent:["wait","自動連線…"],syncing:["wait","同步中…"],expired:["warn","授權已過期，請重新連線"],unauthorized:["warn","尚未授權"],idle:["","尚未連線"],error:["err","連線失敗"]},m=map[st&&st.state]||map.idle;connDot.className="dot "+m[0],connTxt.textContent=m[1]+(st&&st.email?"（"+st.email+"）":""),connBtn&&(connBtn.textContent=st&&st.state==="connected"?"↻ 重新連線":"🔗 連線 Google Drive")}}var G0=window.GDrivePhoto;if(G0&&G0.onStatus&&(G0.onStatus(paintConn),G0.restoreToken&&G0.restoreToken()))try{G0.silentConnect().catch(function(){})}catch(e){}C.on(connBtn,"click",function(){var G=window.GDrivePhoto;if(!G){toast("Drive 模組未載入",!0);return}G.connect().then(function(){toast("已連線 Google Drive")}).catch(function(e){toast(e&&e.message||"連線失敗",!0)})}),renderStage();var libDate=$("libDate"),libItem=$("libItem"),libGrid=$("libGrid"),libEmpty=$("libEmpty"),libBar=$("libBar"),libSel=$("libSel"),libSum=$("libSum"),libAll=[],libPicked={},libLoading=!1;libDate&&!libDate.value&&(libDate.value=todayISO());function libItemOf(rec){var it=rec.item||"";if(!it){var m=/^\d{8}_(.+?)_\d{2}\.[a-z0-9]+$/i.exec(rec.name||"");if(m){var mid=m[1];/^\d{6}$/.test(mid)||(it=mid)}}return it}function libFillItems(){if(libItem){var seen={},list=[];libAll.forEach(function(r){var it=libItemOf(r);it&&!seen[it]&&(seen[it]=1,list.push(it))}),list.sort();var cur=libItem.value,html='<option value="">全部工項</option>';list.forEach(function(it){html+='<option value="'+esc(it)+'">'+esc(it)+"</option>"}),libItem.innerHTML=html,cur&&seen[cur]&&(libItem.value=cur)}}function libVisible(){var want=libItem?libItem.value:"";return want?libAll.filter(function(r){return libItemOf(r)===want}):libAll}function libCount(){var n=0;for(var k in libPicked)libPicked[k]&&n++;return n}function libRender(){if(libGrid){var vis=libVisible();if(!vis.length){libGrid.innerHTML="",libEmpty&&(libEmpty.style.display="block",libEmpty.textContent=libAll.length?"這個工項沒有照片，換一個工項或選「全部工項」。":"這一天在「義力 / 施工照片 / "+(libDate?libDate.value:"")+"」沒有照片。"),libBar&&(libBar.style.display="none"),libSum&&(libSum.textContent=libAll.length?"當日 "+libAll.length+" 張":"沒有照片");return}libEmpty&&(libEmpty.style.display="none"),libBar&&(libBar.style.display="flex");var html="";vis.forEach(function(r,i){var on=!!libPicked[r.id];html+='<figure class="libitem'+(on?" sel":"")+'" data-id="'+esc(r.id)+'"><div class="limg"><span class="lchk" aria-hidden="true">✓</span><span class="lno">第 '+(i+1)+' 張</span></div><figcaption title="'+esc(r.name)+'">'+esc(r.name)+'</figcaption><div class="lmeta">'+esc(libItemOf(r)||"（未填工項）")+"</div>"+(r.crewType||r.crewMach?'<div class="lcrew">'+(r.crewType?'<span class="lc lct">工種：'+esc(r.crewType)+"</span>":"")+(r.crewMach?'<span class="lc lcm">機具：'+esc(r.crewMach)+"</span>":"")+"</div>":"")+"</figure>"}),libGrid.innerHTML=html;for(var figs=libGrid.querySelectorAll(".libitem"),j=0;j<figs.length;j++)(function(fig,rec){var box=fig.querySelector(".limg"),G=window.GDrivePhoto;!G||!G.makeThumb||G.makeThumb(rec.id,260).then(function(url){if(url){var img=document.createElement("img");img.src=url,img.alt=rec.name||"",img.loading="lazy";var no=box.querySelector(".lno");no&&no.remove(),box.insertBefore(img,box.firstChild)}}).catch(function(){})})(figs[j],vis[j]);libSum&&(libSum.textContent="當日 "+libAll.length+" 張"+(libItem&&libItem.value?"，本工項 "+vis.length+" 張":"")),libUpdateSel()}}function libUpdateSel(){var n=libCount();libSel&&(libSel.textContent="已選 "+n+" 張");var recs=libPickedRecs();try{recs.forEach(function(r){libPrepare(r)})}catch(e){}libRenderReady();libUpdateShareBtn()}function libLoad(){var G=window.GDrivePhoto;if(!G||!G.listDayPhotos){toast("Drive 模組未載入",!0);return}if(!libLoading){var d=libDate&&libDate.value||"";if(!d){toast("請先選日期",!0);return}libLoading=!0,libSum&&(libSum.textContent="讀取中…"),libEmpty&&(libEmpty.style.display="block",libEmpty.textContent="正在讀取 Google Drive…"),libGrid&&(libGrid.innerHTML=""),libBar&&(libBar.style.display="none"),G.listDayPhotos(d).then(function(res){if(libAll=res&&res.records||[],libPicked={},libBlobCache={},libReady={},libThumbURL={},libLastShare=null,libLastErr="",libAdded={},libFillItems(),libRender(),!libAll.length){var why=res&&res.reason;libEmpty&&(libEmpty.style.display="block",libEmpty.textContent=why==="no-parent"?"Drive 上還沒有「義力」資料夾。":why==="no-root"?"「義力」裡還沒有「施工照片」資料夾。":"「義力 / 施工照片」裡沒有 "+d+" 這個日期的資料夾。")}toast("已讀取 "+libAll.length+" 張")}).catch(function(e){libEmpty&&(libEmpty.style.display="block",libEmpty.textContent="讀取失敗："+(e&&e.message||"未知錯誤")),toast(e&&e.message||"讀取失敗",!0)}).then(function(){libLoading=!1})}}C.on($("btnLibLoad"),"click",libLoad),C.on(libItem,"change",function(){libRender()}),C.on(libDate,"change",function(){libAll=[],libPicked={},libRender()}),C.on(libGrid,"click",function(e){var fig=e.target.closest?e.target.closest(".libitem"):null;if(fig){var id=fig.getAttribute("data-id");id&&(libPicked[id]?delete libPicked[id]:libPicked[id]=!0,fig.classList.toggle("sel",!!libPicked[id]),libUpdateSel())}}),C.on($("btnLibAll"),"click",function(){libVisible().forEach(function(r){libPicked[r.id]=!0}),libRender(),libUpdateSel()}),C.on($("btnLibNone"),"click",function(){libPicked={},libRender(),libRenderReady(),libUpdateShareBtn()});function libPickedRecs(){return libAll.filter(function(r){return libPicked[r.id]})}C.on($("btnLibCopy"),"click",function(){var recs=libPickedRecs();if(!recs.length)return;var txt=recs.map(function(r){return r.name+"\n"+r.link}).join("\n\n");function done(){toast("已複製 "+recs.length+" 張的連結")}navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt).then(done).catch(function(){C.download("photo-links.txt",txt,"text/plain"),done()}):(C.download("photo-links.txt",txt,"text/plain"),done())});var libBlobCache={},libPrefetching={};
+}C.on($("filePick"),"change",function(e){addFiles(e.target.files),e.target.value=""}),C.on(pgrid,"click",function(e){var b=e.target.closest?e.target.closest("button[data-act]"):null;if(b){for(var id=b.getAttribute("data-id"),idx=-1,i=0;i<stage.length;i++)if(stage[i].id===id){idx=i;break}if(!(idx<0)){var act=b.getAttribute("data-act");if(act==="del")stage.splice(idx,1),renderStage();else if(act==="rot"){var it=stage[idx];it.angle=(it.angle+90)%360,it.status="idle",it.pngFile=null,loadBitmap(it.file).then(function(bmp){var cv=drawTo(bmp,it.angle,THUMB_EDGE);it.thumb=thumbURL(cv),freeBmp(bmp),renderStage()}).catch(function(){renderStage()}),stagePreparePng(it).then(function(){updateBtns()})}}}}),C.on(btnClear,"click",function(){stage.length&&confirm("要清空目前暫存的 "+stage.length+" 張照片嗎？（已上傳到 Drive 的不受影響）")&&(stage=[],renderStage())});function buildName(dateISO,item,n){var d=String(dateISO||todayISO()).replace(/-/g,""),mid=safeName(item||"",24);if(!mid){var now=new Date;mid=pad2(now.getHours())+pad2(now.getMinutes())+pad2(now.getSeconds())}return d+"_"+mid+"_"+pad2(n)+".png"}function finalize(it,dateISO,index){return loadBitmap(it.file).then(function(bmp){var cv=drawTo(bmp,it.angle,MAX_EDGE);freeBmp(bmp);var applied=!1;if(wmOn)try{applied=stampDate(cv,dateISO)}catch(e){applied=!1}return canvasToPng(cv).then(function(blob){return{blob,applied,width:cv.width,height:cv.height}})})}C.on(btnUpload,"click",function(){if(uploading||!stage.length)return;var G=window.GDrivePhoto;if(!G){toast("Drive 模組未載入",!0);return}var dateISO=fDate&&fDate.value||todayISO(),item=(fItem&&fItem.value||"").trim(),vendor=(fVendor&&fVendor.value||"").trim(),typeTxt=crewTexts("type").join("、"),machTxt=crewTexts("mach").join("、");uploading=!0,updateBtns(),pProg&&(pProg.textContent="正在連線 Google Drive…");var okN=0,errN=0,i=0;function step(){if(i>=stage.length){if(uploading=!1,updateBtns(),pProg&&(pProg.textContent="完成：成功 "+okN+" 張"+(errN?"，失敗 "+errN+" 張":"")+"。"),toast(errN?"上傳完成，成功 "+okN+" 張、失敗 "+errN+" 張":"已上傳 "+okN+" 張到 Google Drive",!!errN),okN)try{window.__buildLibRefresh&&window.__buildLibRefresh()}catch(e){}return}var it=stage[i];if(it.status==="done"){i++,step();return}it.status="busy",renderStage(),pProg&&(pProg.textContent="處理第 "+(i+1)+" / "+stage.length+" 張…"),finalize(it,dateISO,i+1).then(function(fin){var name=buildName(dateISO,item,i+1),desc=[];return item&&desc.push("工項："+item),vendor&&desc.push("廠商："+vendor),typeTxt&&desc.push("工種："+typeTxt),machTxt&&desc.push("機具："+machTxt),desc.push("浮水印："+(fin.applied?dateISO:"未套用")),G.uploadPhoto({blob:fin.blob,filename:name,date:dateISO,mime:"image/png",description:desc.join("｜")}).then(function(res){it.status="done",it.msg=res.name||name,it.name=res.name||name,okN++})}).catch(function(e){it.status="err",it.msg=e&&e.message?e.message:"上傳失敗",errN++}).then(function(){i++,renderStage(),step()})}G.ensureToken?G.ensureToken().then(step).catch(function(e){uploading=!1,updateBtns();var msg=e&&e.message?e.message:"需要授權";pProg&&(pProg.textContent="⚠ "+msg),toast(msg,!0)}):step()}),C.on(btnDownload,"click",function(){if(uploading||!stage.length)return;var dateISO=fDate&&fDate.value||todayISO(),item=(fItem&&fItem.value||"").trim(),i=0;function step(){if(i>=stage.length){toast("已下載 "+stage.length+" 張");return}var it=stage[i];finalize(it,dateISO,i+1).then(function(fin){C.download(buildName(dateISO,item,i+1),fin.blob,"image/png"),i++,setTimeout(step,320)}).catch(function(){i++,step()})}step()});var connDot=$("connDot"),connTxt=$("connTxt"),connBtn=$("connBtn");function paintConn(st){if(!(!connDot||!connTxt)){var map={connected:["ok","已連線 Google Drive"],connecting:["wait","連線中…"],silent:["wait","自動連線…"],syncing:["wait","同步中…"],expired:["warn","授權已過期，請重新連線"],unauthorized:["warn","尚未授權"],idle:["","尚未連線"],error:["err","連線失敗"]},m=map[st&&st.state]||map.idle;connDot.className="dot "+m[0],connTxt.textContent=m[1]+(st&&st.email?"（"+st.email+"）":""),connBtn&&(connBtn.textContent=st&&st.state==="connected"?"↻ 重新連線":"🔗 連線 Google Drive")}}var G0=window.GDrivePhoto;if(G0&&G0.onStatus&&(G0.onStatus(paintConn),G0.restoreToken&&G0.restoreToken()))try{G0.silentConnect().catch(function(){})}catch(e){}C.on(connBtn,"click",function(){var G=window.GDrivePhoto;if(!G){toast("Drive 模組未載入",!0);return}G.connect().then(function(){toast("已連線 Google Drive")}).catch(function(e){toast(e&&e.message||"連線失敗",!0)})}),renderStage();var libDate=$("libDate"),libItem=$("libItem"),libGrid=$("libGrid"),libEmpty=$("libEmpty"),libBar=$("libBar"),libSel=$("libSel"),libSum=$("libSum"),libAll=[],libPicked={},libLoading=!1;libDate&&!libDate.value&&(libDate.value=todayISO());function libItemOf(rec){var it=rec.item||"";if(!it){var m=/^\d{8}_(.+?)_\d{2}\.[a-z0-9]+$/i.exec(rec.name||"");if(m){var mid=m[1];/^\d{6}$/.test(mid)||(it=mid)}}return it}function libFillItems(){if(libItem){var seen={},list=[];libAll.forEach(function(r){var it=libItemOf(r);it&&!seen[it]&&(seen[it]=1,list.push(it))}),list.sort();var cur=libItem.value,html='<option value="">全部工項</option>';list.forEach(function(it){html+='<option value="'+esc(it)+'">'+esc(it)+"</option>"}),libItem.innerHTML=html,cur&&seen[cur]&&(libItem.value=cur)}}function libVisible(){var want=libItem?libItem.value:"";return want?libAll.filter(function(r){return libItemOf(r)===want}):libAll}function libCount(){var n=0;for(var k in libPicked)libPicked[k]&&n++;return n}function libRender(){if(libGrid){var vis=libVisible();if(!vis.length){libGrid.innerHTML="",libEmpty&&(libEmpty.style.display="block",libEmpty.textContent=libAll.length?"此工項無照片":"此日期無照片"),libBar&&(libBar.style.display="none"),libSum&&(libSum.textContent=libAll.length?libAll.length+" 張":"");return}libEmpty&&(libEmpty.style.display="none"),libBar&&(libBar.style.display="flex");var html="";vis.forEach(function(r,i){var on=!!libPicked[r.id];html+='<figure class="libitem'+(on?" sel":"")+'" data-id="'+esc(r.id)+'"><div class="limg"><span class="lchk" aria-hidden="true">✓</span><span class="lno">第 '+(i+1)+' 張</span></div><figcaption title="'+esc(r.name)+'">'+esc(r.name)+'</figcaption><div class="lmeta">'+esc(libItemOf(r)||"（未填工項）")+"</div>"+(r.crewType||r.crewMach?'<div class="lcrew">'+(r.crewType?'<span class="lc lct">工種：'+esc(r.crewType)+"</span>":"")+(r.crewMach?'<span class="lc lcm">機具：'+esc(r.crewMach)+"</span>":"")+"</div>":"")+"</figure>"}),libGrid.innerHTML=html;for(var figs=libGrid.querySelectorAll(".libitem"),j=0;j<figs.length;j++)(function(fig,rec){var box=fig.querySelector(".limg"),G=window.GDrivePhoto;!G||!G.makeThumb||G.makeThumb(rec.id,260).then(function(url){if(url){var img=document.createElement("img");img.src=url,img.alt=rec.name||"",img.loading="lazy";var no=box.querySelector(".lno");no&&no.remove(),box.insertBefore(img,box.firstChild)}}).catch(function(){})})(figs[j],vis[j]);libSum&&(libSum.textContent=(libItem&&libItem.value?vis.length+"/"+libAll.length:libAll.length)+" 張"),libUpdateSel()}}function libUpdateSel(){var n=libCount();libSel&&(libSel.textContent="已選 "+n+" 張");var recs=libPickedRecs();try{recs.forEach(function(r){libPrepare(r)})}catch(e){}libRenderReady();libUpdateShareBtn()}function libLoad(){var G=window.GDrivePhoto;if(!G||!G.listDayPhotos){toast("Drive 模組未載入",!0);return}if(!libLoading){var d=libDate&&libDate.value||"";if(!d){toast("請先選日期",!0);return}libLoading=!0,libSum&&(libSum.textContent=""),libEmpty&&(libEmpty.style.display="block",libEmpty.textContent="讀取中…"),libGrid&&(libGrid.innerHTML=""),libBar&&(libBar.style.display="none"),G.listDayPhotos(d).then(function(res){if(libAll=res&&res.records||[],libPicked={},libBlobCache={},libReady={},libThumbURL={},libLastShare=null,libLastErr="",libAdded={},libFillItems(),libRender(),!libAll.length){var why=res&&res.reason;libEmpty&&(libEmpty.style.display="block",libEmpty.textContent=why==="no-parent"?"Drive 尚無「義力」資料夾":why==="no-root"?"尚無「施工照片」資料夾":"此日期無資料夾")}toast("已讀取 "+libAll.length+" 張")}).catch(function(e){libEmpty&&(libEmpty.style.display="block",libEmpty.textContent="讀取失敗"),toast(e&&e.message||"讀取失敗",!0)}).then(function(){libLoading=!1})}}C.on($("btnLibLoad"),"click",libLoad),C.on(libItem,"change",function(){libRender()}),C.on(libDate,"change",function(){libAll=[],libPicked={},libRender()}),C.on(libGrid,"click",function(e){var fig=e.target.closest?e.target.closest(".libitem"):null;if(fig){var id=fig.getAttribute("data-id");id&&(libPicked[id]?delete libPicked[id]:libPicked[id]=!0,fig.classList.toggle("sel",!!libPicked[id]),libUpdateSel())}}),C.on($("btnLibAll"),"click",function(){libVisible().forEach(function(r){libPicked[r.id]=!0}),libRender(),libUpdateSel()}),C.on($("btnLibNone"),"click",function(){libPicked={},libRender(),libRenderReady(),libUpdateShareBtn()});function libPickedRecs(){return libAll.filter(function(r){return libPicked[r.id]})}C.on($("btnLibCopy"),"click",function(){var recs=libPickedRecs();if(!recs.length)return;var txt=recs.map(function(r){return r.name+"\n"+r.link}).join("\n\n");function done(){toast("已複製 "+recs.length+" 張的連結")}navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt).then(done).catch(function(){C.download("photo-links.txt",txt,"text/plain"),done()}):(C.download("photo-links.txt",txt,"text/plain"),done())});var libBlobCache={},libPrefetching={};
 function libPngName(rec){var nm=rec&&rec.name?String(rec.name):("photo_"+(rec&&rec.id||"x")+".png");return nm.replace(/\.[a-z0-9]+$/i,"")+".png"}
 function libToPngBlob(blob){return new Promise(function(res,rej){if(!blob)return rej(new Error("沒有檔案內容"));if(blob.type==="image/png")return res(blob);var WM=window.PhotoWatermark,load=WM&&WM.loadImageFromBlob?WM.loadImageFromBlob(blob):new Promise(function(r2,j2){var u=URL.createObjectURL(blob),im=new Image;im.onload=function(){URL.revokeObjectURL(u),r2({el:im,width:im.naturalWidth,height:im.naturalHeight,release:function(){}})};im.onerror=function(){URL.revokeObjectURL(u),j2(new Error("讀取失敗"))};im.src=u});load.then(function(img){try{var w=img.width||img.el&&img.el.naturalWidth||0,h=img.height||img.el&&img.el.naturalHeight||0;if(!w||!h)throw new Error("影像尺寸為 0");var cv=document.createElement("canvas");cv.width=w,cv.height=h;var ctx=cv.getContext("2d");ctx.fillStyle="#fff",ctx.fillRect(0,0,w,h),ctx.drawImage(img.el||img,0,0,w,h),cv.toBlob(function(b){b?res(b):rej(new Error("PNG 轉檔失敗"))},"image/png")}catch(e){rej(e)}finally{try{img.release&&img.release()}catch(e){}}},rej)})}
 function libPngFile(rec,blob){return libToPngBlob(blob).then(function(png){var nm=libPngName(rec),f;try{f=new File([png],nm,{type:"image/png",lastModified:Date.now()})}catch(e){f=png;try{f.name=nm,f.lastModified=Date.now()}catch(e2){}}if(!f||f.type!=="image/png"||!/\.png$/i.test(f.name||""))throw new Error("不是 PNG 檔");return f})}
@@ -128,7 +173,7 @@ function libUpdateShareBtn(){
   }
   var d=$("btnLibDl");d&&(d.disabled=!(n&&ready===n));
   var c=$("btnLibCopy");c&&(c.disabled=n===0);
-  libDiagRender();
+  
 }
 function libDiagRender(){
   var body=$("libDiagBody");if(!body)return;
@@ -151,47 +196,47 @@ function libDiagRender(){
   lines.push("UA："+String(navigator.userAgent||"").slice(0,120));
   body.innerHTML=lines.map(function(t){return '<div class="dgline">'+esc(t)+'</div>'}).join("");
 }
-function libDownloadPngs(files,why){if(!files||!files.length)return;var i=0;function step(){if(i>=files.length){toast("已下載 "+files.length+" 張 PNG，請從相簿／檔案選取後貼進 LINE",!1);libSetMode("已下載 "+files.length+" 張 PNG 到本機（"+(why||"此瀏覽器不支援直接分享檔案")+"）。請開啟相簿／檔案，選取後貼進 LINE。");return}var f=files[i];C.download(f.name||("photo_"+(i+1)+".png"),f,"image/png"),i++,setTimeout(step,420)}step()}
+function libDownloadPngs(files,why){if(!files||!files.length)return;var i=0;function step(){if(i>=files.length){toast("已下載 "+files.length+" 張 PNG，請從相簿／檔案選取後貼進 LINE",!1);libSetMode("已下載 "+files.length+" 張 PNG");return}var f=files[i];C.download(f.name||("photo_"+(i+1)+".png"),f,"image/png"),i++,setTimeout(step,420)}step()}
 C.on($("btnLibLine"),"click",function(){
   var recs=libPickedRecs();
   if(!recs.length){toast("請先勾選照片",!0);return}
   var files=[],missing=0;
   recs.forEach(function(r){var s=libReady[r.id];if(s&&s.status==="ready"&&s.file)files.push(s.file);else missing++});
   if(missing||!files.length){
-    libSetMode("還有 "+missing+" 張尚未載入完成，請等上方顯示「已就緒」再按。");
+    libSetMode("尚有 "+missing+" 張載入中");
     toast("照片還在載入，請稍候",!0);
     return;
   }
   // 已就緒的圖片已在 libPrepare 時自動放進暫存區，這裡只負責帶到暫存區
   var added=0;
   recs.forEach(function(r){if(libAdded[r.id])added++});
-  libSetMode("已把 "+added+" 張 PNG 放進上方「暫存區」，請到暫存區按 LINE 分享。");
+  libSetMode("已放入暫存區 "+added+" 張");
   toast("已放進暫存區 "+added+" 張，請到暫存區按 LINE 分享");
   var pc=$("pCount");if(pc&&pc.scrollIntoView)try{pc.scrollIntoView({behavior:"smooth",block:"center"})}catch(e){}
   return;
   /* 以下為舊的直接分享流程，保留不用 */
   var _unused=0;
   var bad=files.filter(function(f){return !(f&&f.type==="image/png"&&/\.png$/i.test(f.name||""))});
-  if(bad.length){libLastErr="有 "+bad.length+" 張不是 PNG";libSetMode("有 "+bad.length+" 張不是 PNG，已停止分享。");toast("檔案格式不是 PNG，已停止分享",!0);libDiagRender();return}
+  if(bad.length){libLastErr="有 "+bad.length+" 張不是 PNG";libSetMode("格式不符，已停止");toast("檔案格式不是 PNG，已停止分享",!0);return}
   libLastShare={n:files.length,types:files.map(function(f){return f.type}),names:files.map(function(f){return f.name})};
   libLastErr="";
   if(!libCanShareFiles(files)){
-    libSetMode("此瀏覽器不支援直接分享檔案 → 改為下載 "+files.length+" 張 PNG");
+    libSetMode("已改為下載 "+files.length+" 張 PNG");
     toast("此瀏覽器不支援直接分享圖片檔，已改為下載 PNG（"+files.length+" 張）",!0);
-    libDiagRender();
+    
     libDownloadPngs(files,"此瀏覽器不支援直接分享檔案");
     return;
   }
-  libSetMode("以 PNG 圖檔分享（"+files.length+" 張）");
-  libDiagRender();
+  libSetMode("分享 "+files.length+" 張 PNG");
+  
   var pr;
-  try{pr=navigator.share(sharePayload(files))}
-  catch(e){libLastErr=(e&&e.name||"Error")+"："+(e&&e.message||"");libSetMode("分享失敗 → 改為下載 "+files.length+" 張 PNG");libDiagRender();libDownloadPngs(files,"分享面板無法使用");return}
-  if(pr&&pr.then)pr.then(function(){toast("已開啟分享面板，選 LINE 後送出（"+files.length+" 張 PNG）")}).catch(function(e){
-    if(e&&e.name==="AbortError"){libSetMode("已取消分享。");libDiagRender();return}
+  try{pr=sharePhotosThenText(files)}
+  catch(e){libLastErr=(e&&e.name||"Error")+"："+(e&&e.message||"");libSetMode("已改為下載 "+files.length+" 張 PNG");libDownloadPngs(files,"分享面板無法使用");return}
+  if(pr&&pr.then)pr.then(function(){toast("照片已送出（"+files.length+" 張）")}).catch(function(e){
+    if(e&&e.name==="AbortError"){libSetMode("");return}
     libLastErr=(e&&e.name||"Error")+"："+(e&&e.message||"");
-    libSetMode("分享面板無法使用 → 改為下載 "+files.length+" 張 PNG");
-    libDiagRender();
+    libSetMode("已改為下載 "+files.length+" 張 PNG");
+    
     libDownloadPngs(files,"分享面板無法使用");
   });
 }),C.on($("btnStageLine"),"click",function(){
@@ -205,9 +250,9 @@ C.on($("btnLibLine"),"click",function(){
     return;
   }
   var pr;
-  try{pr=navigator.share(sharePayload(files))}
+  try{pr=sharePhotosThenText(files)}
   catch(e){toast("分享失敗，已改為下載 PNG",!0);libDownloadPngs(files,"分享面板無法使用");return}
-  if(pr&&pr.then)pr.then(function(){toast("已開啟分享面板，選 LINE 後送出（"+files.length+" 張 PNG）")}).catch(function(e){
+  if(pr&&pr.then)pr.then(function(){toast("照片已送出（"+files.length+" 張）")}).catch(function(e){
     if(e&&e.name==="AbortError")return;
     toast("分享面板無法使用，已改為下載 PNG",!0);
     libDownloadPngs(files,"分享面板無法使用");

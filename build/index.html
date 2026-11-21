@@ -14,7 +14,6 @@
     <div class="logo">造</div>
     <div class="brand">
       <h1>營造助手</h1>
-      <div class="sub" id="sub">施工照片歸檔</div>
     </div>
     <div class="hactions">
       <a class="iconbtn" href="../settings/index.html" target="_blank" rel="noopener"
@@ -76,7 +75,6 @@
           <button type="button" class="btn sm" id="btnVendorSave">儲存</button>
         </div>
         <div class="presetlist" id="vendorList"></div>
-        <div class="crewempty" id="vendorEmpty">尚無常用廠商</div>
       </div>
 
       <div class="crewblock">
@@ -85,7 +83,6 @@
           <button type="button" class="btn ghost sm" id="btnAddType">＋ 新增</button>
         </div>
         <div class="crewrows" id="typeRows"></div>
-        <div class="crewempty" id="typeEmpty">尚未新增</div>
       </div>
 
       <div class="crewblock">
@@ -94,7 +91,6 @@
           <button type="button" class="btn ghost sm" id="btnAddMach">＋ 新增</button>
         </div>
         <div class="crewrows" id="machRows"></div>
-        <div class="crewempty" id="machEmpty">尚未新增</div>
       </div>
 
       <div class="crewblock">
@@ -106,7 +102,6 @@
           <button type="button" class="btn sm" id="btnPresetSave">儲存</button>
         </div>
         <div class="presetlist" id="presetList"></div>
-        <div class="crewempty" id="presetEmpty">尚無班組</div>
       </div>
 
       <div class="rowline">
@@ -125,7 +120,6 @@
       <label class="addbtn wide" for="filePick">
         <span class="big" aria-hidden="true">📷</span>
         <span>加入照片</span>
-        <span class="sm2">可一次多選；手機可直接拍照</span>
       </label>
       <input type="file" id="filePick" accept="image/*" multiple hidden>
 
@@ -145,11 +139,11 @@
         <button type="button" class="ibtn trash" id="btnClear" disabled title="清空" aria-label="清空">🗑</button>
       </div>
       <div class="pgrid" id="pgrid"></div>
-      <div class="empty" id="pEmpty">拍照或本機上傳後，照片會先放在這裡</div>
+      <div class="empty" id="pEmpty">尚無照片</div>
       <div class="prog" id="pProg"></div>
       <label class="chk" style="margin-top:12px">
         <input type="checkbox" id="chkShareText">
-        分享到 LINE 時附上文字說明
+        照片送出後附上文字說明
       </label>
       <div class="hintx" id="shareTextPreview" style="margin:2px 0 0;display:none"></div>
       <div class="btnrow" style="margin-top:12px">
@@ -157,12 +151,13 @@
         <button type="button" class="btn ghost ibtn" id="btnDownload" disabled title="下載到本機" aria-label="下載到本機"><span class="ic">⬇</span></button>
         <button type="button" class="btn ibtn line" id="btnStageLine" disabled title="分享暫存區照片到 LINE" aria-label="分享暫存區照片到 LINE"><svg class="lineic" viewBox="0 0 34 20" aria-hidden="true"><rect x="0" y="0" width="34" height="20" rx="6" fill="#fff"/><text class="lineic2" x="17" y="14" text-anchor="middle">LINE</text></svg></button>
       </div>
+      <button type="button" class="btn ghost wide" id="btnShareText" style="display:none;margin-top:8px">附上文字說明</button>
     </div>
 
     <div class="card">
       <div class="cardhd">
         <h2>已上傳</h2>
-        <span class="hintx" id="libSum">選日期後讀取</span>
+        <span class="hintx" id="libSum"></span>
       </div>
       <div class="grid2">
         <label class="fld">
@@ -188,14 +183,7 @@
         <button type="button" class="btn ghost sm" id="btnLibCopy">連結</button>
       </div>
 
-      <div class="hintx" id="libShareHint" style="margin:2px 0 6px">勾選後會自動轉成 PNG 並直接放進上方「暫存區」，就緒後到暫存區按 LINE 分享。</div>
       <div class="hintx" id="libShareMode" style="margin:0 0 8px;font-weight:700;color:#4A5056"></div>
-
-      <details class="diag" id="libDiag">
-        <summary>🔍 分享診斷</summary>
-        <div class="dgbody" id="libDiagBody"></div>
-        <button type="button" class="btn ghost sm" id="btnLibDiagRefresh" style="margin-top:8px">↻ 更新</button>
-      </details>
 
       <div class="libgrid" id="libGrid"></div>
       <div class="empty" id="libEmpty">尚未讀取</div>

@@ -1,0 +1,20 @@
+name: r54 cleanup
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r54-cleanup.yml'
+permissions:
+  contents: write
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove one-time workflows
+        run: |
+          git config user.name "dodafga"
+          git config user.email "canon8741311@gmail.com"
+          git rm -f .github/workflows/r54-apply.yml .github/workflows/r54-cleanup.yml || true
+          git commit -m "chore: remove one-time r54 workflows" || echo "nothing"
+          git push

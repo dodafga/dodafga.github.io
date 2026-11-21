@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#1f3a5f">
-<title>營造助手｜施工照片歸檔 · 代辦事項 · 日期事項</title>
+<meta name="theme-color" content="#7A848D">
+<title>營造助手｜施工照片歸檔</title>
 <link rel="stylesheet" href="../assets/site.css">
 </head>
 <body>
@@ -14,37 +14,30 @@
     <div class="logo">造</div>
     <div class="brand">
       <h1>營造助手</h1>
-      <div class="sub" id="sub">施工照片歸檔 · 代辦事項紀錄 · 日期事項紀錄</div>
+      <div class="sub" id="sub">施工照片歸檔</div>
     </div>
     <div class="hactions">
       <a class="iconbtn" href="../settings/index.html" target="_blank" rel="noopener"
-         title="設定（Google Drive）" aria-label="設定"><span aria-hidden="true">⚙</span></a>
+         title="設定" aria-label="設定"><span aria-hidden="true">⚙</span></a>
     </div>
   </div>
-
-  <!-- 系統切換：查驗助手 ⇄ 營造助手 -->
   <div class="sysbar">
     <div class="sysswitch" role="tablist" aria-label="系統切換">
-      <a href="../index.html" role="tab" aria-selected="false">
-        <span class="ic2" aria-hidden="true">📋</span>查驗助手
-      </a>
-      <a href="index.html" class="on" role="tab" aria-selected="true" aria-current="page">
-        <span class="ic2" aria-hidden="true">🏗️</span>營造助手
-      </a>
+      <a href="../index.html" role="tab" aria-selected="false">查驗助手</a>
+      <a href="index.html" class="on" role="tab" aria-selected="true" aria-current="page">營造助手</a>
     </div>
   </div>
 </header>
 
-<!-- 功能分頁 -->
-<div class="tabbar" role="tablist" aria-label="營造助手功能">
+<div class="tabbar" role="tablist" aria-label="功能">
   <button type="button" class="tab on" data-panel="photo" role="tab" aria-selected="true">
-    <span class="ic" aria-hidden="true">📷</span>施工照片歸檔
+    <span class="ic" aria-hidden="true">📷</span>照片歸檔
   </button>
   <button type="button" class="tab" data-panel="todo" role="tab" aria-selected="false">
-    <span class="ic" aria-hidden="true">✅</span>代辦事項紀錄
+    <span class="ic" aria-hidden="true">✅</span>代辦
   </button>
   <button type="button" class="tab" data-panel="event" role="tab" aria-selected="false">
-    <span class="ic" aria-hidden="true">📅</span>日期事項紀錄
+    <span class="ic" aria-hidden="true">📅</span>日期事項
   </button>
 </div>
 
@@ -55,158 +48,153 @@
 
     <div class="card">
       <div class="cardhd">
-        <h2>歸檔設定</h2>
-        <span class="hintx">日期預設為今天</span>
+        <h2>歸檔資料</h2>
+        <span class="hintx" id="connTxt">尚未連線</span>
+        <span class="dot" id="connDot" style="margin-left:0"></span>
       </div>
       <div class="grid2">
         <label class="fld">
-          <span>歸檔日期</span>
+          <span>日期</span>
           <input type="date" id="fDate">
         </label>
         <label class="fld">
-          <span>工項 <em>（可留空）</em></span>
+          <span>工項</span>
           <input type="text" id="fItem" placeholder="例：預壘樁查驗" autocomplete="off">
         </label>
       </div>
 
-      <!-- 常用班組：存起來一鍵套用 -->
       <div class="crewblock">
         <div class="crewhead">
-          <span class="crewt">常用班組 <em>（存起來一鍵套用）</em></span>
+          <span class="crewt">工種</span>
+          <button type="button" class="btn ghost sm" id="btnAddType">＋ 新增</button>
+        </div>
+        <div class="crewrows" id="typeRows"></div>
+        <div class="crewempty" id="typeEmpty">尚未新增</div>
+      </div>
+
+      <div class="crewblock">
+        <div class="crewhead">
+          <span class="crewt">機具</span>
+          <button type="button" class="btn ghost sm" id="btnAddMach">＋ 新增</button>
+        </div>
+        <div class="crewrows" id="machRows"></div>
+        <div class="crewempty" id="machEmpty">尚未新增</div>
+      </div>
+
+      <div class="crewblock">
+        <div class="crewhead">
+          <span class="crewt">常用班組</span>
         </div>
         <div class="presetrow">
           <input type="text" id="presetName" maxlength="20" placeholder="班組名稱，例：鋼筋班" autocomplete="off">
-          <button type="button" class="btn sm" id="btnPresetSave">💾 存成常用班組</button>
+          <button type="button" class="btn sm" id="btnPresetSave">儲存</button>
         </div>
         <div class="presetlist" id="presetList"></div>
-        <div class="crewempty" id="presetEmpty">尚無常用班組。填好工種與機具後，輸入名稱按「存成常用班組」。</div>
+        <div class="crewempty" id="presetEmpty">尚無班組</div>
       </div>
 
-      <!-- 機具工種：可條列多筆 -->
-      <div class="crewblock">
-        <div class="crewhead">
-          <span class="crewt">工種 <em>（可留空，可多筆，可填數量）</em></span>
-          <button type="button" class="btn ghost sm" id="btnAddType">＋ 新增工種</button>
-        </div>
-        <div class="crewrows" id="typeRows"></div>
-        <div class="crewempty" id="typeEmpty">尚未新增工種</div>
-      </div>
-
-      <div class="crewblock">
-        <div class="crewhead">
-          <span class="crewt">機具 <em>（可留空，可多筆，可填數量）</em></span>
-          <button type="button" class="btn ghost sm" id="btnAddMach">＋ 新增機具</button>
-        </div>
-        <div class="crewrows" id="machRows"></div>
-        <div class="crewempty" id="machEmpty">尚未新增機具</div>
-      </div>
       <div class="rowline">
         <label class="chk">
           <input type="checkbox" id="chkWm" checked>
-          壓上日期浮水印（格式與查驗助手相同）
+          壓上日期浮水印
         </label>
-      </div>
-      <div class="connrow">
-        <span class="dot" id="connDot"></span>
-        <span id="connTxt">尚未連線</span>
-        <span style="margin-left:auto"></span>
-        <button type="button" class="btn ghost sm" id="connBtn">🔗 連線 Google Drive</button>
+        <button type="button" class="btn ghost sm" id="connBtn" style="margin-left:auto">🔗 連線 Drive</button>
       </div>
     </div>
 
     <div class="card">
       <div class="cardhd">
         <h2>加入照片</h2>
-        <span class="hintx">可一次多張</span>
       </div>
       <div class="addrow addrow3">
         <label class="addbtn" for="fileCam">
           <span class="big" aria-hidden="true">📷</span>
           <span>拍照</span>
-          <span class="sm2">開相機拍一張</span>
         </label>
         <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
 
         <button type="button" class="addbtn" id="btnCamLoop">
           <span class="big" aria-hidden="true">📸</span>
           <span>連續拍照</span>
-          <span class="sm2">拍完一張接著拍下一張</span>
         </button>
         <input type="file" id="fileCamLoop" accept="image/*" capture="environment" hidden>
 
         <label class="addbtn" for="filePick">
           <span class="big" aria-hidden="true">📁</span>
-          <span>從本機上傳</span>
-          <span class="sm2">可一次選取多個檔案</span>
+          <span>本機上傳</span>
         </label>
         <input type="file" id="filePick" accept="image/*" multiple hidden>
       </div>
       <div class="camloop" id="camLoopBar" style="display:none">
         <span class="clstate" id="camLoopTxt">連續拍照中</span>
         <span style="margin-left:auto"></span>
-        <button type="button" class="btn sm" id="btnCamAgain">＋ 再拍一張</button>
-        <button type="button" class="btn ghost sm" id="btnCamEnd">結束拍照</button>
+        <button type="button" class="btn sm" id="btnCamAgain">＋ 再拍</button>
+        <button type="button" class="btn ghost sm" id="btnCamEnd">結束</button>
       </div>
     </div>
 
     <div class="card">
       <div class="cardhd">
-        <h2>待上傳照片 <span class="cnt" id="pCount">0</span></h2>
-        <span class="hintx" id="pProg"></span>
-        <button type="button" class="ibtn trash" id="btnClear" disabled title="清空待上傳照片" aria-label="清空待上傳照片">🗑</button>
+        <h2>暫存區 <span class="cnt" id="pCount">0</span></h2>
+        <button type="button" class="ibtn trash" id="btnClear" disabled title="清空" aria-label="清空">🗑</button>
       </div>
       <div class="pgrid" id="pgrid"></div>
-      <div class="empty" id="pEmpty">尚未加入照片。用上面的「拍照」或「從本機上傳」加入。</div>
-      <div class="btnrow" style="margin-top:14px">
+      <div class="empty" id="pEmpty">拍照或本機上傳後，照片會先放在這裡</div>
+      <div class="prog" id="pProg"></div>
+      <div class="btnrow" style="margin-top:12px">
         <button type="button" class="btn ibtn" id="btnUpload" disabled title="上傳至 Google Drive" aria-label="上傳至 Google Drive"><span class="ic">☁</span><span class="cnt" id="upCount">0</span></button>
         <button type="button" class="btn ghost ibtn" id="btnDownload" disabled title="下載到本機" aria-label="下載到本機"><span class="ic">⬇</span></button>
+        <button type="button" class="btn ibtn line" id="btnStageLine" disabled title="分享暫存區照片到 LINE" aria-label="分享暫存區照片到 LINE"><svg class="lineic" viewBox="0 0 34 20" aria-hidden="true"><rect x="0" y="0" width="34" height="20" rx="6" fill="#fff"/><text class="lineic2" x="17" y="14" text-anchor="middle">LINE</text></svg></button>
       </div>
     </div>
 
     <div class="card">
       <div class="cardhd">
-        <h2>已上傳照片</h2>
-        <span class="hintx" id="libSum">選好日期後按「讀取這一天」</span>
+        <h2>已上傳</h2>
+        <span class="hintx" id="libSum">選日期後讀取</span>
       </div>
-      <div class="grid3">
+      <div class="grid2">
         <label class="fld">
-          <span>單日日期</span>
+          <span>日期</span>
           <input type="date" id="libDate">
         </label>
         <label class="fld">
-          <span>當日工項</span>
-          <select id="libItem"><option value="">全部工項</option></select>
-        </label>
-        <label class="fld">
-          <span>&nbsp;</span>
-          <button type="button" class="btn wide" id="btnLibLoad">↻ 讀取這一天</button>
+          <span>工項</span>
+          <select id="libItem"><option value="">全部</option></select>
         </label>
       </div>
+      <div class="btnrow" style="margin-top:10px">
+        <button type="button" class="btn wide" id="btnLibLoad">↻ 讀取這一天</button>
+      </div>
+
       <div class="libbar" id="libBar" style="display:none">
         <span class="libsel" id="libSel">已選 0 張</span>
         <span style="margin-left:auto"></span>
         <button type="button" class="btn ghost sm" id="btnLibAll">全選</button>
-        <button type="button" class="btn ghost sm" id="btnLibNone">取消全選</button>
-        <button type="button" class="btn sm ibtn line" id="btnLibLine" title="分享 PNG 到 LINE" aria-label="分享 PNG 到 LINE"><svg class="lineic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2C6.2 2.2 1.5 6.1 1.5 10.9c0 4.3 3.7 7.9 8.7 8.6.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1 .9.6 1.1-.5 5.9-3.5 8-6 1.5-1.6 2.2-3.3 2.2-5.1 0-4.8-4.7-8.7-10.5-8.7z"/><path class="lineic2" d="M6.6 8.6h1.2v4.6H6.6zM9.3 8.6h1.2v2.6l2.1-2.6h1.4v4.6h-1.2v-2.6l-2.1 2.6H9.3zM14.6 8.6h3.1v1.1h-1.9v.7h1.9v1.1h-1.9v.7h1.9v1.1h-3.1z"/></svg></button>
-        <button type="button" class="btn ghost sm" id="btnLibCopy">複製連結</button>
-        <button type="button" class="btn ghost sm" id="btnLibDl">下載所選</button>
+        <button type="button" class="btn ghost sm" id="btnLibNone">取消</button>
+        <button type="button" class="btn sm ibtn line" id="btnLibLine" title="分享 PNG 到 LINE" aria-label="分享 PNG 到 LINE"><svg class="lineic" viewBox="0 0 34 20" aria-hidden="true"><rect x="0" y="0" width="34" height="20" rx="6" fill="#fff"/><text class="lineic2" x="17" y="14" text-anchor="middle">LINE</text></svg></button>
+        <button type="button" class="btn ghost sm" id="btnLibDl">⬇</button>
+        <button type="button" class="btn ghost sm" id="btnLibCopy">連結</button>
       </div>
-      <div class="hintx" id="libShareHint" style="margin:2px 0 4px">勾選照片後，系統會<b>先在頁面上把每張照片從 Drive 取回並轉成 PNG</b>（下方會顯示縮圖與檔名）。等全部顯示「已就緒」，再按「分享 PNG 到 LINE」，就會把已載入好的 PNG 圖檔直接帶進系統分享面板，選 LINE 後傳的是圖片本身。若手機瀏覽器不支援直接分享檔案，會自動改為<b>把 PNG 下載到手機</b>，你再從相簿／檔案選取貼進 LINE。</div>
-      <div class="hintx" id="libShareMode" style="margin:0 0 8px;font-weight:700;color:#2c5282"></div>
+
+      <div class="hintx" id="libShareHint" style="margin:2px 0 6px">勾選後自動載入 PNG，就緒後按 LINE 會先放進暫存區再分享。</div>
+      <div class="hintx" id="libShareMode" style="margin:0 0 8px;font-weight:700;color:#4A5056"></div>
       <div class="rdybox" id="libReady" style="display:none"></div>
+
       <details class="diag" id="libDiag">
-        <summary>🔍 分享診斷（iPhone 有問題時請截圖這裡）</summary>
+        <summary>🔍 分享診斷</summary>
         <div class="dgbody" id="libDiagBody"></div>
-        <button type="button" class="btn ghost sm" id="btnLibDiagRefresh" style="margin-top:6px">↻ 重新整理診斷</button>
+        <button type="button" class="btn ghost sm" id="btnLibDiagRefresh" style="margin-top:8px">↻ 更新</button>
       </details>
+
       <div class="libgrid" id="libGrid"></div>
-      <div class="empty" id="libEmpty">尚未讀取。選好日期後按「讀取這一天」。</div>
+      <div class="empty" id="libEmpty">尚未讀取</div>
     </div>
 
   </section>
 
-  <!-- ============ 2. 代辦事項紀錄 ============ -->
-  <section class="panel" id="p-todo" role="tabpanel" aria-label="代辦事項紀錄">
+  <!-- ============ 2. 代辦事項 ============ -->
+  <section class="panel" id="p-todo" role="tabpanel" aria-label="代辦事項">
 
     <div class="odbox" id="odBox" style="display:none">
       <div class="odhd"><span aria-hidden="true">⚠</span> 逾期未完成 <span class="odn" id="odCount"></span></div>
@@ -214,30 +202,25 @@
     </div>
 
     <div class="card">
-      <div class="cardhd">
-        <h2>新增代辦</h2>
-        <span class="hintx">分「期限」與「重複性任務」</span>
-      </div>
-      <div class="grid2">
-        <label class="fld">
-          <span>代辦內容</span>
-          <input type="text" id="tTitle" placeholder="例：PR4-1 樁位複測" autocomplete="off">
-        </label>
+      <div class="cardhd"><h2>新增代辦</h2></div>
+      <label class="fld">
+        <span>內容</span>
+        <input type="text" id="tTitle" placeholder="例：PR4-1 樁位複測" autocomplete="off">
+      </label>
+      <div class="grid2" style="margin-top:10px">
         <label class="fld">
           <span>類型</span>
           <select id="tType">
-            <option value="due">期限（單次，有截止日）</option>
+            <option value="due">期限（單次）</option>
             <option value="repeat">重複性任務</option>
           </select>
         </label>
-      </div>
-      <div class="grid2" style="margin-top:12px">
         <label class="fld" id="tDueWrap">
           <span>期限</span>
           <input type="date" id="tDue">
         </label>
         <label class="fld" id="tRepeatWrap" style="display:none">
-          <span>重複頻率</span>
+          <span>頻率</span>
           <select id="tRepeat">
             <option value="daily">每天</option>
             <option value="weekly" selected>每週</option>
@@ -246,8 +229,8 @@
           </select>
         </label>
       </div>
-      <div class="btnrow" style="margin-top:14px">
-        <button type="button" class="btn" id="btnAddTodo">＋ 新增代辦</button>
+      <div class="btnrow" style="margin-top:12px">
+        <button type="button" class="btn wide" id="btnAddTodo">＋ 新增</button>
       </div>
     </div>
 
@@ -257,19 +240,16 @@
         <span class="hintx" id="todoSum"></span>
       </div>
       <ul class="list" id="todoList"></ul>
-      <div class="empty" id="todoEmpty">尚無代辦事項。</div>
+      <div class="empty" id="todoEmpty">尚無代辦</div>
     </div>
 
   </section>
 
-  <!-- ============ 3. 日期事項紀錄 ============ -->
-  <section class="panel" id="p-event" role="tabpanel" aria-label="日期事項紀錄">
+  <!-- ============ 3. 日期事項 ============ -->
+  <section class="panel" id="p-event" role="tabpanel" aria-label="日期事項">
 
     <div class="card">
-      <div class="cardhd">
-        <h2>新增日期事項</h2>
-        <span class="hintx">依日期排序</span>
-      </div>
+      <div class="cardhd"><h2>新增事項</h2></div>
       <div class="grid2">
         <label class="fld">
           <span>日期</span>
@@ -280,12 +260,12 @@
           <input type="text" id="eTitle" placeholder="例：監造查驗" autocomplete="off">
         </label>
       </div>
-      <label class="fld" style="margin-top:12px">
-        <span>備註 <em>（可留空）</em></span>
-        <textarea id="eNote" placeholder="例：上午 9:00 現場集合，攜帶查驗單"></textarea>
+      <label class="fld" style="margin-top:10px">
+        <span>備註</span>
+        <textarea id="eNote" placeholder="例：上午 9:00 現場集合"></textarea>
       </label>
-      <div class="btnrow" style="margin-top:14px">
-        <button type="button" class="btn" id="btnAddEvent">＋ 新增事項</button>
+      <div class="btnrow" style="margin-top:12px">
+        <button type="button" class="btn wide" id="btnAddEvent">＋ 新增</button>
       </div>
     </div>
 
@@ -295,7 +275,7 @@
         <span class="hintx" id="evSum"></span>
       </div>
       <div id="evList" style="display:flex;flex-direction:column;gap:8px"></div>
-      <div class="empty" id="evEmpty">尚無日期事項。</div>
+      <div class="empty" id="evEmpty">尚無事項</div>
     </div>
 
   </section>

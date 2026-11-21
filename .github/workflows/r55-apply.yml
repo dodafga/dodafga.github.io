@@ -1,9 +1,9 @@
 name: r55 apply
 on:
-  workflow_dispatch:
   push:
     paths:
       - '.github/workflows/r55-apply.yml'
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -11,26 +11,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download files
+        with:
+          ref: main
+      - name: Download and extract
         run: |
-          set -e
-          TK="tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzY6MTc5NTI0MTY4NA.Yzg5ZDYxZjFkZDUwYjdjYmY5MmI5MTNmMTc2ODc0YjQ"
-          curl -fsSL -o assets/site.css "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/site/site.css?$TK"
-          curl -fsSL -o assets/assistant.js "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/assistant/assistant.js?$TK"
-          curl -fsSL -o build/index.html "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/index/index.html?$TK"
-          echo "--- sizes ---"
-          wc -c assets/site.css assets/assistant.js build/index.html
-          echo "--- sha ---"
-          sha256sum assets/site.css assets/assistant.js build/index.html
-          echo "--- sanity ---"
+          python3 - <<'PYEOF'
+import urllib.request, zipfile, io, os, hashlib
+u = "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r55/r55.zip?tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzYvZG9jdW1lbnRzL3I1NToxNzk1MjQyMDkz.NWQyMTkwMDU4ZTVlYmE2Y2IwMGU5MjUwZGMzMDhjZjk"
+req = urllib.request.Request(u, headers={'User-Agent':'curl/8'})
+with urllib.request.urlopen(req, timeout=90) as r:
+    data = r.read()
+print("downloaded", len(data))
+z = zipfile.ZipFile(io.BytesIO(data))
+print("names:", z.namelist())
+tmp = "/tmp/r55x"
+z.extractall(tmp)
+import shutil
+shutil.copy(os.path.join(tmp,"index.html"), "build/index.html")
+shutil.copy(os.path.join(tmp,"site.css"), "assets/site.css")
+shutil.copy(os.path.join(tmp,"assistant.js"), "assets/assistant.js")
+for p in ["build/index.html","assets/site.css","assets/assistant.js"]:
+    b=open(p,'rb').read()
+    print(p, len(b), hashlib.sha256(b).hexdigest())
+PYEOF
+          node --check assets/assistant.js
           grep -c "暫存區" build/index.html
           grep -c "btnStageLine" assets/assistant.js
-          node --check assets/assistant.js
       - name: Commit
         run: |
-          set -e
-          git config user.name "Teamily Agent"
-          git config user.email "agent@teamily.ai"
-          git add assets/site.css assets/assistant.js build/index.html
-          git commit -m "版面重整：莫蘭迪配色、手機優先、暫存區（分享前先載入）" || echo "nothing to commit"
-          git push
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add build/index.html assets/site.css assets/assistant.js
+          git commit -m "版面重整：莫蘭迪配色、手機優先、暫存區（分享前先載入）" || echo "no changes"
+          git push origin main
+      - name: Self delete
+        run: |
+          git rm -f .github/workflows/r55-apply.yml
+          git commit -m "chore: remove one-time workflow"
+          git push origin main

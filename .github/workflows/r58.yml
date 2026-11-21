@@ -1,0 +1,36 @@
+name: r58 apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r58.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and write files
+        run: |
+          set -e
+          curl -fsSL --retry 5 --retry-delay 3 https://paste.rs/d2oHy -o build/index.html
+          curl -fsSL --retry 5 --retry-delay 3 https://paste.rs/uUR8Y -o assets/assistant.js
+          curl -fsSL --retry 5 --retry-delay 3 https://paste.rs/8zrPV -o assets/site.css
+          echo "--- sha ---"
+          sha256sum build/index.html assets/assistant.js assets/site.css
+          test "$(sha256sum build/index.html | cut -d' ' -f1)" = "85d8b1a942e65390b71cb3cc9f3f5bc2bc8e61332ff1c93eb81e14a112f9321a"
+          test "$(sha256sum assets/assistant.js | cut -d' ' -f1)" = "43e0670907e1022c6aa8fef24b7819c0db7e0780c3bef4de0d3f80186af73c87"
+          test "$(sha256sum assets/site.css | cut -d' ' -f1)" = "35c21da94e42d069abb9d450e78c34229845e8e26ea473e3e8eff427babcb478"
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add build/index.html assets/assistant.js assets/site.css
+          git commit -m "營造助手：移除連續拍照改為單一加入照片、分享不帶張數文字、新增廠商名稱與分享附文字勾選" || echo "no change"
+          git push
+      - name: Self remove
+        run: |
+          git rm .github/workflows/r58.yml
+          git commit -m "chore: remove one-time r58 workflow"
+          git push

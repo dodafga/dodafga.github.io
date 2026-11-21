@@ -757,6 +757,11 @@ PR1-5（0K+154）"></textarea>
     renderLockPanel();
   }
 
+  function lockFieldId(key){
+    for(var i=0;i<LOCK_FIELDS.length;i++) if(LOCK_FIELDS[i].key===key) return LOCK_FIELDS[i].id;
+    return null;
+  }
+
   function lockName(key){
     for(var i=0;i<LOCK_FIELDS.length;i++) if(LOCK_FIELDS[i].key===key) return LOCK_FIELDS[i].name;
     return key;
@@ -1657,6 +1662,11 @@ PR1-5（0K+154）"></textarea>
         if(!key) return;
         state.locks[key] = !!cb.checked;
         saveLocks();
+        /* 重新固定時，把該欄位還原成固定預設值 */
+        if(cb.checked){
+          var el = $(lockFieldId(key));
+          if(el) el.value = defaultOf(key);
+        }
         applyLocks();
         syncFromInputs();
         toast(cb.checked ? "已固定：" + lockName(key) : "已取消固定：" + lockName(key) + "（可自行填寫）");

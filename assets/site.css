@@ -106,7 +106,11 @@ main{flex:1 1 auto;max-width:1100px;width:100%;margin:0 auto;padding:16px 16px 4
   padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fff}
 .crewrow .crewcustom{flex:1 1 150px;min-width:0;font-family:inherit;font-size:14px;color:var(--ink);
   padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fff}
-.crewrow .crewsel:focus,.crewrow .crewmodel:focus,.crewrow .crewcustom:focus{
+.crewrow .crewqty{flex:0 0 74px;width:74px;min-width:0;font-family:inherit;font-size:14px;color:var(--ink);
+  padding:9px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;text-align:center}
+.crewrow .crewqty::-webkit-outer-spin-button,.crewrow .crewqty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.crewrow .crewqty{-moz-appearance:textfield;appearance:textfield}
+.crewrow .crewsel:focus,.crewrow .crewmodel:focus,.crewrow .crewcustom:focus,.crewrow .crewqty:focus{
   outline:none;border-color:var(--steel-2);box-shadow:0 0 0 3px rgba(44,82,130,.12)}
 .crewrow .crewdel{flex:0 0 auto;width:34px;height:34px;border:1px solid var(--line);border-radius:8px;
   background:#fff;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;transition:.15s}
@@ -318,4 +322,59 @@ main{flex:1 1 auto;max-width:1100px;width:100%;margin:0 auto;padding:16px 16px 4
   .brand h1{font-size:14px}
   .sysswitch a{padding:0 8px;font-size:11.5px}
   .sysswitch a .ic2{display:none}
+}
+
+/* 分享前預載 PNG 就緒區 */
+.rdybox{margin:6px 0 10px;padding:10px 12px;border:1px solid #d7e3f0;border-radius:10px;background:#f7fbff}
+.rdyhd{font-size:12.5px;color:#2c5282;margin-bottom:8px;line-height:1.6}
+.rdyhd .rdyok{color:#1a7f4b;font-weight:800}
+.rdyhd .rdyerr{color:#c0392b;font-weight:800}
+.rdyhd .rdyhint{color:#8a6d1f}
+.rdygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.rdyitem{margin:0;border:1px solid #e2e8f0;border-radius:8px;background:#fff;overflow:hidden}
+.rdyitem.ok{border-color:#9ed3b4}
+.rdyitem.err{border-color:#e8a9a2;background:#fff7f6}
+.rdyimg{position:relative;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;background:#eef2f7}
+.rdyimg img{width:100%;height:100%;object-fit:cover;display:block}
+.rdyspin{width:18px;height:18px;border:2px solid #c7d5e5;border-top-color:#2c5282;border-radius:50%;animation:rdyspin .8s linear infinite}
+@keyframes rdyspin{to{transform:rotate(360deg)}}
+.rdyitem figcaption{font-size:10.5px;padding:4px 5px 0;color:#33475b;word-break:break-all;line-height:1.35}
+.rdyst{font-size:10.5px;padding:2px 5px 5px;color:#6b7a8d}
+.rdyitem.ok .rdyst{color:#1a7f4b;font-weight:700}
+.rdyitem.err .rdyst{color:#c0392b;font-weight:700}
+/* 分享診斷 */
+.diag{margin:0 0 10px;border:1px dashed #cbd8e6;border-radius:9px;background:#fbfdff;padding:6px 10px}
+.diag summary{cursor:pointer;font-size:12px;font-weight:800;color:#2c5282;padding:2px 0}
+.dgbody{margin-top:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.7;color:#33475b;word-break:break-all}
+.dgline{padding:1px 0;border-bottom:1px dotted #e6eef7}
+@media (max-width:420px){
+  .rdygrid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}
+  .rdybox{padding:8px 9px}
+}
+
+@media (max-width:420px){
+  .crewrow .crewsel{flex:1 1 100%}
+  .crewrow .crewcustom{flex:1 1 100%}
+  .crewrow .crewqty{flex:0 0 68px;width:68px}
+}
+
+/* 圖示按鈕（上傳／下載／清空／分享） */
+.btn.ibtn{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:46px;padding:9px 13px}
+.btn.ibtn .ic{font-size:16px;line-height:1}
+.btn.ibtn .cnt{font-size:12px;font-weight:800;line-height:1;margin-left:0}
+.ibtn.trash{width:36px;height:36px;min-width:36px;padding:0;margin-left:auto;border:1px solid var(--line);
+  border-radius:8px;background:#fff;color:var(--muted);font-size:16px;line-height:1;cursor:pointer;transition:.15s}
+.ibtn.trash:hover:not(:disabled){border-color:#e0a0a0;color:#c0392b;background:#fdf3f3}
+.ibtn.trash:disabled{opacity:.45;cursor:not-allowed}
+.btn.ibtn.busy .ic{animation:icpulse 1s ease-in-out infinite}
+@keyframes icpulse{0%,100%{opacity:1}50%{opacity:.35}}
+.btn.ibtn.line{background:#06c755;border-color:#06c755;padding:8px 13px}
+.btn.ibtn.line:hover:not(:disabled){background:#05b34c;border-color:#05b34c}
+.btn.ibtn.line:disabled{background:#cfe9d9;border-color:#cfe9d9;opacity:1}
+.lineic{width:20px;height:20px;display:block;fill:#fff}
+.lineic .lineic2{fill:#06c755}
+.btn.ibtn.line:disabled .lineic{fill:#fff}
+.btn.ibtn.line:disabled .lineic2{fill:#cfe9d9}
+@media (max-width:420px){
+  .ibtn.trash{width:34px;height:34px;min-width:34px}
 }

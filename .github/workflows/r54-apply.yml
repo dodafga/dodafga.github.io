@@ -1,0 +1,29 @@
+name: r54 apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r54-apply.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch files
+        run: |
+          set -e
+          curl -fsSL https://paste.rs/yY93Z -o assets/assistant.js
+          curl -fsSL https://paste.rs/4JmA3 -o build/index.html
+          curl -fsSL https://paste.rs/zYVgo -o assets/site.css
+          wc -c assets/assistant.js build/index.html assets/site.css
+          sha256sum assets/assistant.js build/index.html assets/site.css
+          node --check assets/assistant.js
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "canon8741311@gmail.com"
+          git add assets/assistant.js build/index.html assets/site.css
+          git commit -m "施工照片歸檔：工種/機具數量、分享前預載 PNG、圖示化按鈕" || echo "no change"
+          git push

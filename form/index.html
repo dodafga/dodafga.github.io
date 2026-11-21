@@ -59,7 +59,7 @@ sweep(document)})();</script>
   :root{
     --ink:#1b1b1d; --ink-2:#3a3a3e; --muted:#6e6e74;
     --line:#dcd8d4; --line-2:#eae7e3; --bg:#f4f3f0; --card:#fff;
-    --steel:#976666; --steel-2:#7a4f4e;
+    --steel:#7a4f4e; --steel-2:#6b4443;
     --amber:#93939b;--amber-ink:#5f5f66; --amber-bg:#f0eff1;
     --ok:#5f7a63; --danger:#a34a45; --radius:10px;
   }
@@ -177,6 +177,27 @@ sweep(document)})();</script>
   .fixedrow .v{font-weight:700;color:var(--ink);}
   .fixedrow .lk{margin-left:auto;font-size:11px;color:var(--ok);font-weight:600;
     background:#edf1ed;border:1px solid #d3ded5;padding:1px 8px;border-radius:20px;white-space:nowrap;}
+
+  /* v17：欄位固定／取消固定 */
+  .locktag{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:700;
+    color:var(--ok);background:#edf1ed;border:1px solid #d3ded5;padding:1px 8px;
+    border-radius:20px;vertical-align:middle;letter-spacing:.2px;}
+  .locktag.off{color:var(--muted);background:#f4f3f0;border-color:var(--line);}
+  .lockpanel{background:#f9f7f5;border:1px solid var(--line-2);border-radius:9px;
+    padding:11px 13px;margin-bottom:16px;}
+  .lockpanel > label{margin-bottom:8px;}
+  .lockgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;}
+  @media (max-width:640px){ .lockgrid{grid-template-columns:1fr;} }
+  .lockgrid .lkrow{display:flex;align-items:center;gap:8px;font-size:12.5px;
+    font-weight:600;color:var(--ink-2);cursor:pointer;user-select:none;
+    padding:6px 8px;border-radius:7px;background:#fff;border:1px solid var(--line-2);}
+  .lockgrid .lkrow:hover{background:#fcfbfa;}
+  .lockgrid .lkrow input{width:17px;height:17px;accent-color:var(--steel);cursor:pointer;margin:0;flex:0 0 17px;}
+  .lockgrid .lkrow .nm{flex:1 1 auto;min-width:0;}
+  .lockgrid .lkrow .st{font-size:10.5px;font-weight:700;color:var(--muted);white-space:nowrap;}
+  .lockgrid .lkrow.on .st{color:var(--ok);}
+  input.locked{background:#f2f5f2;border-color:#d3ded5;font-weight:700;color:#1d2b3a;
+    cursor:not-allowed;}
 
   .btn{font-family:inherit;font-size:13.5px;font-weight:600;padding:9px 15px;
     border-radius:7px;border:1px solid transparent;cursor:pointer;transition:.15s;line-height:1.3;}
@@ -373,18 +394,14 @@ sweep(document)})();</script>
         </div>
         <div class="card-b">
 
+          <div class="field lockpanel">
+            <label>欄位固定 <span class="hint">（勾選＝固定不可改；取消＝可自行填寫）</span></label>
+            <div class="lockgrid" id="lockGrid"></div>
+          </div>
+
           <div class="field">
-            <label for="fProject">工程名稱
-              <span style="display:inline-block;margin-left:6px;font-size:11px;font-weight:700;
-                color:#5f7a63;background:#edf1ed;border:1px solid #d3ded5;padding:1px 8px;
-                border-radius:20px;vertical-align:middle;">固定值</span>
-            </label>
-            <input type="text" id="fProject" readonly aria-readonly="true"
-              style="background:#f2f5f2;border-color:#d3ded5;font-weight:700;color:#1d2b3a;cursor:not-allowed;"
-              placeholder="布袋商港聯外道路新闢工程">
-            <div style="font-size:11.5px;color:#6e6e74;margin-top:6px;line-height:1.6;">
-              此欄位為固定值，不需也不能修改；Word 輸出時一律帶入此名稱。
-            </div>
+            <label for="fProject">工程名稱 <span class="locktag" id="lkProject">固定</span></label>
+            <input type="text" id="fProject" placeholder="布袋商港聯外道路新闢工程">
           </div>
 
           <div class="field">
@@ -500,22 +517,19 @@ PR1-5（0K+154）"></textarea>
           </div>
 
           <div class="field">
-            <label>承包商與工地主任 <span class="hint">（固定帶入，不需填寫）</span></label>
-            <div class="fixedrow" style="margin-bottom:7px;">
-              <span class="k">承包商</span>
-              <span class="v">義力營造股份有限公司</span>
-              <span class="lk">已固定</span>
-            </div>
-            <div class="fixedrow">
-              <span class="k">工地主任</span>
-              <span class="v">王振國</span>
-              <span class="lk">已固定</span>
-            </div>
+            <label for="fContractor">承包商 <span class="locktag" id="lkContractor">固定</span></label>
+            <input type="text" id="fContractor" placeholder="義力營造股份有限公司">
           </div>
 
-          <div class="note lockbox">
-            <span class="lock">監造單位欄位不提供填寫。</span>
-            網站上沒有此輸入框，Word 輸出固定為「監造單位：」，保持空白留給監造單位簽名／用印。
+          <div class="field">
+            <label for="fSite">工地主任（負責人） <span class="locktag" id="lkSite">固定</span></label>
+            <input type="text" id="fSite" placeholder="王振國">
+          </div>
+
+          <div class="field">
+            <label for="fSupervisor">監造單位 <span class="locktag" id="lkSupervisor">固定</span>
+              <span class="hint">（留空＝Word 只印「監造單位：」供簽名）</span></label>
+            <input type="text" id="fSupervisor" placeholder="（留空供簽名／用印）">
           </div>
 
           <div class="field">
@@ -665,8 +679,95 @@ PR1-5（0K+154）"></textarea>
     date:"", time:"10:30",
     pos:"", desc:"", autoNum:true,
     apply:"",
+    contractor:"", site:"", supervisor:"",
+    locks:{ project:true, contractor:true, site:true, supervisor:true },
     attach:{ enabled:false, title:"", rows:[], contractor:"", supervisor:"", photos:[] }
   };
+
+  /* v17：可固定／取消固定的欄位（勾選＝固定不可改） */
+  var LOCK_FIELDS = [
+    { key:"project",    id:"fProject",    tag:"lkProject",    name:"工程名稱" },
+    { key:"contractor", id:"fContractor", tag:"lkContractor", name:"承包商" },
+    { key:"site",       id:"fSite",       tag:"lkSite",       name:"工地主任" },
+    { key:"supervisor", id:"fSupervisor", tag:"lkSupervisor", name:"監造單位" }
+  ];
+  var LOCK_KEY = "inspection-form-locks-v1";
+
+  function loadLocks(){
+    try{
+      var raw = localStorage.getItem(LOCK_KEY);
+      if(!raw) return;
+      var o = JSON.parse(raw);
+      if(o && typeof o === "object"){
+        LOCK_FIELDS.forEach(function(f){
+          if(typeof o[f.key] === "boolean") state.locks[f.key] = o[f.key];
+        });
+      }
+    }catch(e){}
+  }
+  function saveLocks(){
+    try{ localStorage.setItem(LOCK_KEY, JSON.stringify(state.locks)); }catch(e){}
+  }
+
+  function renderLockPanel(){
+    var box = $("lockGrid");
+    if(!box) return;
+    box.innerHTML = "";
+    LOCK_FIELDS.forEach(function(f){
+      var on = !!state.locks[f.key];
+      var lab = document.createElement("label");
+      lab.className = "lkrow" + (on ? " on" : "");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = on;
+      cb.setAttribute("data-lock", f.key);
+      var nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = f.name;
+      var st = document.createElement("span");
+      st.className = "st";
+      st.textContent = on ? "固定" : "可填";
+      lab.appendChild(cb); lab.appendChild(nm); lab.appendChild(st);
+      box.appendChild(lab);
+    });
+  }
+
+  /* 依 locks 套用到輸入框：固定＝readonly 並帶入預設值；取消固定＝可編輯 */
+  function applyLocks(){
+    LOCK_FIELDS.forEach(function(f){
+      var el = $(f.id);
+      if(!el) return;
+      var on = !!state.locks[f.key];
+      var tag = $(f.tag);
+      if(on){
+        el.readOnly = true;
+        el.setAttribute("aria-readonly","true");
+        el.classList.add("locked");
+        if(!el.value) el.value = defaultOf(f.key);
+      }else{
+        el.readOnly = false;
+        el.removeAttribute("aria-readonly");
+        el.classList.remove("locked");
+      }
+      if(tag){
+        tag.textContent = on ? "固定" : "可填";
+        tag.classList.toggle("off", !on);
+      }
+    });
+    renderLockPanel();
+  }
+
+  function lockName(key){
+    for(var i=0;i<LOCK_FIELDS.length;i++) if(LOCK_FIELDS[i].key===key) return LOCK_FIELDS[i].name;
+    return key;
+  }
+
+  function defaultOf(key){
+    if(key === "project")    return FIXED_PROJECT;
+    if(key === "contractor") return FIXED_CONTRACTOR;
+    if(key === "site")       return FIXED_SITE;
+    return "";
+  }
 
   /* v16：表單草稿（重新整理後仍保留） */
   var DRAFT_KEY = "inspection-form-draft-v1";
@@ -825,10 +926,10 @@ PR1-5（0K+154）"></textarea>
     h += '<p class="sp3">&nbsp;</p><p class="sp3">&nbsp;</p><p class="sp3">&nbsp;</p>';
 
     h += '<p class="sig">' + LB('申請日期： ') + DT(state.apply ? rocDate(state.apply) : '（未填）') + '</p>';
-    h += '<p class="sig">' + LB('承包商：') + DT(FIXED_CONTRACTOR) + '</p>';
-    h += '<p class="sig">' + LB('工地主任(負責人)：') + DT(FIXED_SITE) + '</p>';
+    h += '<p class="sig">' + LB('承包商：') + DT(state.contractor || FIXED_CONTRACTOR) + '</p>';
+    h += '<p class="sig">' + LB('工地主任(負責人)：') + DT(state.site || FIXED_SITE) + '</p>';
     h += '<p class="cizhi">此致</p>';
-    h += '<p class="supervisor">監造單位：</p>';
+    h += '<p class="supervisor">監造單位：' + (state.supervisor ? DT(state.supervisor) : '') + '</p>';
 
     /* v8：附件表單（勾選時接在查驗單之後，另起一頁） */
     if(state.attach.enabled){
@@ -922,7 +1023,11 @@ PR1-5（0K+154）"></textarea>
   }
 
   function syncFromInputs(){
-    state.project = FIXED_PROJECT;   /* 固定值：不讀輸入框，避免被竄改 */
+    /* v17：固定欄位讀輸入框（固定時框內就是預設值，取消固定則為使用者輸入） */
+    state.project    = $("fProject").value;
+    state.contractor = $("fContractor").value;
+    state.site       = $("fSite").value;
+    state.supervisor = $("fSupervisor").value;
     state.no = $("fNo").value;
     state.itemNo = $("fItemNo").value;
     state.itemName = $("fItemName").value;
@@ -978,7 +1083,10 @@ PR1-5（0K+154）"></textarea>
 
   function currentData(){
     return {
-      project: FIXED_PROJECT,   /* 固定值，不從輸入框取 */
+      project: state.project || FIXED_PROJECT,
+      contractor: state.contractor || FIXED_CONTRACTOR,
+      site: state.site || FIXED_SITE,
+      supervisor: state.supervisor || "",
       no: state.no,
       itemNo: state.itemNo,
       itemName: state.itemName,
@@ -1045,7 +1153,9 @@ PR1-5（0K+154）"></textarea>
   }
 
   function fillSample(){
-    $("fProject").value = FIXED_PROJECT;
+    $("fProject").value    = FIXED_PROJECT;
+    $("fContractor").value = FIXED_CONTRACTOR;
+    $("fSite").value       = FIXED_SITE;
     $("fNo").value = "F-24-03-018";
     $("fItemNo").value = "壹.二.43";
     $("fItemName").value = "預壘樁，280kgf/cm²，直徑=60cm";
@@ -1427,6 +1537,8 @@ PR1-5（0K+154）"></textarea>
         unit: state.unit, detail: state.detail,
         date: state.date, time: state.time, apply: state.apply,
         pos: state.pos, desc: state.desc, autoNum: state.autoNum,
+        project: state.project, contractor: state.contractor,
+        site: state.site, supervisor: state.supervisor,
         attach: state.attach
       }));
     }catch(e){}
@@ -1443,7 +1555,8 @@ PR1-5（0K+154）"></textarea>
 
   function applyDraft(d){
     if(!d) return;
-    ["no","itemNo","itemName","unit","detail","date","time","apply","pos","desc"].forEach(function(k){
+    ["no","itemNo","itemName","unit","detail","date","time","apply","pos","desc",
+     "project","contractor","site","supervisor"].forEach(function(k){
       if(d[k] != null) state[k] = String(d[k]);
     });
     if(d.autoNum != null) state.autoNum = !!d.autoNum;
@@ -1460,6 +1573,10 @@ PR1-5（0K+154）"></textarea>
       };
     }
 
+    if($("fProject"))    $("fProject").value    = state.project || FIXED_PROJECT;
+    if($("fContractor")) $("fContractor").value = state.contractor || FIXED_CONTRACTOR;
+    if($("fSite"))       $("fSite").value       = state.site || FIXED_SITE;
+    if($("fSupervisor")) $("fSupervisor").value = state.supervisor || "";
     if($("fNo")) $("fNo").value = state.no;
     if($("fItemNo")) $("fItemNo").value = state.itemNo;
     if($("fItemName")) $("fItemName").value = state.itemName;
@@ -1490,6 +1607,8 @@ PR1-5（0K+154）"></textarea>
           unit: state.unit, detail: state.detail,
           date: state.date, time: state.time, apply: state.apply,
           pos: state.pos, desc: state.desc, autoNum: state.autoNum,
+          project: state.project, contractor: state.contractor,
+          site: state.site, supervisor: state.supervisor,
           attach: state.attach
         }
       }
@@ -1521,11 +1640,28 @@ PR1-5（0K+154）"></textarea>
   }
 
   function bind(){
-    [["fProject"],["fNo"],["fDate"],["fTime"],["fApply"]].forEach(function(a){
+    [["fProject"],["fNo"],["fDate"],["fTime"],["fApply"],
+     ["fContractor"],["fSite"],["fSupervisor"]].forEach(function(a){
       var id = a[0];
+      if(!$(id)) return;
       $(id).addEventListener("input", syncFromInputs);
       $(id).addEventListener("change", syncFromInputs);
     });
+
+    /* v17：欄位固定勾選（勾＝固定不可改；取消＝可自行填寫） */
+    if($("lockGrid")){
+      $("lockGrid").addEventListener("change", function(e){
+        var cb = e.target;
+        if(!cb || cb.type !== "checkbox") return;
+        var key = cb.getAttribute("data-lock");
+        if(!key) return;
+        state.locks[key] = !!cb.checked;
+        saveLocks();
+        applyLocks();
+        syncFromInputs();
+        toast(cb.checked ? "已固定：" + lockName(key) : "已取消固定：" + lockName(key) + "（可自行填寫）");
+      });
+    }
 
     /* 契約項次與契約名稱：直接帶入附件表單第一列 */
     $("fItemNo").addEventListener("input", syncFromInputs);
@@ -1576,7 +1712,12 @@ PR1-5（0K+154）"></textarea>
 
     $("btnClear").addEventListener("click", function(){
       ["fNo","fItemNo","fItemName","fUnit","fDetail","fPos","fDesc"].forEach(function(id){ $(id).value=""; });
-      $("fProject").value = FIXED_PROJECT;   /* 固定值不可清除 */
+      /* v17：固定欄位還原預設值；未固定的欄位清空 */
+      LOCK_FIELDS.forEach(function(f){
+        var el = $(f.id);
+        if(!el) return;
+        el.value = state.locks[f.key] ? defaultOf(f.key) : "";
+      });
       $("fDate").value = "";
       $("fTime").value = "10:30";
       $("fApply").value = todayISO();
@@ -1604,7 +1745,12 @@ PR1-5（0K+154）"></textarea>
 
   function init(){
     var t = todayISO();
-    $("fProject").value = FIXED_PROJECT;   /* 固定值：載入即填好 */
+    loadLocks();
+    $("fProject").value    = FIXED_PROJECT;
+    $("fContractor").value = FIXED_CONTRACTOR;
+    $("fSite").value       = FIXED_SITE;
+    $("fSupervisor").value = "";
+    applyLocks();
     $("fApply").value = t;
     $("fDate").value = t;
     state.apply = t;

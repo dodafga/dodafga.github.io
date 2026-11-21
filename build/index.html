@@ -69,6 +69,18 @@
 
       <div class="crewblock">
         <div class="crewhead">
+          <span class="crewt">常用廠商</span>
+        </div>
+        <div class="presetrow">
+          <input type="text" id="vendorPresetName" maxlength="30" placeholder="廠商名稱，例：義力營造" autocomplete="off">
+          <button type="button" class="btn sm" id="btnVendorSave">儲存</button>
+        </div>
+        <div class="presetlist" id="vendorList"></div>
+        <div class="crewempty" id="vendorEmpty">尚無常用廠商</div>
+      </div>
+
+      <div class="crewblock">
+        <div class="crewhead">
           <span class="crewt">工種</span>
           <button type="button" class="btn ghost sm" id="btnAddType">＋ 新增</button>
         </div>
@@ -116,6 +128,15 @@
         <span class="sm2">可一次多選；手機可直接拍照</span>
       </label>
       <input type="file" id="filePick" accept="image/*" multiple hidden>
+
+      <div class="pendbox" id="pendBox" style="display:none">
+        <div class="pendhd">
+          <b>待加入 <span id="pendCount">0</span> 張</b>
+          <button type="button" class="btn ghost sm" id="btnPendClear" style="margin-left:auto">清除</button>
+        </div>
+        <div class="pendgrid" id="pendGrid"></div>
+        <button type="button" class="btn wide" id="btnPendAdd" style="margin-top:10px">加入暫存區（0）</button>
+      </div>
     </div>
 
     <div class="card">
@@ -167,9 +188,8 @@
         <button type="button" class="btn ghost sm" id="btnLibCopy">連結</button>
       </div>
 
-      <div class="hintx" id="libShareHint" style="margin:2px 0 6px">勾選後自動載入 PNG，就緒後按 LINE 會先放進暫存區再分享。</div>
+      <div class="hintx" id="libShareHint" style="margin:2px 0 6px">勾選後會自動轉成 PNG 並直接放進上方「暫存區」，就緒後到暫存區按 LINE 分享。</div>
       <div class="hintx" id="libShareMode" style="margin:0 0 8px;font-weight:700;color:#4A5056"></div>
-      <div class="rdybox" id="libReady" style="display:none"></div>
 
       <details class="diag" id="libDiag">
         <summary>🔍 分享診斷</summary>

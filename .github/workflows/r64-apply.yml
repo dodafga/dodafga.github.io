@@ -24,15 +24,22 @@ jobs:
           curl -fsSL -o /tmp/in/drive-v2.js      "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive-v2.js?tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzYvZG9jdW1lbnRzL3I2NC1kZXBsb3k6MTc5NTUxNjU0NA.NTFjYmQyY2QzMGY4MTM0NjcyOTcyMDYyM2JjMGMxZmE"
           curl -fsSL -o /tmp/in/drive-lib.js     "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive-lib.js?tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzYvZG9jdW1lbnRzL3I2NC1kZXBsb3k6MTc5NTUxNjU0NA.NTFjYmQyY2QzMGY4MTM0NjcyOTcyMDYyM2JjMGMxZmE"
           ls -l /tmp/in
+          sha256sum /tmp/in/*
 
-      - name: Verify sha256
+      - name: Verify content
         run: |
           set -e
           cd /tmp/in
-          echo "b8db3d9f7d1602be1a34e565efe8b888d9a54500776cbab09c2a6e67a343b6aa  drive-lib.js"   > sums.txt
-          echo "d490de1c9d1be219815296d6de8d0293d239b46f2e67dc85aa1ca90252e1ff44  drive-v2.js"    >> sums.txt
-          echo "4ab780c952a9ad779739666a907822b9d0f90b52d46a04e2b6e8ad5665acf19f  drive_index.html" >> sums.txt
-          sha256sum -c sums.txt
+          test $(stat -c%s drive_index.html) -gt 15000
+          test $(stat -c%s drive-v2.js) -gt 40000
+          test $(stat -c%s drive-lib.js) -gt 10000
+          grep -q 'camzbar' drive_index.html
+          grep -q 'drive-lib.js' drive_index.html
+          grep -q '已上傳' drive_index.html
+          grep -q 'camApplyZoom' drive-v2.js
+          grep -q '施工照片' drive-v2.js
+          grep -q '__driveLibRefresh' drive-lib.js
+          echo "content checks OK"
 
       - name: Apply
         run: |

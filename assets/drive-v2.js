@@ -874,9 +874,61 @@ function bind(){
   var fi=$("fileInput2");
   fi&&C.on(fi,"change",function(){fi.files&&fi.files.length&&addFiles(fi.files);fi.value=""});
   var ci=$("camInput2");
-  ci&&C.on(ci,"change",function(){ci.files&&ci.files.length&&addFiles(ci.files);ci.value=""});
+  /* 拍照：改用「手機本機相機 App」，可連拍多張，拍完按「使用照片」一次帶入 */
+  var camBuf=[],camSeq=0;
+  function camBufRender(){
+    var box=$("camBuf"),grid=$("camBufGrid"),cnt=$("camBufCount"),use=$("camUse");
+    if(!box)return;
+    if(!camBuf.length){box.style.display="none";grid&&(grid.innerHTML="");cnt&&(cnt.textContent="0");use&&(use.textContent="使用照片（0）");return}
+    box.style.display="block";
+    cnt&&(cnt.textContent=String(camBuf.length));
+    use&&(use.textContent="使用照片（"+camBuf.length+"）");
+    if(grid){var html="";camBuf.forEach(function(s,i){
+      html+='<div class="camshot" data-i="'+i+'"><img src="'+s.url+'" alt="第 '+(i+1)+' 張">'+
+        '<button type="button" class="cx" data-cx="'+i+'" aria-label="移除第 '+(i+1)+' 張">✕</button></div>';
+    });grid.innerHTML=html}
+  }
+  function camBufClear(){
+    camBuf.forEach(function(s){try{URL.revokeObjectURL(s.url)}catch(e){}});
+    camBuf=[];camBufRender();
+  }
+  function camOpenNative(){
+    if(!ci){toast("找不到相機入口",!0);return}
+    try{ci.value=""}catch(e){}
+    ci.click();
+  }
+  C.on("tileCam","click",camOpenNative);
+  C.on("camShootMore","click",camOpenNative);
+  C.on("camBufClear","click",function(){if(!camBuf.length)return;camBufClear();toast("已清除剛拍的照片")});
+  C.on("camBufGrid","click",function(e){
+    var b=e.target.closest?e.target.closest("button[data-cx]"):null;
+    if(!b)return;
+    var i=Number(b.getAttribute("data-cx"));
+    if(isNaN(i)||!camBuf[i])return;
+    try{URL.revokeObjectURL(camBuf[i].url)}catch(e2){}
+    camBuf.splice(i,1);camBufRender();
+  });
+  C.on("camUse","click",function(){
+    if(!camBuf.length)return;
+    var files=camBuf.map(function(s){return s.file});
+    camBufClear();
+    addFiles(files);
+    toast("已帶入 "+files.length+" 張");
+  });
+  ci&&C.on(ci,"change",function(){
+    var fs=ci.files?C.toArray(ci.files):[];
+    ci.value="";
+    if(!fs.length)return;
+    fs.forEach(function(f){
+      var nm=f.name||("cam_"+(++camSeq)+"_"+Date.now()+".jpg");
+      var file=f;
+      try{file=new File([f],nm,{type:f.type||"image/jpeg",lastModified:Date.now()})}catch(err){try{f.name=nm}catch(e2){}}
+      camBuf.push({file:file,url:URL.createObjectURL(f)});
+    });
+    camBufRender();
+    toast("已拍 "+camBuf.length+" 張，可再拍或按「使用照片」");
+  });
   C.on("tilePick","click",function(){fi&&fi.click()});
-  C.on("tileCam","click",function(){ci&&ci.click()});
 
   var dz=$("dropZone");
   if(dz){

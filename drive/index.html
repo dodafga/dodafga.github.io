@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded",function(){sweep(document)});
 sweep(document)})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>照片上傳歸檔｜Google Drive 依日期與樁號歸檔</title>
+<title>施工照片歸檔｜Google Drive 依日期與樁號歸檔</title>
 <link rel="stylesheet" href="../assets/drive-page.css">
 <link rel="stylesheet" href="../assets/photo-edit.css">
 <link rel="stylesheet" href="../assets/drive-v2.css">
@@ -64,7 +64,7 @@ sweep(document)})();</script>
   <div class="hwrap">
     <div class="logo">☁</div>
     <div>
-      <h1>照片上傳歸檔</h1>
+      <h1>施工照片歸檔</h1>
       <div class="sub">選取或拍攝照片 → 自動轉正 → 壓日期浮水印 → 上傳到 義力／查驗照片／日期／樁號</div>
     </div>
     <div class="hmeta">
@@ -155,25 +155,37 @@ sweep(document)})();</script>
   <!-- ② 上傳／拍照互動區 -->
   <div class="card">
     <div class="card-h">
-      <h2>② 選取或拍照</h2>
+      <h2>② 拍照／本機上傳</h2>
       <span class="spacer"></span>
       <span class="tag" id="stageTag">0 張</span>
     </div>
     <div class="card-b">
       <div class="up2" id="dropZone">
-        <div class="tile" id="tilePick" role="button" tabindex="0">
-          <div class="ic">🖼</div>
-          <div class="t">選擇照片（可多選）</div>
-          <div class="s">從相簿或檔案挑選，也可拖曳進來</div>
-        </div>
         <div class="tile" id="tileCam" role="button" tabindex="0">
           <div class="ic">📷</div>
-          <div class="t">直接拍照</div>
-          <div class="s">開啟相機，可連續拍多張</div>
+          <div class="t">拍照</div>
+          <div class="s">開手機相機，可連拍多張</div>
+        </div>
+        <div class="tile" id="tilePick" role="button" tabindex="0">
+          <div class="ic">🖼</div>
+          <div class="t">本機上傳</div>
+          <div class="s">從相簿選，可多選，也可拖曳進來</div>
         </div>
       </div>
       <input type="file" id="fileInput2" accept="image/*" multiple style="display:none;">
-      <input type="file" id="camInput2" accept="image/*" capture="environment" multiple style="display:none;">
+      <input type="file" id="camInput2" accept="image/*" capture="environment" style="display:none;">
+
+      <div class="cambuf" id="camBuf" style="display:none;">
+        <div class="cambufhd">
+          <b>已拍 <span id="camBufCount">0</span> 張</b>
+          <button type="button" class="btn btn-ghost btn-sm" id="camBufClear" style="margin-left:auto;">清除</button>
+        </div>
+        <div class="cambufgrid" id="camBufGrid"></div>
+        <div class="cambufact">
+          <button type="button" class="btn btn-ghost" id="camShootMore">📷 再拍一張</button>
+          <button type="button" class="btn btn-primary" id="camUse">使用照片（0）</button>
+        </div>
+      </div>
 
       <div class="progwrap" id="progWrap">
         <div class="progbar"><i id="progBar"></i></div>

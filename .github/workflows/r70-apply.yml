@@ -1,0 +1,81 @@
+name: r70 apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r70-apply.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download new files
+        run: |
+          set -e
+          mkdir -p /tmp/in
+          B="https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r70-deploy"
+          TK="tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzYvZG9jdW1lbnRzL3I3MC1kZXBsb3k6MTc5NTUyODY4MA.MGZkMDZhMDNlZWY0N2ZiM2ViY2E3ZjdiYTFjMTU0OGU"
+          for f in drive_index.html drive-v2.js; do
+            curl -fsSL -o "/tmp/in/$f" "$B/$f?$TK"
+          done
+          ls -l /tmp/in
+
+      - name: Verify content markers
+        run: |
+          set -e
+          cd /tmp/in
+          wc -c *
+          # 相機改用共用模組
+          grep -q 'assets/cam.js' drive_index.html
+          grep -q 'SiteCam' drive-v2.js
+          # 舊的內嵌相機與舊緩衝區必須已移除
+          ! grep -q 'camBufGrid' drive_index.html
+          ! grep -q 'camBuf' drive-v2.js
+          ! grep -q 'camShootMore' drive_index.html
+          # 待加入緩衝區（與營造助手同一套）
+          grep -q 'pendBox' drive_index.html
+          grep -q 'btnPendAdd' drive_index.html
+          grep -q 'pendCommit' drive-v2.js
+          grep -q 'pendAddFiles' drive-v2.js
+          # 四段流程仍在
+          grep -q '照片上傳' drive_index.html
+          grep -q '設定歸檔資料' drive_index.html
+          grep -q '暫存' drive_index.html
+          grep -q '已上傳' drive_index.html
+          # 小白板已移除
+          ! grep -q '小白板' drive_index.html
+          # 相機 DOM 與營造助手一致
+          grep -q 'camModal' drive_index.html
+          grep -q 'camZoomRange' drive_index.html
+          grep -q 'camUse2' drive_index.html
+          grep -q 'camThumb' drive_index.html
+          grep -q 'camViewer' drive_index.html
+          echo "markers OK"
+
+      - name: Apply
+        run: |
+          set -e
+          cp /tmp/in/drive_index.html drive/index.html
+          cp /tmp/in/drive-v2.js      assets/drive-v2.js
+          node --check assets/drive-v2.js
+          git config user.name  "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add drive/index.html assets/drive-v2.js
+          git commit -m "feat: 查驗助手相片歸檔改用與營造助手共用的站內相機（cam.js）與待加入緩衝區流程"
+          git push origin HEAD:main
+
+      - name: Self delete workflow
+        if: always()
+        run: |
+          set -e
+          git pull --rebase origin main || true
+          git rm -f .github/workflows/r70-apply.yml || true
+          git commit -m "chore: remove one-off r70 workflow" || true
+          git push origin HEAD:main || true

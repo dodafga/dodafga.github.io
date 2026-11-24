@@ -15,9 +15,9 @@ jobs:
         run: |
           set -e
           mkdir -p drive assets
-          curl -fsSL -o drive/index.html "https://static.teamily.ai/files/27beba91-6dc5-4775-ab5f-35d2ac750799/index.html"
-          curl -fsSL -o assets/drive-v2.js "https://static.teamily.ai/files/941171f2-0b1e-4b23-8f08-a755f17883a6/drive-v2.js"
-          curl -fsSL -o assets/drive-hist.css "https://static.teamily.ai/files/6a218d72-0dbb-4b66-a592-ed62c50464df/drive-hist.css"
+          curl -fsSL -o drive/index.html "https://paste.rs/4ygp0"
+          curl -fsSL -o assets/drive-v2.js "https://paste.rs/Qipud"
+          curl -fsSL -o assets/drive-hist.css "https://paste.rs/ZwFiz"
           echo "--- sizes ---"
           wc -c drive/index.html assets/drive-v2.js assets/drive-hist.css
           echo "--- sha256 ---"
@@ -29,6 +29,7 @@ jobs:
           test "$(wc -c < drive/index.html)" -gt 15000
           test "$(wc -c < assets/drive-v2.js)" -gt 50000
           test "$(wc -c < assets/drive-hist.css)" -gt 10000
+          head -c 60 drive/index.html
       - name: Commit
         run: |
           set -e

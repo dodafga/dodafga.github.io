@@ -1,57 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-<head><script data-tmly-media-guard="1">(function(){"use strict";
-var T=window.__tmly||(window.__tmly=(function(){
-var o={},n=String(window.name||"");
-if(n.slice(0,5)==="tmly:"){n.slice(5).split("&").forEach(function(kv){
-var i=kv.indexOf("=");if(i>0){o[kv.slice(0,i)]=kv.slice(i+1)}})}
-return o})());
-if(T.presentation!=="preview"){return}
-var K="tmly:media-muted:"+String(location.pathname).replace(/[^/]*$/,"");
-var muted=false;try{muted=localStorage.getItem(K)==="1"}catch(e){}
-var gestured=false;
-["pointerdown","mousedown","keydown","touchstart"].forEach(function(t){
-document.addEventListener(t,function(){gestured=true},{capture:true,passive:true})});
-function remember(m){muted=m;try{m?localStorage.setItem(K,"1"):localStorage.removeItem(K)}catch(e){}}
-function announcePaused(el){try{el.dispatchEvent(new Event("pause"))}catch(e){}}
-function harden(el){
-el.autoplay=false;el.removeAttribute("autoplay");
-if(el.getAttribute("preload")==="auto"){el.setAttribute("preload","none")}
-if(muted){el.muted=true}
-if(!gestured&&!el.paused){try{el.pause()}catch(e){}}}
-var play=HTMLMediaElement.prototype.play;
-HTMLMediaElement.prototype.play=function(){
-if(!gestured){announcePaused(this);
-return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
-if(muted){remember(false);this.muted=false}
-return play.apply(this,arguments)};
-var acProtos=[];
-function guardAC(n){
-var N=window[n];if(!N||!N.prototype){return}
-if(acProtos.indexOf(N.prototype)<0){acProtos.push(N.prototype);
-var res=N.prototype.resume;
-if(typeof res==="function"){N.prototype.resume=function(){
-if(!gestured){return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
-if(muted){remember(false)}
-return res.apply(this,arguments)}}}
-var W=function(o){var c=arguments.length?new N(o):new N();
-if(!gestured){try{c.suspend()}catch(e){}}return c};
-W.prototype=N.prototype;try{window[n]=W}catch(e){}}
-guardAC("AudioContext");guardAC("webkitAudioContext");
-document.addEventListener("play",function(e){
-var el=e.target;if(el instanceof HTMLMediaElement&&!gestured){try{el.pause()}catch(err){}}},true);
-document.addEventListener("pause",function(e){
-if(e.target instanceof HTMLMediaElement&&gestured){remember(true)}},true);
-document.addEventListener("volumechange",function(e){
-var el=e.target;if(el instanceof HTMLMediaElement&&gestured){remember(el.muted||el.volume===0)}},true);
-function sweep(n){if(n&&n.querySelectorAll){var l=n.querySelectorAll("audio,video");
-for(var i=0;i<l.length;i++){harden(l[i])}}}
-new MutationObserver(function(rs){for(var i=0;i<rs.length;i++){var a=rs[i].addedNodes;
-for(var j=0;j<a.length;j++){var n=a[j];
-if(n instanceof HTMLMediaElement){harden(n)}else{sweep(n)}}}})
-.observe(document.documentElement,{childList:true,subtree:true});
-document.addEventListener("DOMContentLoaded",function(){sweep(document)});
-sweep(document)})();</script>
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#7A848D">
@@ -249,6 +198,84 @@ html.camopen #camModal.camwrap{display:flex!important}
   align-items:center;justify-content:center;background:#05070A;color:#fff;padding:28px}
 #camModal .camerr[hidden]{display:none}
 #camModal .camhd{display:none}
+
+/* ===== 手機優先版面（drive/） ===== */
+/* 手機：卡片貼邊、欄位單欄、按鈕大顆好按 */
+@media (max-width:720px){
+  main{padding:6px 10px calc(28px + env(safe-area-inset-bottom,0px))!important;
+    max-width:100%!important}
+  .card{padding:13px!important;border-radius:14px!important;margin-bottom:10px!important}
+  .cardhd{padding:0 0 10px!important;gap:7px!important}
+  .cardhd h2{font-size:15px!important}
+  .cardhd .hintx{font-size:11.5px!important}
+  /* 所有兩欄格線在手機一律單欄 */
+  .grid2,.grid2t,.entry,.pm-entry,.df-grid{grid-template-columns:1fr!important}
+  .grid2{gap:9px!important}
+  /* 輸入框：16px 避免 iOS 自動放大，高度 46px 好按 */
+  .fld>span,.pm-fld>span,.df-fld>span{font-size:12.5px!important}
+  .fld input,.fld select,.fld textarea,
+  .pm-fld input,.pm-fld select,
+  .df-fld input,.df-fld select{
+    font-size:16px!important;min-height:46px!important;padding:11px 12px!important;
+    border-radius:10px!important}
+  .pm-mtable input{font-size:16px!important;min-height:42px!important;width:100%!important}
+  .pm-mtable td.design{width:40%!important;font-size:12px!important;line-height:1.5}
+  .pm-mtable th,.pm-mtable td{padding:8px 7px!important}
+  .pm-inline{gap:5px!important}
+  .pm-inline .u{font-size:11.5px!important}
+  /* 按鈕：整排、大顆 */
+  .btn,.pm-btn,.df-btn{min-height:48px!important;font-size:15px!important;
+    border-radius:11px!important;padding:12px 16px!important}
+  .btn.sm,.pm-btn.sm,.df-btn.sm{min-height:40px!important;font-size:13.5px!important;
+    padding:8px 13px!important}
+  .btnrow,.pm-btnrow,.df-row{gap:8px!important}
+  .btnrow .btn,.pm-btnrow .pm-btn,.df-row .df-btn{flex:1 1 100%!important}
+  .btn.wide{width:100%!important}
+  /* 拍照／上傳大圖示磚：手機上下排、更好按 */
+  .addrow{grid-template-columns:1fr!important;gap:9px!important}
+  .addbtn{min-height:96px!important;padding:16px!important;border-radius:13px!important}
+  .addbtn .big{font-size:30px!important}
+  .addbtn>span:nth-child(2){font-size:16px!important}
+  .addbtn .sm2{font-size:11.5px!important}
+  /* 縮圖格：手機 3 欄 */
+  .pendgrid,.libgrid,.grid2t{grid-template-columns:repeat(3,1fr)!important;gap:7px!important}
+  /* 表格：橫向捲動、字不擠 */
+  .tblwrap,.pm-tblwrap,.df-tblwrap{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+  table.pm-rec,table.df-rec{min-width:560px!important}
+  table.pm-rec th,table.df-rec th{font-size:11.5px!important;padding:7px 6px!important}
+  table.pm-rec td,table.df-rec td{font-size:12.5px!important;padding:7px 6px!important}
+  /* 已上傳工具列：換行不擠 */
+  .libbar{flex-wrap:wrap!important;gap:6px!important}
+  .libbar .libsel{flex:1 1 100%!important}
+  /* 連線列 */
+  .connrow{gap:7px!important}
+  .connrow .btn{margin-left:0!important;flex:1 1 100%!important}
+  /* 今日查驗／紀錄卡 */
+  .df-lock,.df-cur{font-size:12.5px!important;padding:10px 12px!important}
+  .df-chip{min-height:34px!important;font-size:12.5px!important;padding:6px 12px!important}
+  .df-note,.pm-note{font-size:11.5px!important;padding:10px 12px!important}
+  /* 查詢列 */
+  .pm-qbar{gap:8px!important}
+  .pm-qbar .pm-fld{min-width:100%!important;flex:1 1 100%!important}
+  .pm-qbar .pm-btn{flex:1 1 100%!important}
+  .pm-qitem{gap:7px!important;padding:9px 10px!important}
+  .pm-qi-date{flex:0 0 74px!important;font-size:12px!important}
+  .pm-qi-pile{flex:0 0 78px!important;font-size:12.5px!important}
+  .pm-qi-btn{min-height:34px!important;padding:6px 12px!important}
+  .pm-qdetail{padding:8px 0 4px 0!important}
+  .pm-dgrid{grid-template-columns:1fr!important;gap:7px!important}
+}
+/* 極窄機（320～360）再收一級 */
+@media (max-width:380px){
+  main{padding:4px 8px calc(24px + env(safe-area-inset-bottom,0px))!important}
+  .card{padding:11px!important}
+  .pendgrid,.libgrid,.grid2t{grid-template-columns:repeat(2,1fr)!important}
+  .pm-mtable td.design{width:44%!important;font-size:11.5px!important}
+}
+/* 桌機：維持置中窄欄，但欄位仍好讀 */
+@media (min-width:721px){
+  main{max-width:820px!important}
+}
 </style>
 </head>
 <body>
@@ -275,7 +302,16 @@ html.camopen #camModal.camwrap{display:flex!important}
 <main>
 
   <!-- ============ 施工照片歸檔 ============ -->
-  
+
+    <!-- ============ 今日查驗（人員只問一次 → 逐樁 → 完成） ============ -->
+    <div class="card" id="dailyCard">
+      <div class="cardhd">
+        <h2>今日查驗</h2>
+        <span class="hintx">人員問一次就固定</span>
+      </div>
+      <div id="dailyMount"></div>
+    </div>
+
     <div class="card">
       <div class="cardhd">
         <h2>照片上傳</h2>
@@ -455,6 +491,24 @@ html.camopen #camModal.camwrap{display:flex!important}
       <div class="empty" id="libEmpty">尚未讀取</div>
     </div>
 
+    <!-- ============ 查驗紀錄（原紀錄表頁，歸到這裡） ============ -->
+    <div class="card" id="recCard">
+      <div class="cardhd">
+        <h2>查驗紀錄</h2>
+        <span class="hintx" id="recTag">0 筆</span>
+      </div>
+      <div id="recMount"></div>
+    </div>
+
+    <!-- ============ 樁位資料表（上傳完接著作紀錄） ============ -->
+    <div class="card" id="pileCard">
+      <div class="cardhd">
+        <h2>樁位資料表</h2>
+        <span class="hintx">每支樁位一筆檢查資訊</span>
+      </div>
+      <div id="pmMount"></div>
+    </div>
+
     <!-- 舊版上傳卡（保留 DOM 供 drive-page.js 綁定，不顯示） -->
     <div class="card" id="legacyUploadCard" style="display:none">
       <div class="card-b">
@@ -588,8 +642,20 @@ html.camopen #camModal.camwrap{display:flex!important}
 <script src="../assets/batch-del.js"></script>
 <script src="../assets/zoomlock.js"></script>
 <script src="../assets/cam.js"></script>
+<script src="../assets/pile-measure.js"></script>
+<script src="../assets/daily-flow.js"></script>
 <script src="../assets/drive-v2.js"></script>
 <script src="../assets/drive-lib.js"></script>
+<script>
+(function(){
+  function boot(){
+    try{ if(window.DailyFlow&&document.getElementById('dailyMount')) window.DailyFlow.mountDaily(document.getElementById('dailyMount')); }catch(e){ console.error('[daily]',e); }
+    try{ if(window.DailyFlow&&document.getElementById('recMount')) window.DailyFlow.mountRecords(document.getElementById('recMount')); }catch(e){ console.error('[rec]',e); }
+    try{ if(window.PileMeasure&&document.getElementById('pmMount')) window.PileMeasure.mount(document.getElementById('pmMount')); }catch(e){ console.error('[pm]',e); }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+})();
+</script>
 <script>
 (function(){
   if(!('serviceWorker' in navigator))return;

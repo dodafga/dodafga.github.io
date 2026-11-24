@@ -389,6 +389,17 @@
     </div>
   </div>
 
+  <!-- ============ 樁位資料查詢（單日日期／樁號） ============ -->
+  <div class="card" id="pmqCard">
+    <div class="card-h">
+      <h2>樁位資料查詢</h2>
+      <span class="tag">單日日期或樁號</span>
+    </div>
+    <div class="card-b">
+      <div id="pmqMount"></div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-h">
       <h2>材料管控</h2>
@@ -521,6 +532,19 @@
 <script src="../assets/store.js"></script>
 <script src="../assets/gdrive.js"></script>
 <script src="../assets/progress-collapse.js"></script>
+<script src="../assets/pile-measure.js"></script>
+<script>
+(function(){
+  function boot(){
+    try{
+      if(window.PileMeasure && document.getElementById('pmqMount')){
+        window.PileMeasure.mountQuery(document.getElementById('pmqMount'));
+      }
+    }catch(e){ console.error('[pmq]', e); }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+</script>
 <script>
 (function(){
   'use strict';

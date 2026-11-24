@@ -360,6 +360,48 @@ sweep(document)})();</script>
     .card-b{padding:13px;}
     .pv-stage{padding:10px;}
   }
+/* ===== 手機優先版面（form/） ===== */
+  @media (max-width:720px){
+    .wrap{padding:8px 10px calc(30px + env(safe-area-inset-bottom,0px))!important;
+      max-width:100%!important;}
+    header{padding:12px 12px 10px!important;}
+    h1{font-size:16px!important;}
+    .card{border-radius:14px!important;margin-bottom:10px!important;}
+    .card-h{padding:12px 13px!important;}
+    .card-h h2{font-size:15px!important;}
+    .card-b{padding:13px!important;}
+    /* 所有多欄格線在手機一律單欄 */
+    .two-col,.no-name,.sharedgrid,.lockgrid,.row2,.grid{grid-template-columns:1fr!important;}
+    .two-col{gap:10px!important;}
+    /* 輸入框：16px 避免 iOS 自動放大，46px 好按 */
+    .fld input,.fld select,.fld textarea,
+    .card-b input[type=text],.card-b input[type=date],.card-b input[type=time],
+    .card-b select,.card-b textarea{
+      font-size:16px!important;min-height:46px!important;padding:11px 12px!important;
+      border-radius:10px!important;}
+    .fld>label,.fld>span{font-size:12.5px!important;}
+    /* 按鈕：大顆、整排 */
+    .btn{min-height:48px!important;font-size:15px!important;border-radius:11px!important;
+      padding:12px 16px!important;}
+    .btn-sm{min-height:40px!important;font-size:13.5px!important;padding:8px 13px!important;}
+    .btnrow,.actions,.foot{flex-wrap:wrap!important;gap:8px!important;}
+    .btnrow .btn,.actions .btn,.foot .btn{flex:1 1 100%!important;}
+    /* 固定欄位面板：一列一欄、勾選框放大 */
+    .lockgrid{grid-template-columns:1fr!important;gap:7px!important;}
+    .lkrow{min-height:46px!important;padding:10px 12px!important;border-radius:10px!important;}
+    .lkrow input[type=checkbox]{width:22px!important;height:22px!important;}
+    .lkrow .nm{font-size:14px!important;}
+    .lkrow .st{font-size:11.5px!important;}
+    /* 附件表格：橫向捲動 */
+    .attwrap,.tblwrap{overflow-x:auto!important;-webkit-overflow-scrolling:touch;}
+    /* 預覽：手機縮小留白 */
+    .pv-stage{padding:8px!important;}
+    .tabs button{min-height:44px!important;font-size:14px!important;}
+  }
+  @media (max-width:380px){
+    .wrap{padding:6px 8px calc(24px + env(safe-area-inset-bottom,0px))!important;}
+    .card-b{padding:11px!important;}
+  }
 </style>
 </head>
 <body>

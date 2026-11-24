@@ -376,6 +376,7 @@ function pushFiles(files){
       manualAngle:0,autoAngle:0,ocr:null,
       photoDate:f.__photoDate||"",dateSrc:f.__dateSrc||"",
       busy:!0,ocrBusy:!1,err:"",upBusy:!1,upFailed:!1,
+      note:"",
       name:f.name||("photo_"+seq+".jpg"),size:f.size||0
     };
     stage.push(it);prepQ.push(it);
@@ -553,7 +554,7 @@ function renderStage(){
   clampStageIdx();
   if(!stage.length){
     box.className="grid2t";
-    box.innerHTML='<div class="empty2">尚未選取照片。<br>點上方「選擇照片」或「直接拍照」，照片會先自動轉正並排在這裡。</div>';
+    box.innerHTML='<div class="empty2">尚未選取照片。<br>點上方「拍照」或「本機上傳」，照片會先自動轉正並排在這裡。</div>';
     renderUncertain();updateGo();return;
   }
   box.className="grid2t single";
@@ -603,6 +604,11 @@ function renderStage(){
       '<button type="button" class="rb rm" data-rm="'+it.key+'" title="移除這張" aria-label="移除這張">× 移除</button>'+
     "</div>"+
     (it.upFailed?'<div class="uperr">⚠ 上傳失敗（已自動重試 '+MAX_TRY+' 次）：'+esc(it.err||"未知原因")+"　可按「↻ 重試上傳」再試一次。</div>":"")+
+    /* 這一張自己的說明：綁在 it.note 上，換張／旋轉／移除都不會跑到別張 */
+    '<div class="vnote">'+
+      '<label class="vnote-l" for="vnotein">第 '+(stageIdx+1)+' 張說明</label>'+
+      '<textarea id="vnotein" class="vnote-in" rows="2" data-note="'+it.key+'" placeholder="這一張的說明（選填，只會跟著這一張）">'+esc(it.note||"")+'</textarea>'+
+    '</div>'+
     '<div class="vnav">'+
       '<button type="button" class="vbtn" data-prev="1"'+(stageIdx<=0?" disabled":"")+">‹ 上一張</button>"+
       '<span class="vcount">'+(stageIdx+1)+" / "+n+"</span>"+
@@ -761,6 +767,7 @@ function runUpload(){
           return renderFinal(it.baseBlob,dateISO,it.manualAngle).then(function(fin){
             var name=buildName(dateISO,station,n);n++;
             var desc=["樁號："+station,"歸檔日期："+dateISO,
+              String(it.note||"").trim()?("說明："+String(it.note).trim()):"",
               it.ocr&&it.ocr.ok?("自動轉正："+fmtDeg(it.autoAngle||0)+"°"):"自動轉正：未判定",
               it.manualAngle?("手動旋轉："+it.manualAngle+"°"):"",
               wmOn?(fin.applied?"已壓日期浮水印":"未壓浮水印"):"未壓浮水印"].filter(Boolean).join("｜");
@@ -769,7 +776,7 @@ function runUpload(){
             }).then(function(res){
               var hist=readHist();
               hist.unshift({id:res.id,name:res.name,link:res.link,date:dateISO,
-                item:station,note:"",size:res.size||0,
+                item:station,note:String(it.note||"").trim(),size:res.size||0,
                 watermark:wmOn?(fin.applied?"applied":"off"):"off",
                 uploadedAt:new Date().toISOString()});
               writeHist(hist);
@@ -884,6 +891,28 @@ function bind(){
     if(e.key==="Enter"||e.keyCode===13){e.preventDefault();doJump()}
   });
 
+  /* 每張照片自己的說明：輸入即時寫回「那一張」的 it.note（用 data-note 的 key 對應），
+     所以換張、旋轉、移除、切換到別張都不會把說明留在原本那張上。 */
+  C.on("stageGrid","input",function(e){
+    var t=e.target;
+    if(!t||!t.classList||!t.classList.contains("vnote-in"))return;
+    var key=t.getAttribute("data-note");
+    if(!key)return;
+    for(var i=0;i<stage.length;i++){
+      if(stage[i].key===key){stage[i].note=t.value;break}
+    }
+  });
+  /* 失焦時再寫一次，避免行動鍵盤 composition 結束才定稿 */
+  C.on("stageGrid","change",function(e){
+    var t=e.target;
+    if(!t||!t.classList||!t.classList.contains("vnote-in"))return;
+    var key=t.getAttribute("data-note");
+    if(!key)return;
+    for(var i=0;i<stage.length;i++){
+      if(stage[i].key===key){stage[i].note=t.value;break}
+    }
+  });
+
   C.on("stageGrid","click",function(e){
     var t=e.target;
     /* 跳到第 N 張 */
@@ -919,6 +948,7 @@ function bind(){
         return renderFinal(it.baseBlob,d0,it.manualAngle).then(function(fin){
           var name=buildName(d0,s0,1);
           var desc=["樁號："+s0,"歸檔日期："+d0,
+            String(it.note||"").trim()?("說明："+String(it.note).trim()):"",
             it.ocr&&it.ocr.ok?("自動轉正："+fmtDeg(it.autoAngle||0)+"°"):"自動轉正：未判定",
             it.manualAngle?("手動旋轉："+it.manualAngle+"°"):"",
             wmOn?(fin.applied?"已壓日期浮水印":"未壓浮水印"):"未壓浮水印"].filter(Boolean).join("｜");
@@ -926,7 +956,7 @@ function bind(){
             if(a>1)toast("第 "+a+" 次嘗試…");
           }).then(function(res){
             var hist=readHist();
-            hist.unshift({id:res.id,name:res.name,link:res.link,date:d0,item:s0,note:"",size:res.size||0,
+            hist.unshift({id:res.id,name:res.name,link:res.link,date:d0,item:s0,note:String(it.note||"").trim(),size:res.size||0,
               watermark:wmOn?(fin.applied?"applied":"off"):"off",uploadedAt:new Date().toISOString()});
             writeHist(hist);
             doneList.unshift({name:res.name,link:res.link,date:d0,station:s0,thumbUrl:it.thumbUrl||"",size:res.size||0});

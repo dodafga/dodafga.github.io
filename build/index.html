@@ -117,11 +117,18 @@
       <div class="cardhd">
         <h2>加入照片</h2>
       </div>
-      <label class="addbtn wide" for="filePick">
-        <span class="big" aria-hidden="true">📷</span>
-        <span>加入照片</span>
-      </label>
+      <div class="addrow">
+        <button type="button" class="addbtn" id="btnCam">
+          <span class="big" aria-hidden="true">📷</span>
+          <span>拍照</span>
+        </button>
+        <label class="addbtn" for="filePick">
+          <span class="big" aria-hidden="true">🖼</span>
+          <span>本機上傳</span>
+        </label>
+      </div>
       <input type="file" id="filePick" accept="image/*" multiple hidden>
+      <input type="file" id="camInput" accept="image/*" capture="environment" multiple hidden>
 
       <div class="pendbox" id="pendBox" style="display:none">
         <div class="pendhd">
@@ -281,6 +288,27 @@
 </main>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- 拍照視窗：可連續拍多張，拍完按「使用照片」一次帶入 -->
+<div class="camwrap" id="camWrap" style="display:none" role="dialog" aria-modal="true" aria-label="拍照">
+  <div class="cambox">
+    <div class="camhd">
+      <b>拍照</b>
+      <span class="camn" id="camCount">0 張</span>
+      <button type="button" class="camx" id="camClose" aria-label="關閉">✕</button>
+    </div>
+    <div class="camstage">
+      <video id="camVideo" playsinline autoplay muted></video>
+      <div class="camerr" id="camErr" style="display:none"></div>
+    </div>
+    <div class="camshots" id="camShots"></div>
+    <div class="camft">
+      <button type="button" class="btn ghost" id="camCancel">取消</button>
+      <button type="button" class="btn" id="camShoot">📷 拍一張</button>
+      <button type="button" class="btn" id="camUse" disabled>使用照片（0）</button>
+    </div>
+  </div>
+</div>
 
 <script src="../assets/core.js"></script>
 <script src="../assets/gdrive.js"></script>

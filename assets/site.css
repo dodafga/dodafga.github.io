@@ -345,8 +345,8 @@ main{flex:1 1 auto;max-width:760px;width:100%;margin:0 auto;
   main{padding:4px 12px calc(36px + env(safe-area-inset-bottom,0px))}
   .card{padding:15px}
   .grid3,.grid2{grid-template-columns:1fr}
-  .addrow{grid-template-columns:1fr}
-  .addbtn{min-height:88px;padding:10px 6px;font-size:14px}
+  .addrow{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .addbtn{min-height:84px;padding:10px 6px;font-size:14px}
   .addbtn .sm2{display:none}
   .addbtn .big{font-size:24px}
   .presetrow input{flex:1 1 100%}
@@ -375,3 +375,44 @@ main{flex:1 1 auto;max-width:760px;width:100%;margin:0 auto;
 
 .hintx:empty{display:none}
 .crewempty:empty{display:none}
+
+/* ===== 拍照視窗（連續拍多張 → 使用照片） ===== */
+.camwrap{position:fixed;inset:0;z-index:120;background:rgba(20,24,28,.86);
+  display:flex;align-items:center;justify-content:center;padding:12px}
+.cambox{width:100%;max-width:520px;max-height:96vh;display:flex;flex-direction:column;
+  background:#fff;border-radius:16px;overflow:hidden}
+.camhd{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.camhd b{font-size:15px;font-weight:800;color:var(--ink)}
+.camn{font-size:12px;font-weight:800;color:#fff;background:var(--steel);
+  border-radius:20px;padding:2px 9px}
+.camx{margin-left:auto;width:36px;height:36px;border:none;border-radius:10px;
+  background:#F1EFEC;color:var(--ink2);font-size:16px;cursor:pointer;font-family:inherit}
+.camstage{position:relative;background:#0f1419;flex:1 1 auto;min-height:180px;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.camstage video{width:100%;height:100%;max-height:52vh;object-fit:contain;display:block}
+.camerr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:18px;text-align:center;color:#fff;font-size:13px;line-height:1.7;background:#0f1419}
+.camshots{display:flex;gap:8px;padding:10px 12px;overflow-x:auto;background:#FAFAF8;
+  border-top:1px solid var(--line);min-height:0}
+.camshots:empty{display:none}
+.camshot{position:relative;flex:0 0 72px;width:72px;height:72px;border-radius:9px;
+  overflow:hidden;background:#EDEBE7}
+.camshot img{width:100%;height:100%;object-fit:cover;display:block}
+.camshot .cx{position:absolute;right:2px;top:2px;width:22px;height:22px;border:none;
+  border-radius:50%;background:rgba(20,24,28,.72);color:#fff;font-size:12px;line-height:1;
+  cursor:pointer;font-family:inherit;padding:0}
+.camft{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);flex-wrap:wrap}
+.camft .btn{flex:1 1 0;min-width:0}
+.camft .btn.ghost{flex:0 0 auto}
+@media (max-width:420px){
+  .camft .btn{font-size:13px;padding:11px 8px}
+  .camshot{flex:0 0 62px;width:62px;height:62px}
+}
+
+/* ===== 每張照片自己的說明（暫存區檢視器） ===== */
+.vnote{padding:10px 12px 0}
+.vnote-l{display:block;font-size:12px;font-weight:800;color:var(--ink2);margin-bottom:5px}
+.vnote-in{width:100%;box-sizing:border-box;font-family:inherit;font-size:15px;
+  line-height:1.5;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;
+  background:#FAFAF8;color:var(--ink);resize:vertical;min-height:56px}
+.vnote-in:focus{outline:none;border-color:var(--steel);background:#fff}

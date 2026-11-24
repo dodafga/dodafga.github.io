@@ -1,0 +1,36 @@
+name: r61 apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r61-apply.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch files
+        run: |
+          set -e
+          curl -fsSL https://paste.rs/9zT7Y -o build/index.html
+          curl -fsSL https://paste.rs/eZGj7 -o assets/assistant.js
+          curl -fsSL https://paste.rs/6e2jH -o assets/drive-v2.js
+          curl -fsSL https://paste.rs/LmqGG -o assets/site.css
+          wc -c build/index.html assets/assistant.js assets/drive-v2.js assets/site.css
+          sha256sum build/index.html assets/assistant.js assets/drive-v2.js assets/site.css
+          node --check assets/assistant.js
+          node --check assets/drive-v2.js
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "canon8741311@gmail.com"
+          git add build/index.html assets/assistant.js assets/drive-v2.js assets/site.css
+          git commit -m "施工照片歸檔：每張照片各自的說明（換張/旋轉/移除不再錯位）＋拍照與本機上傳分成兩個入口（可連續拍多張再使用照片）" || echo "no change"
+          git push
+      - name: Self delete
+        run: |
+          git rm .github/workflows/r61-apply.yml
+          git commit -m "chore: remove one-time r61 workflow"
+          git push

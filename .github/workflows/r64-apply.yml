@@ -20,9 +20,9 @@ jobs:
         run: |
           set -e
           mkdir -p /tmp/in
-          curl -fsSL -o /tmp/in/drive_index.html "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive_index.html"
-          curl -fsSL -o /tmp/in/drive-v2.js      "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive-v2.js"
-          curl -fsSL -o /tmp/in/drive-lib.js     "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive-lib.js"
+          curl -fsSL -o /tmp/in/drive_index.html "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive_index.html?tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzYvZG9jdW1lbnRzL3I2NC1kZXBsb3k6MTc5NTUxNjU0NA.NTFjYmQyY2QzMGY4MTM0NjcyOTcyMDYyM2JjMGMxZmE"
+          curl -fsSL -o /tmp/in/drive-v2.js      "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive-v2.js?tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzYvZG9jdW1lbnRzL3I2NC1kZXBsb3k6MTc5NTUxNjU0NA.NTFjYmQyY2QzMGY4MTM0NjcyOTcyMDYyM2JjMGMxZmE"
+          curl -fsSL -o /tmp/in/drive-lib.js     "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive-lib.js?tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzYvZG9jdW1lbnRzL3I2NC1kZXBsb3k6MTc5NTUxNjU0NA.NTFjYmQyY2QzMGY4MTM0NjcyOTcyMDYyM2JjMGMxZmE"
           ls -l /tmp/in
 
       - name: Verify sha256

@@ -296,16 +296,13 @@ html.camopen #camModal.camwrap{display:flex!important}
       <input type="file" id="fileInput2" accept="image/*" multiple hidden>
       <input type="file" id="camInput2" accept="image/*" capture="environment" hidden>
 
-      <div class="cambuf" id="camBuf" style="display:none">
-        <div class="cambufhd">
-          <b>已拍 <span id="camBufCount">0</span> 張</b>
-          <button type="button" class="btn ghost sm" id="camBufClear" style="margin-left:auto">清除</button>
+      <div class="pendbox" id="pendBox" style="display:none">
+        <div class="pendhd">
+          <b>待加入 <span id="pendCount">0</span> 張</b>
+          <button type="button" class="btn ghost sm" id="btnPendClear" style="margin-left:auto">清除</button>
         </div>
-        <div class="cambufgrid" id="camBufGrid"></div>
-        <div class="cambufact">
-          <button type="button" class="btn ghost" id="camShootMore">📷 再拍一張</button>
-          <button type="button" class="btn" id="camUse">使用照片（0）</button>
-        </div>
+        <div class="pendgrid" id="pendGrid"></div>
+        <button type="button" class="btn wide" id="btnPendAdd" style="margin-top:10px">加入暫存區（0）</button>
       </div>
 
       <div class="progwrap" id="progWrap">
@@ -590,6 +587,7 @@ html.camopen #camModal.camwrap{display:flex!important}
 <script src="../assets/drive-page.js"></script>
 <script src="../assets/batch-del.js"></script>
 <script src="../assets/zoomlock.js"></script>
+<script src="../assets/cam.js"></script>
 <script src="../assets/drive-v2.js"></script>
 <script src="../assets/drive-lib.js"></script>
 <script>

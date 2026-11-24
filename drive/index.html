@@ -105,72 +105,136 @@ sweep(document)})();</script>
   color:var(--ink2);cursor:pointer}
 .dfchk input{width:20px;height:20px;accent-color:var(--steel);cursor:pointer;margin:0}
 .dfhint{font-size:11.5px;color:var(--muted);line-height:1.6;flex:1 1 200px;min-width:0}
-/* 站內相機（可連拍） */
-.camwrap{position:fixed;inset:0;z-index:200;background:#05070A;display:none;
-  flex-direction:column;align-items:stretch;justify-content:flex-start;height:100%;
-  padding:calc(4px + env(safe-area-inset-top,0px)) 8px
-  calc(6px + env(safe-area-inset-bottom,0px))}
+/* ===== 站內相機：全螢幕取景（近似本機相機 App） ===== */
+.camwrap{position:fixed;inset:0;z-index:200;background:#000;display:none;
+  flex-direction:column;height:100%;height:100dvh;overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none}
 .camwrap.on{display:flex}
-.camhd{display:flex;align-items:center;gap:10px;color:#fff;padding:2px 2px 8px;flex:0 0 auto}
-.camhd b{font-size:14px;font-weight:800;letter-spacing:.02em}
-.camhd .camcnt{font-size:12.5px;font-weight:800;background:rgba(255,255,255,.18);
-  border-radius:20px;padding:4px 12px}
-.camhd .camx{margin-left:auto;width:44px;height:44px;border:none;border-radius:12px;
-  background:rgba(255,255,255,.14);color:#fff;font-size:18px;line-height:1;cursor:pointer;
-  font-family:inherit;padding:0}
-/* 變焦倍率列（浮在預覽底部） */
-.camzbar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:4;
-  display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(0,0,0,.46);
-  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-.camzbar[hidden]{display:none}
-.camzbar .camz{min-width:46px;height:46px;padding:0 13px;border:none;border-radius:999px;
-  background:transparent;color:#fff;font-family:inherit;font-size:14.5px;font-weight:800;
-  cursor:pointer;line-height:1;transition:background .15s,color .15s}
-.camzbar .camz.on{background:#fff;color:#0B0F14}
-/* 預覽：吃滿可用高度，cover 填滿（不再出現細細一條），並支援數位變焦 */
-.camview{position:relative;flex:1 1 auto;min-height:0;border-radius:18px;overflow:hidden;
-  background:#000;display:block;isolation:isolate}
+.camview{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;background:#000;
+  isolation:isolate;touch-action:none}
 .camview video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
   display:block;background:#000;transform:scale(var(--camz,1));transform-origin:center center;
-  transition:transform .18s ease-out;z-index:1}
-.camview .camerr{position:absolute;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;color:#fff;font-size:13.5px;line-height:1.8;
-  text-align:center;padding:24px}
-.camview .camerr b{display:block;font-size:15px;margin-bottom:6px}
-.camstrip{display:flex;gap:8px;padding:10px 2px;overflow-x:auto;min-height:0;flex:0 0 auto}
-.camstrip:empty{display:none}
-.camstrip .camshot{position:relative;flex:0 0 64px;width:64px;height:64px;border-radius:12px;
-  overflow:hidden;background:#1B222B}
-.camstrip .camshot img{width:100%;height:100%;object-fit:cover;display:block}
-.camstrip .camshot .cx{position:absolute;right:2px;top:2px;width:22px;height:22px;border:none;
-  border-radius:50%;background:rgba(0,0,0,.66);color:#fff;font-size:12px;line-height:1;
-  cursor:pointer;font-family:inherit;padding:0}
-.camft{display:flex;align-items:center;gap:10px;padding:6px 2px 2px;flex:0 0 auto}
-.camft .shutter{flex:0 0 auto;width:84px;height:84px;border-radius:50%;border:4px solid #fff;
-  background:rgba(255,255,255,.24);cursor:pointer;font-family:inherit;font-size:12.5px;
-  font-weight:800;color:#fff;line-height:1.2;padding:0;
-  box-shadow:0 0 0 3px rgba(255,255,255,.16)}
-.camft .shutter:active{background:rgba(255,255,255,.55)}
-.camft .shutter:disabled{opacity:.4;cursor:not-allowed}
-.camft .btn{flex:1 1 0;min-width:0;min-height:56px}
-.camft .btn.ghost{background:rgba(255,255,255,.14);color:#fff}
-.camft .btn.ghost:active{background:rgba(255,255,255,.26)}
+  transition:transform .16s ease-out;z-index:1}
+/* 九宮格輔助線 */
+.camgrid{position:absolute;inset:0;z-index:2;pointer-events:none}
+.camgrid i{position:absolute;background:rgba(255,255,255,.30);
+  box-shadow:0 0 2px rgba(0,0,0,.45)}
+.camgrid i:nth-child(1){left:33.333%;top:0;bottom:0;width:1px}
+.camgrid i:nth-child(2){left:66.666%;top:0;bottom:0;width:1px}
+.camgrid i:nth-child(3){top:33.333%;left:0;right:0;height:1px}
+.camgrid i:nth-child(4){top:66.666%;left:0;right:0;height:1px}
+/* 點擊對焦框 */
+.camfocus{position:absolute;z-index:5;width:78px;height:78px;margin:-39px 0 0 -39px;
+  border:2px solid #FFD400;border-radius:8px;pointer-events:none;
+  box-shadow:0 0 0 1px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.25);
+  animation:camfocusin .18s ease-out}
+.camfocus::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;
+  margin:-3px 0 0 -3px;border-radius:50%;background:#FFD400}
+@keyframes camfocusin{from{opacity:0;transform:scale(1.35)}to{opacity:1;transform:scale(1)}}
 .camflash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;
-  transition:opacity .12s;z-index:3}
-.camflash.on{opacity:.85;transition:none}
+  transition:opacity .16s ease-out;z-index:6}
+.camflash.on{opacity:.9;transition:none}
+/* 頂列 */
+.camtop{position:absolute;left:0;right:0;top:0;z-index:7;display:flex;align-items:center;
+  gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) 14px 22px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.62),rgba(0,0,0,0))}
+.camtop .camcnt{font-size:12.5px;font-weight:800;color:#fff;background:rgba(255,255,255,.20);
+  border-radius:20px;padding:5px 13px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.camtop .camx{margin-left:auto;width:42px;height:42px;border:none;border-radius:50%;
+  background:rgba(0,0,0,.42);color:#fff;font-size:17px;line-height:1;cursor:pointer;
+  font-family:inherit;padding:0;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+/* 變焦列（無段滑桿 + 倍率快捷） */
+.camzoom{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);z-index:7;display:flex;align-items:center;gap:9px;
+  padding:7px 12px;border-radius:999px;background:rgba(0,0,0,.50);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);max-width:calc(100% - 24px)}
+.camzoom .cz{min-width:38px;height:34px;padding:0 9px;border:none;border-radius:999px;
+  background:transparent;color:#fff;font-family:inherit;font-size:13px;font-weight:800;
+  cursor:pointer;line-height:1;transition:background .15s,color .15s}
+.camzoom .cz.on{background:#fff;color:#0B0F14}
+.camzoom input[type=range]{-webkit-appearance:none;appearance:none;width:118px;height:26px;
+  background:transparent;margin:0;cursor:pointer}
+.camzoom input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;
+  background:rgba(255,255,255,.42)}
+.camzoom input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:20px;height:20px;margin-top:-8px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.camzoom input[type=range]::-moz-range-track{height:4px;border-radius:2px;
+  background:rgba(255,255,255,.42)}
+.camzoom input[type=range]::-moz-range-thumb{width:20px;height:20px;border:none;
+  border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.camzoom .czv{min-width:44px;text-align:right;font-size:12.5px;font-weight:800;color:#fff;
+  font-variant-numeric:tabular-nums}
+/* 底部：左下縮圖 / 快門 / 使用照片 */
+.cambar{flex:0 0 auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  gap:10px;padding:12px 18px calc(14px + env(safe-area-inset-bottom,0px));background:#000}
+.camthumb{justify-self:start;width:54px;height:54px;padding:0;border:2px solid rgba(255,255,255,.55);
+  border-radius:12px;overflow:hidden;background:#1B222B;cursor:pointer;display:block}
+.camthumb[hidden]{display:none}
+.camthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.shutter{justify-self:center;width:78px;height:78px;padding:0;border:4px solid #fff;
+  border-radius:50%;background:transparent;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:transform .1s}
+.shutter span{display:block;width:60px;height:60px;border-radius:50%;background:#fff;
+  transition:transform .1s,background .1s}
+.shutter:active span{transform:scale(.86);background:#E6E6E6}
+.shutter:disabled{opacity:.45;cursor:not-allowed}
+.camuse{justify-self:end;min-height:46px;padding:0 18px;border:none;border-radius:999px;
+  background:#fff;color:#0B0F14;font-family:inherit;font-size:13.5px;font-weight:800;
+  cursor:pointer;white-space:nowrap}
+.camuse:disabled{opacity:.38;cursor:not-allowed}
+.camerr{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;color:#fff;font-size:13.5px;line-height:1.85;
+  text-align:center;padding:28px;background:#05070A}
+.camerr[hidden]{display:none}
+.camerr b{display:block;font-size:15.5px;margin-bottom:8px}
+/* 剛拍照片檢視器 */
+.camviewer{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.97);display:none;
+  flex-direction:column}
+.camviewer.on{display:flex}
+.camviewer .cvhd{display:flex;align-items:center;gap:10px;color:#fff;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;flex:0 0 auto}
+.camviewer .cvhd b{font-size:13.5px;font-weight:800}
+.camviewer .cvhd .cvcnt{font-size:12.5px;font-weight:800;background:rgba(255,255,255,.18);
+  border-radius:20px;padding:4px 12px}
+.camviewer .cvhd .cvx{margin-left:auto;width:42px;height:42px;border:none;border-radius:50%;
+  background:rgba(255,255,255,.16);color:#fff;font-size:17px;line-height:1;cursor:pointer;
+  font-family:inherit;padding:0}
+.camviewer .cvbody{flex:1 1 auto;min-height:0;display:flex;align-items:center;
+  justify-content:center;padding:0 10px}
+.camviewer .cvbody img{max-width:100%;max-height:100%;object-fit:contain;display:block;
+  border-radius:8px}
+.camviewer .cvft{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px))}
+.camviewer .cvft button{flex:1 1 0;min-height:50px;border:none;border-radius:12px;
+  background:rgba(255,255,255,.16);color:#fff;font-family:inherit;font-size:13.5px;
+  font-weight:800;cursor:pointer}
+.camviewer .cvft button:disabled{opacity:.35;cursor:not-allowed}
+.camviewer .cvft button.del{background:rgba(255,80,80,.28);color:#FFD9D9}
 @media (max-width:420px){
-  .camft .shutter{width:78px;height:78px;font-size:12px}
-  .camstrip .camshot{flex:0 0 58px;width:58px;height:58px}
-  .camzbar .camz{min-width:44px;height:44px;font-size:14px;padding:0 11px}
-  .camzbar{bottom:10px}
+  .shutter{width:72px;height:72px}
+  .shutter span{width:55px;height:55px}
+  .camthumb{width:48px;height:48px}
+  .camuse{min-height:44px;padding:0 14px;font-size:12.5px}
+  .camzoom input[type=range]{width:96px}
+  .cambar{padding:10px 14px calc(12px + env(safe-area-inset-bottom,0px))}
 }
 @media (min-width:760px){
-  .camwrap{padding:12px 14px 10px}
-  .camview{border-radius:20px}
-  .camft .shutter{width:94px;height:94px;font-size:13px}
-  .camstrip .camshot{flex:0 0 80px;width:80px;height:80px}
-  .camzbar .camz{min-width:52px;height:52px;font-size:15.5px}
+  .shutter{width:88px;height:88px}
+  .shutter span{width:68px;height:68px}
+  .camthumb{width:64px;height:64px}
+  .camzoom input[type=range]{width:180px}
 }
+
+/* 覆寫 site.css 舊的 .camwrap 置中容器規則（避免與全螢幕取景衝突） */
+#camModal.camwrap{display:none;flex-direction:column;align-items:stretch;
+  justify-content:flex-start;padding:0;background:#000;z-index:200}
+#camModal.camwrap.on{display:flex}
+#camModal .camview{flex:1 1 auto;min-height:0;width:100%}
+#camModal .camerr{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;background:#05070A;color:#fff;padding:28px}
+#camModal .camerr[hidden]{display:none}
+#camModal .camhd{display:none}
 </style>
 </head>
 <body>
@@ -459,29 +523,48 @@ sweep(document)})();</script>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<!-- ===== 站內相機（可連續拍多張） ===== -->
+<!-- ===== 站內相機：全螢幕取景、可連拍多張 ===== -->
 <div class="camwrap" id="camModal" role="dialog" aria-modal="true" aria-label="拍照">
-  <div class="camhd">
-    <b>拍照</b>
-    <span class="camcnt" id="camModalCount">0 張</span>
-    <button type="button" class="camx" id="camClose" aria-label="關閉">✕</button>
-  </div>
   <div class="camview" id="camView">
     <video id="camVideo" playsinline autoplay muted></video>
+    <div class="camgrid" id="camGrid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div class="camflash" id="camFlash"></div>
-    <div class="camzbar" id="camZbar" hidden>
-      <button type="button" class="camz on" data-z="1">1×</button>
-      <button type="button" class="camz" data-z="2">2×</button>
-      <button type="button" class="camz" data-z="3">3×</button>
-      <button type="button" class="camz" data-z="5">5×</button>
+    <div class="camtop">
+      <span class="camcnt" id="camModalCount">0 張</span>
+      <button type="button" class="camx" id="camClose" aria-label="關閉">✕</button>
     </div>
+    <div class="camzoom" id="camZoom">
+      <button type="button" class="cz on" data-z="1">1×</button>
+      <button type="button" class="cz" data-z="2">2×</button>
+      <button type="button" class="cz" data-z="3">3×</button>
+      <button type="button" class="cz" data-z="5">5×</button>
+      <input type="range" id="camZoomRange" min="1" max="5" step="0.1" value="1" aria-label="變焦倍率">
+      <span class="czv" id="camZoomVal">1.0×</span>
+    </div>
+    <div class="camerr" id="camErr" hidden></div>
   </div>
-  <div class="camstrip" id="camStrip"></div>
-  <div class="camft">
-    <button type="button" class="btn ghost" id="camCancel">取消</button>
-    <button type="button" class="shutter" id="camShutter">拍一張</button>
-    <button type="button" class="btn" id="camUse2">使用照片（0）</button>
+  <div class="cambar">
+    <button type="button" class="camthumb" id="camThumb" hidden aria-label="檢視剛拍的照片">
+      <img id="camThumbImg" alt="">
+    </button>
+    <button type="button" class="shutter" id="camShutter" aria-label="拍一張"><span></span></button>
+    <button type="button" class="camuse" id="camUse2" disabled>使用照片（0）</button>
   </div>
+<!-- 剛拍照片檢視器 -->
+<div class="camviewer" id="camViewer" role="dialog" aria-modal="true" aria-label="檢視照片">
+  <div class="cvhd">
+    <b>剛拍的照片</b>
+    <span class="cvcnt" id="cvCount">0 / 0</span>
+    <button type="button" class="cvx" id="cvClose" aria-label="關閉">✕</button>
+  </div>
+  <div class="cvbody"><img id="cvImg" alt=""></div>
+  <div class="cvft">
+    <button type="button" id="cvPrev">‹ 上一張</button>
+    <button type="button" class="del" id="cvDel">刪除這張</button>
+    <button type="button" id="cvNext">下一張 ›</button>
+  </div>
+</div>
+
 </div>
 
 <script src="../assets/jszip.min.js"></script>

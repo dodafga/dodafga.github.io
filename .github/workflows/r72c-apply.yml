@@ -1,0 +1,59 @@
+name: r72c-apply
+on:
+  push:
+    paths:
+      - '.github/workflows/r72c-apply.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch and place files
+        run: |
+          set -e
+          mkdir -p drive progress assets
+          fetch() { curl -fsSL --retry 3 --retry-delay 2 -o "$2" "$1"; echo "  $2 $(wc -c < "$2")"; }
+          fetch "https://paste.rs/jEVOG" drive/index.html
+          fetch "https://paste.rs/GqMfa" progress/index.html
+          fetch "https://paste.rs/xHy6W" assets/daily-flow.js
+          fetch "https://paste.rs/qbHjA" assets/pile-measure.js
+      - name: Verify content markers
+        run: |
+          set -e
+          chk() { grep -q "$2" "$1" || { echo "MISSING in $1: $2"; exit 1; }; echo "  ok $1"; }
+          chk drive/index.html 'dailyMount'
+          chk drive/index.html 'pmMount'
+          chk drive/index.html 'pile-measure.js'
+          chk drive/index.html 'daily-flow.js'
+          if grep -q 'recMount' drive/index.html; then echo "recMount still in drive"; exit 1; fi
+          echo "  ok drive has no recMount"
+          chk progress/index.html 'recMount'
+          chk progress/index.html 'daily-flow.js'
+          chk progress/index.html 'pmqMount'
+          chk assets/daily-flow.js 'DailyFlow'
+          chk assets/daily-flow.js 'recTag'
+          chk assets/pile-measure.js 'PileMeasure'
+          chk assets/pile-measure.js 'dailyStaff'
+          chk assets/pile-measure.js 'pmStirLap'
+          chk assets/pile-measure.js 'pmWeld2Cm'
+          if grep -q 'pmInspector' assets/pile-measure.js; then echo "pmInspector still present"; exit 1; fi
+          echo "  ok pile-measure has no pmInspector"
+          echo "ALL MARKERS OK"
+      - name: Commit
+        run: |
+          set -e
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add -A
+          git commit -m "查驗紀錄移至進度表首區塊；樁位資料表移除查驗/監造欄位、新增箍筋搭接與兩處焊道、儀器高移至垂直度前" || echo "nothing to commit"
+          git push origin HEAD:main
+      - name: Self delete
+        run: |
+          git rm -f .github/workflows/r72c-apply.yml || true
+          git commit -m "chore: remove one-time workflow" || true
+          git push origin HEAD:main || true

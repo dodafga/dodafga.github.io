@@ -1,0 +1,58 @@
+name: r64 apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r64-apply.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download new files
+        run: |
+          set -e
+          mkdir -p /tmp/in
+          curl -fsSL -o /tmp/in/drive_index.html "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive_index.html"
+          curl -fsSL -o /tmp/in/drive-v2.js      "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive-v2.js"
+          curl -fsSL -o /tmp/in/drive-lib.js     "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r64-deploy/drive-lib.js"
+          ls -l /tmp/in
+
+      - name: Verify sha256
+        run: |
+          set -e
+          cd /tmp/in
+          echo "b8db3d9f7d1602be1a34e565efe8b888d9a54500776cbab09c2a6e67a343b6aa  drive-lib.js"   > sums.txt
+          echo "d490de1c9d1be219815296d6de8d0293d239b46f2e67dc85aa1ca90252e1ff44  drive-v2.js"    >> sums.txt
+          echo "4ab780c952a9ad779739666a907822b9d0f90b52d46a04e2b6e8ad5665acf19f  drive_index.html" >> sums.txt
+          sha256sum -c sums.txt
+
+      - name: Apply
+        run: |
+          set -e
+          cp /tmp/in/drive_index.html drive/index.html
+          cp /tmp/in/drive-v2.js      assets/drive-v2.js
+          cp /tmp/in/drive-lib.js     assets/drive-lib.js
+          node --check assets/drive-v2.js
+          node --check assets/drive-lib.js
+          git config user.name  "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add drive/index.html assets/drive-v2.js assets/drive-lib.js
+          git commit -m "feat(drive): 拍照介面加大 + 變焦倍率；樁號不建資料夾改寫說明；已上傳改為營造助手樣式"
+          git push origin HEAD:main
+
+      - name: Self delete workflow
+        if: always()
+        run: |
+          set -e
+          git pull --rebase origin main || true
+          git rm -f .github/workflows/r64-apply.yml || true
+          git commit -m "chore: remove one-off r64 workflow" || true
+          git push origin HEAD:main || true

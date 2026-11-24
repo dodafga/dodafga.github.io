@@ -1,0 +1,45 @@
+name: r63-apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r63-apply.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and verify
+        run: |
+          set -e
+          mkdir -p drive assets
+          curl -fsSL -o drive/index.html "https://static.teamily.ai/files/27beba91-6dc5-4775-ab5f-35d2ac750799/index.html"
+          curl -fsSL -o assets/drive-v2.js "https://static.teamily.ai/files/941171f2-0b1e-4b23-8f08-a755f17883a6/drive-v2.js"
+          curl -fsSL -o assets/drive-hist.css "https://static.teamily.ai/files/6a218d72-0dbb-4b66-a592-ed62c50464df/drive-hist.css"
+          echo "--- sizes ---"
+          wc -c drive/index.html assets/drive-v2.js assets/drive-hist.css
+          echo "--- sha256 ---"
+          sha256sum drive/index.html assets/drive-v2.js assets/drive-hist.css
+          echo "--- sanity ---"
+          grep -c "camModal" drive/index.html
+          grep -c "camShutter" assets/drive-v2.js
+          grep -c "histCard" assets/drive-hist.css
+          test "$(wc -c < drive/index.html)" -gt 15000
+          test "$(wc -c < assets/drive-v2.js)" -gt 50000
+          test "$(wc -c < assets/drive-hist.css)" -gt 10000
+      - name: Commit
+        run: |
+          set -e
+          git config user.name "dodafga"
+          git config user.email "132368659+dodafga@users.noreply.github.com"
+          git add drive/index.html assets/drive-v2.js assets/drive-hist.css
+          git commit -m "feat(drive): 施工照片歸檔改版 — 版面比照營造助手、站內相機可連拍多張"
+          git push
+      - name: Self delete
+        run: |
+          set -e
+          git rm .github/workflows/r63-apply.yml
+          git commit -m "chore: remove one-shot workflow r63-apply"
+          git push

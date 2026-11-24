@@ -1,0 +1,34 @@
+name: r62 apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r62-apply.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch files
+        run: |
+          set -e
+          curl -fsSL https://paste.rs/IHzyr -o build/index.html
+          curl -fsSL https://paste.rs/4KL53 -o assets/assistant.js
+          curl -fsSL https://paste.rs/b7Wue -o assets/site.css
+          wc -c build/index.html assets/assistant.js assets/site.css
+          sha256sum build/index.html assets/assistant.js assets/site.css
+          node --check assets/assistant.js
+      - name: Commit
+        run: |
+          git config user.name "dodafga"
+          git config user.email "canon8741311@gmail.com"
+          git add build/index.html assets/assistant.js assets/site.css
+          git commit -m "施工照片歸檔：拍照改用本機相機 App，可連拍多張後按使用照片一次帶入" || echo "no change"
+          git push
+      - name: Self delete
+        run: |
+          git rm .github/workflows/r62-apply.yml
+          git commit -m "chore: remove one-time r62 workflow"
+          git push

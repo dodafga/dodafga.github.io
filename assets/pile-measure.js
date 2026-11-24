@@ -16,7 +16,8 @@
   var KEY = 'inspection-pile-measure-v1';
 
   var M_KEYS = ['el', 'upCm', 'upCnt', 'lowCm', 'lowCnt', 'depth', 'lap',
-                'weldCm', 'weldCnt', 'plumb', 'topA', 'topB', 'dia'];
+                'weldCm', 'weldCnt', 'stirLap', 'weld2Cm', 'weld2Cnt',
+                'plumb', 'topA', 'topB', 'dia'];
 
   var M_LABEL = {
     el: '儀器高 EL', upCm: '上D19 ㎝', upCnt: '上D19 支數',
@@ -199,6 +200,8 @@
     if (m.dia) bits.push('D ' + m.dia + 'cm');
     if (m.lap) bits.push('Ld ' + m.lap + 'm');
     if (m.weldCm) bits.push('銲道 ' + m.weldCm + 'cm' + (m.weldCnt ? '×' + m.weldCnt : ''));
+    if (m.stirLap) bits.push('箍筋Ld ' + m.stirLap + 'cm');
+    if (m.weld2Cm) bits.push('銲道2 ' + m.weld2Cm + 'cm' + (m.weld2Cnt ? '×' + m.weld2Cnt : ''));
     if (m.upCm) bits.push('上D19 ' + m.upCm + 'cm' + (m.upCnt ? '×' + m.upCnt : ''));
     if (m.lowCm) bits.push('下D19 ' + m.lowCm + 'cm' + (m.lowCnt ? '×' + m.lowCnt : ''));
     if (m.el) bits.push('EL ' + m.el);
@@ -222,6 +225,8 @@
     h += di('深度', m.depth ? (m.depth + ' m') : '');
     h += di('主筋搭接 Ld', m.lap ? (m.lap + ' m') : '');
     h += di('銲道', m.weldCm ? (m.weldCm + ' cm' + (m.weldCnt ? ' ／ ' + m.weldCnt + ' 處' : '')) : '');
+    h += di('箍筋搭接 Ld', m.stirLap ? (m.stirLap + ' cm') : '');
+    h += di('兩處銲道', m.weld2Cm ? (m.weld2Cm + ' cm' + (m.weld2Cnt ? ' ／ ' + m.weld2Cnt + ' 處' : '')) : '');
     h += di('垂直度', m.plumb);
     var topA = m.topA || m.el || '';
     var topB = (m.topB == null ? '' : String(m.topB));
@@ -370,8 +375,6 @@
       '  <div class="pm-entry">',
       '    <label class="pm-fld"><span>查驗日期 <span class="h">yyyy/mm/dd</span></span>',
       '      <input type="date" id="pmDate"></label>',
-      '    <label class="pm-fld"><span>查驗人員</span><select id="pmInspector"></select></label>',
-      '    <label class="pm-fld"><span>監造人員</span><select id="pmSupervisor"></select></label>',
       '    <label class="pm-fld"><span>樁號 <span class="h">先選墩號再選樁號</span></span>',
       '      <div class="pm-pick"><select id="pmPier"></select><select id="pmPile" disabled></select></div>',
       '    </label>',
@@ -380,37 +383,44 @@
       '  <table class="pm-mtable"><thead><tr>',
       '    <th class="rowno">#</th><th>設計／標準值</th><th>實際量測值</th>',
       '  </tr></thead><tbody>',
-      '    <tr><td class="rowno">1</td><td class="design">儀器高：EL</td>',
-      '      <td><div class="pm-inline"><span class="u">EL＝</span>',
-      '        <input type="text" id="pmEl" placeholder="0.000"><span class="pm-auto">自動帶入下格 a</span></div></td></tr>',
-      '    <tr><td class="rowno">2</td><td class="design">上D19◎12cm</td>',
+      '    <tr><td class="rowno">1</td><td class="design">上D19◎12cm</td>',
       '      <td><div class="pm-inline"><span class="u">上D19；</span>',
       '        <input type="text" id="pmUpCm" placeholder="cm"><span class="u">cm／</span>',
       '        <input type="text" id="pmUpCnt" placeholder="支"><span class="u">支</span></div></td></tr>',
-      '    <tr><td class="rowno">3</td><td class="design">下D19◎20cm</td>',
+      '    <tr><td class="rowno">2</td><td class="design">下D19◎20cm</td>',
       '      <td><div class="pm-inline"><span class="u">下D19；</span>',
       '        <input type="text" id="pmLowCm" placeholder="cm"><span class="u">cm／</span>',
       '        <input type="text" id="pmLowCnt" placeholder="支"><span class="u">支</span></div></td></tr>',
-      '    <tr><td class="rowno">4</td><td class="design">深度L=21.55m</td>',
+      '    <tr><td class="rowno">3</td><td class="design">深度L=21.55m</td>',
       '      <td><div class="pm-inline"><span class="u">深度＝</span>',
       '        <input type="text" id="pmDepth" placeholder="m"><span class="u">m</span></div></td></tr>',
-      '    <tr><td class="rowno">5</td><td class="design">主筋搭接Ld=1m</td>',
+      '    <tr><td class="rowno">4</td><td class="design">主筋搭接Ld=1m</td>',
       '      <td><div class="pm-inline"><span class="u">主筋搭接Ld＝</span>',
       '        <input type="text" id="pmLap" placeholder="m"><span class="u">m</span></div></td></tr>',
-      '    <tr><td class="rowno">6</td><td class="design">銲道≧4.5cm，三處</td>',
+      '    <tr><td class="rowno">5</td><td class="design">銲道≧4.5cm，三處</td>',
       '      <td><div class="pm-inline"><span class="u">銲道＝</span>',
       '        <input type="text" id="pmWeldCm" placeholder="cm"><span class="u">cm，</span>',
       '        <input type="text" id="pmWeldCnt" placeholder="處"><span class="u">處</span></div></td></tr>',
-      '    <tr><td class="rowno">7</td><td class="design">垂直度≦1/100</td>',
+      '    <tr><td class="rowno">6</td><td class="design">箍筋搭接Ld=60cm</td>',
+      '      <td><div class="pm-inline"><span class="u">箍筋搭接Ld＝</span>',
+      '        <input type="text" id="pmStirLap" placeholder="cm"><span class="u">cm</span></div></td></tr>',
+      '    <tr><td class="rowno">7</td><td class="design">兩處焊道≧10cm</td>',
+      '      <td><div class="pm-inline"><span class="u">焊道＝</span>',
+      '        <input type="text" id="pmWeld2Cm" placeholder="cm"><span class="u">cm，</span>',
+      '        <input type="text" id="pmWeld2Cnt" placeholder="處"><span class="u">處</span></div></td></tr>',
+      '    <tr><td class="rowno">8</td><td class="design">儀器高：EL</td>',
+      '      <td><div class="pm-inline"><span class="u">EL＝</span>',
+      '        <input type="text" id="pmEl" placeholder="0.000"><span class="pm-auto">自動帶入下格 a</span></div></td></tr>',
+      '    <tr><td class="rowno">9</td><td class="design">垂直度≦1/100</td>',
       '      <td><div class="pm-inline"><span class="u">垂直度≦1/100</span>',
       '        <input type="text" id="pmPlumb" placeholder="實測值"></div></td></tr>',
-      '    <tr><td class="rowno">8</td><td class="design">鋼筋頂EL1.2</td>',
+      '    <tr><td class="rowno">10</td><td class="design">鋼筋頂EL1.2</td>',
       '      <td><div class="pm-inline"><span class="u">EL：</span>',
       '        <input type="text" id="pmTopA" placeholder="a" readonly title="自動帶入上方「儀器高 EL」的數值"><span class="sep">－</span>',
       '        <input type="text" id="pmTopB" placeholder="b" title="b：自行填寫（不自動帶入）"><span class="sep">－</span>',
       '        <input type="text" id="pmTopC" placeholder="c" readonly title="自動帶入該樁「深度 ＋ 0.1」"><span class="pm-auto">深度＋0.1</span>',
       '        <span class="sep">＝</span><span class="pm-calc" id="pmTopCalc">—</span></div></td></tr>',
-      '    <tr><td class="rowno">9</td><td class="design">D≧60cm</td>',
+      '    <tr><td class="rowno">11</td><td class="design">D≧60cm</td>',
       '      <td><div class="pm-inline"><span class="u">D＝</span>',
       '        <input type="text" id="pmDia" placeholder="cm"><span class="u">cm</span></div></td></tr>',
       '  </tbody></table>',
@@ -428,8 +438,7 @@
       '  </div>',
       '  <div class="pm-tblwrap"><table class="pm-rec"><thead><tr>',
       '    <th class="c" style="width:44px">序號</th><th style="width:112px">日期</th>',
-      '    <th style="width:96px">樁號</th><th style="width:78px">查驗人員</th>',
-      '    <th style="width:78px">監造派員</th><th>重點量測</th><th class="c" style="width:96px">操作</th>',
+      '    <th style="width:96px">樁號</th><th>重點量測</th><th class="c" style="width:96px">操作</th>',
       '  </tr></thead><tbody id="pmBody"></tbody></table></div>',
       '  <div class="pm-empty" id="pmEmpty">尚無樁位檢查紀錄，請於上方填寫後按「＋ 新增樁位檢查」</div>',
       '</div>'
@@ -438,29 +447,21 @@
     var IDS = {
       el: 'pmEl', upCm: 'pmUpCm', upCnt: 'pmUpCnt', lowCm: 'pmLowCm', lowCnt: 'pmLowCnt',
       depth: 'pmDepth', lap: 'pmLap', weldCm: 'pmWeldCm', weldCnt: 'pmWeldCnt',
+      stirLap: 'pmStirLap', weld2Cm: 'pmWeld2Cm', weld2Cnt: 'pmWeld2Cnt',
       plumb: 'pmPlumb', topA: 'pmTopA', topB: 'pmTopB', dia: 'pmDia'
     };
 
-    fillSelect($('pmInspector'), inspectors(), '— 請選擇 —');
-    fillSelect($('pmSupervisor'), supervisors(), '— 請選擇 —');
     fillSelect($('pmPier'), pierList(), '— 選擇墩號 —');
     $('pmDate').value = todayISO();
 
-    /* 今日人員已固定時，自動帶入並鎖住（不用再問一次） */
-    function applyDailyStaff() {
+    /* 人員不另設欄位：直接沿用「今日查驗」已固定的人員（依日期代入） */
+    function dailyStaff() {
       var DF = global.DailyFlow;
-      if (!DF || !DF.staffFor) return;
+      if (!DF || !DF.staffFor) return { inspector: '', supervisor: '' };
       var d = $('pmDate').value || todayISO();
       var st = DF.staffFor(d);
-      if (!st || !st.fixed) return;
-      $('pmInspector').value = st.inspector;
-      $('pmSupervisor').value = st.supervisor;
-      $('pmInspector').disabled = true;
-      $('pmSupervisor').disabled = true;
+      return { inspector: (st && st.inspector) || '', supervisor: (st && st.supervisor) || '' };
     }
-    applyDailyStaff();
-    $('pmDate').addEventListener('change', applyDailyStaff);
-    window.addEventListener('daily-staff-changed', applyDailyStaff);
 
     /* 量測值只接受數字 */
     Object.keys(IDS).forEach(function (k) {
@@ -560,8 +561,6 @@
 
     function loadForEdit(r) {
       $('pmDate').value = r.date || todayISO();
-      $('pmInspector').value = r.inspector || '';
-      $('pmSupervisor').value = r.supervisor || '';
       var pier = r.pier || pierOfPile(r.pile);
       $('pmPier').value = pier;
       refreshPile();
@@ -624,14 +623,6 @@
         }
         tr.appendChild(tdPile);
 
-        var tdIns = document.createElement('td');
-        tdIns.textContent = r.inspector || '—';
-        tr.appendChild(tdIns);
-
-        var tdSup = document.createElement('td');
-        tdSup.textContent = r.supervisor || '—';
-        tr.appendChild(tdSup);
-
         var tdSum = document.createElement('td');
         tdSum.textContent = summary(r);
         tr.appendChild(tdSum);
@@ -668,7 +659,7 @@
           var dtr = document.createElement('tr');
           dtr.className = 'pm-detail';
           var dtd = document.createElement('td');
-          dtd.colSpan = 7;
+          dtd.colSpan = 5;
           dtd.innerHTML = '<div class="pm-dbox">' + detailHtml(r) +
             '<button type="button" class="exp" style="margin-top:9px" data-edit="' + esc(r.id) + '">✎ 載入修改</button></div>';
           dtr.appendChild(dtd);
@@ -686,14 +677,14 @@
 
     $('pmAdd').addEventListener('click', function () {
       var d = $('pmDate').value;
-      var ins = $('pmInspector').value;
-      var sup = $('pmSupervisor').value;
       var pile = $('pmPile').value;
 
       if (!d) { toast('請填寫查驗日期', true); $('pmDate').focus(); return; }
-      if (!ins) { toast('請選擇查驗人員', true); $('pmInspector').focus(); return; }
-      if (!sup) { toast('請選擇監造人員', true); $('pmSupervisor').focus(); return; }
       if (!pile) { toast('請選擇樁號', true); $('pmPile').focus(); return; }
+
+      /* 人員直接沿用「今日查驗」已固定的人員（依日期代入，不另設欄位） */
+      var st = dailyStaff();
+      var ins = st.inspector, sup = st.supervisor;
 
       var m = readM();
       for (var i = 0; i < M_KEYS.length; i++) {
@@ -759,8 +750,6 @@
 
     $('pmReset').addEventListener('click', function () {
       $('pmDate').value = todayISO();
-      $('pmInspector').value = '';
-      $('pmSupervisor').value = '';
       $('pmPier').value = '';
       $('pmPile').value = '';
       $('pmNote').value = '';

@@ -298,6 +298,17 @@
 
   <div class="stats" id="stats"></div>
 
+  <!-- ============ 查驗紀錄（進度表第一個區塊） ============ -->
+  <div class="card" id="recCard">
+    <div class="card-h">
+      <h2>查驗紀錄</h2>
+      <span class="tag" id="recTag">0 筆</span>
+    </div>
+    <div class="card-b">
+      <div id="recMount"></div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-h">
       <h2>篩選與工具</h2>
@@ -533,6 +544,7 @@
 <script src="../assets/gdrive.js"></script>
 <script src="../assets/progress-collapse.js"></script>
 <script src="../assets/pile-measure.js"></script>
+<script src="../assets/daily-flow.js"></script>
 <script>
 (function(){
   function boot(){
@@ -541,6 +553,11 @@
         window.PileMeasure.mountQuery(document.getElementById('pmqMount'));
       }
     }catch(e){ console.error('[pmq]', e); }
+    try{
+      if(window.DailyFlow && document.getElementById('recMount')){
+        window.DailyFlow.mountRecords(document.getElementById('recMount'));
+      }
+    }catch(e){ console.error('[rec]', e); }
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

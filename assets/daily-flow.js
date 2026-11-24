@@ -631,6 +631,8 @@
       var body = $('dfrBody');
       body.innerHTML = '';
       $('dfrEmpty').style.display = rows.length ? 'none' : 'block';
+      var tag = $('recTag');
+      if (tag) tag.textContent = rows.length + ' 筆';
 
       rows.forEach(function (r, i) {
         var tr = document.createElement('tr');

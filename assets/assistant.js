@@ -6,15 +6,21 @@
 /* ===== 打開頁面自動連線雲端（Google Drive） ===== */
 (function(){
   var G=window.GDrivePhoto; if(!G) return;
-  var busy=false,done=false,tries=0,MAX=6;
+  var busy=false,done=false,tries=0,MAX=3;
   function mark(st,email){ try{ paintConn({state:st,email:email||""}); }catch(e){} }
   function ok(){ done=true; var em=""; try{ em=G.getEmail?G.getEmail():""; }catch(e){} mark("connected",em); }
+  function withTimeout(p,ms){
+    return new Promise(function(res,rej){
+      var t=setTimeout(function(){ rej(new Error("timeout")); },ms);
+      Promise.resolve(p).then(function(v){ clearTimeout(t); res(v); },function(e){ clearTimeout(t); rej(e); });
+    });
+  }
   function attempt(){
     if(done||busy) return; busy=true;
     var p;
     try{ p=(G.silentConnect?G.silentConnect():Promise.reject(new Error("no-silent"))); }
     catch(e){ p=Promise.reject(e); }
-    Promise.resolve(p).then(function(){ busy=false; ok(); }).catch(function(){
+    Promise.resolve(withTimeout(p,6000)).then(function(){ busy=false; ok(); }).catch(function(){
       var restored=false;
       try{ restored=!!(G.restoreToken&&G.restoreToken()); }catch(e){}
       if(restored&&G.hasToken&&G.hasToken()){ busy=false; ok(); return; }

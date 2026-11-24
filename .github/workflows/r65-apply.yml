@@ -1,0 +1,63 @@
+name: r65 apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r65-apply.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download new files
+        run: |
+          set -e
+          mkdir -p /tmp/in
+          curl -fsSL -o /tmp/in/drive_index.html "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r65-deploy/drive_index.html?tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzYvZG9jdW1lbnRzL3I2NS1kZXBsb3k6MTc5NTUyMjU4MQ.NzZiNDI3ZWIxNzYzNTg3ZmUwN2ExZDUxNTMzZDBlN2M"
+          curl -fsSL -o /tmp/in/drive-v2.js "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r65-deploy/drive-v2.js?tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzYvZG9jdW1lbnRzL3I2NS1kZXBsb3k6MTc5NTUyMjU4MQ.NzZiNDI3ZWIxNzYzNTg3ZmUwN2ExZDUxNTMzZDBlN2M"
+          ls -l /tmp/in
+
+      - name: Verify content markers
+        run: |
+          set -e
+          cd /tmp/in
+          echo "--- sizes ---"; wc -c drive_index.html drive-v2.js
+          echo "--- markers ---"
+          grep -c "camZoomRange" drive_index.html
+          grep -c "camViewer" drive_index.html
+          grep -c "camLockLand" drive-v2.js
+          grep -c "camFocusAt" drive-v2.js
+          grep -c "camApplyZoom" drive-v2.js
+          test "$(wc -c < drive_index.html)" -gt 25000
+          test "$(wc -c < drive-v2.js)" -gt 40000
+          grep -q "camZoomRange" drive_index.html
+          grep -q "camLockLand" drive-v2.js
+          grep -q "camFocusAt" drive-v2.js
+
+      - name: Apply
+        run: |
+          set -e
+          cp /tmp/in/drive_index.html drive/index.html
+          cp /tmp/in/drive-v2.js assets/drive-v2.js
+          node --check assets/drive-v2.js
+          git config user.name  "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add drive/index.html assets/drive-v2.js
+          git commit -m "feat(drive): fullscreen camera UI - continuous zoom, tap focus, grid, shutter anim, burst, thumb viewer, landscape lock"
+          git push origin HEAD:main
+
+      - name: Self delete workflow
+        if: always()
+        run: |
+          set -e
+          git pull --rebase origin main || true
+          git rm -f .github/workflows/r65-apply.yml || true
+          git commit -m "chore: remove one-off r65 workflow" || true
+          git push origin HEAD:main || true

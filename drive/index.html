@@ -110,8 +110,8 @@ sweep(document)})();</script>
   flex-direction:column;height:100%;height:100dvh;overscroll-behavior:none;
   -webkit-user-select:none;user-select:none}
 .camwrap.on{display:flex}
-.camview{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;background:#000;
-  isolation:isolate;touch-action:none}
+.camview{position:absolute;inset:0;overflow:hidden;background:#000;
+  isolation:isolate;touch-action:none;z-index:1}
 .camview video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
   display:block;background:#000;transform:scale(var(--camz,1));transform-origin:center center;
   transition:transform .16s ease-out;z-index:1}
@@ -144,7 +144,7 @@ sweep(document)})();</script>
   background:rgba(0,0,0,.42);color:#fff;font-size:17px;line-height:1;cursor:pointer;
   font-family:inherit;padding:0;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 /* 變焦列（無段滑桿 + 倍率快捷） */
-.camzoom{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));
+.camzoom{position:absolute;left:50%;bottom:calc(118px + env(safe-area-inset-bottom,0px));
   transform:translateX(-50%);z-index:7;display:flex;align-items:center;gap:9px;
   padding:7px 12px;border-radius:999px;background:rgba(0,0,0,.50);
   -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);max-width:calc(100% - 24px)}
@@ -152,8 +152,10 @@ sweep(document)})();</script>
   background:transparent;color:#fff;font-family:inherit;font-size:13px;font-weight:800;
   cursor:pointer;line-height:1;transition:background .15s,color .15s}
 .camzoom .cz.on{background:#fff;color:#0B0F14}
-.camzoom input[type=range]{-webkit-appearance:none;appearance:none;width:118px;height:26px;
-  background:transparent;margin:0;cursor:pointer}
+.camzoom input[type=range]{-webkit-appearance:none;appearance:none;flex:1 1 auto;width:auto;
+  min-width:150px;max-width:260px;height:26px;background:transparent;margin:0;cursor:pointer}
+.camzoom .czmin,.camzoom .czmax{font-size:11.5px;font-weight:800;color:rgba(255,255,255,.72);
+  font-variant-numeric:tabular-nums;line-height:1}
 .camzoom input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;
   background:rgba(255,255,255,.42)}
 .camzoom input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
@@ -164,10 +166,13 @@ sweep(document)})();</script>
 .camzoom input[type=range]::-moz-range-thumb{width:20px;height:20px;border:none;
   border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5)}
 .camzoom .czv{min-width:44px;text-align:right;font-size:12.5px;font-weight:800;color:#fff;
-  font-variant-numeric:tabular-nums}
+  font-variant-numeric:tabular-nums;transition:transform .12s ease-out,color .12s}
+.camzoom .czv.snap{color:#FFD400;transform:scale(1.16)}
 /* 底部：左下縮圖 / 快門 / 使用照片 */
-.cambar{flex:0 0 auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
-  gap:10px;padding:12px 18px calc(14px + env(safe-area-inset-bottom,0px));background:#000}
+.cambar{position:absolute;left:0;right:0;bottom:0;z-index:7;display:grid;
+  grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;
+  padding:26px 18px calc(16px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to top,rgba(0,0,0,.78) 0%,rgba(0,0,0,.42) 55%,rgba(0,0,0,0) 100%)}
 .camthumb{justify-self:start;width:54px;height:54px;padding:0;border:2px solid rgba(255,255,255,.55);
   border-radius:12px;overflow:hidden;background:#1B222B;cursor:pointer;display:block}
 .camthumb[hidden]{display:none}
@@ -534,11 +539,9 @@ sweep(document)})();</script>
       <button type="button" class="camx" id="camClose" aria-label="關閉">✕</button>
     </div>
     <div class="camzoom" id="camZoom">
-      <button type="button" class="cz on" data-z="1">1×</button>
-      <button type="button" class="cz" data-z="2">2×</button>
-      <button type="button" class="cz" data-z="3">3×</button>
-      <button type="button" class="cz" data-z="5">5×</button>
-      <input type="range" id="camZoomRange" min="1" max="5" step="0.1" value="1" aria-label="變焦倍率">
+      <span class="czmin" aria-hidden="true">1×</span>
+      <input type="range" id="camZoomRange" min="0" max="1000" step="1" value="0" aria-label="變焦倍率">
+      <span class="czmax" aria-hidden="true">5×</span>
       <span class="czv" id="camZoomVal">1.0×</span>
     </div>
     <div class="camerr" id="camErr" hidden></div>

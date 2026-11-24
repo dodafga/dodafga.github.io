@@ -1,0 +1,78 @@
+name: r68 apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r68-apply.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download new files
+        run: |
+          set -e
+          mkdir -p /tmp/in
+          B="https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/r68-deploy"
+          TK="tk=c2l0ZTo3NTQxMjg5OS03NDdlLTQ2MTctYWQ1NC0zMjE5MzkxOGEwYzYvZG9jdW1lbnRzL3I2OC1kZXBsb3k6MTc5NTUyNzU1Nw.NjhlZmVkZDkwYzk5MzhmZDU2MzEyOGEzMWQxMmIzMjQ"
+          for f in zoomlock.js cam.js cam.css drive-v2.js drive_index.html build_index.html; do
+            curl -fsSL -o "/tmp/in/$f" "$B/$f?$TK"
+          done
+          ls -l /tmp/in
+
+      - name: Verify content markers
+        run: |
+          set -e
+          cd /tmp/in
+          wc -c *
+          grep -q 'PageZoomLock' zoomlock.js
+          grep -q 'lock: lock' zoomlock.js
+          grep -q 'unlock: unlock' zoomlock.js
+          grep -q 'PageZoomLock' cam.js
+          grep -q 'lockPageZoom' cam.js
+          grep -q 'CAM_DET' cam.js
+          grep -q 'camSliderToZoom' cam.js
+          grep -q 'touch-action:none' cam.css
+          grep -q 'html.camopen' cam.css
+          grep -q 'PageZoomLock' drive-v2.js
+          grep -q 'zoomlock.js' drive_index.html
+          grep -q 'zoomlock.js' build_index.html
+          grep -q 'cam.js' build_index.html
+          grep -q 'cam.css' drive_index.html
+          grep -q 'camModal' drive_index.html
+          grep -q 'camModal' build_index.html
+          echo "markers OK"
+
+      - name: Apply
+        run: |
+          set -e
+          cp /tmp/in/zoomlock.js      assets/zoomlock.js
+          cp /tmp/in/cam.js           assets/cam.js
+          cp /tmp/in/cam.css          assets/cam.css
+          cp /tmp/in/drive-v2.js      assets/drive-v2.js
+          cp /tmp/in/drive_index.html drive/index.html
+          cp /tmp/in/build_index.html build/index.html
+          node --check assets/zoomlock.js
+          node --check assets/cam.js
+          node --check assets/drive-v2.js
+          git config user.name  "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add assets/zoomlock.js assets/cam.js assets/cam.css assets/drive-v2.js drive/index.html build/index.html
+          git commit -m "feat: 站內相機鎖定頁面縮放（雙指/雙擊不放大），drive 與 build 兩頁共用 zoomlock.js"
+          git push origin HEAD:main
+
+      - name: Self delete workflow
+        if: always()
+        run: |
+          set -e
+          git pull --rebase origin main || true
+          git rm -f .github/workflows/r68-apply.yml || true
+          git commit -m "chore: remove one-off r68 workflow" || true
+          git push origin HEAD:main || true

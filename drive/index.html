@@ -1,1 +1,405 @@
-__PLACEHOLDER__
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7A848D">
+<title>施工照片歸檔｜查驗助手</title>
+<link rel="stylesheet" href="../assets/drive-v2.css">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/drive-hist.css">
+<style>
+/* 連線狀態列（沿用 drive-page.js 的 id，外觀比照營造助手） */
+.connrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:14px;
+  padding-top:14px;border-top:1px solid var(--line)}
+.connrow .dot{width:9px;height:9px;border-radius:50%;background:var(--lightgray);flex:0 0 9px}
+.connrow .dot.ok{background:var(--sage)}
+.connrow .dot.wait{background:var(--steel)}
+.connrow .dot.warn{background:var(--rose2)}
+.connrow .dot.err{background:var(--rose)}
+.connrow .ctxt{font-size:13px;font-weight:700;color:var(--ink2);min-width:0}
+.connrow .cmail{font-size:11.5px;color:var(--muted)}
+.connrow .btn{margin-left:auto}
+.warnbox{background:#F3EDE9;border:1px solid var(--line);color:#5F5F66;border-radius:12px;
+  padding:11px 13px;font-size:12.5px;line-height:1.7;margin-top:12px}
+.warnbox b{color:var(--ink2)}
+.warnbox code{background:#E8E6E9;padding:1px 5px;border-radius:4px;font-size:11.5px}
+.errbox{background:#F8EDEC;border:1px solid #E5CFCD;color:var(--rose);border-radius:12px;
+  padding:11px 13px;font-size:12.5px;line-height:1.7;margin-top:12px;display:none}
+.syncbox{display:none;border:1px solid #E3D2D0;background:#F6EDEC;border-radius:12px;
+  padding:10px 13px;margin-top:12px;font-size:12.5px;color:var(--steel-d);line-height:1.7}
+.syncbox.on{display:block}
+.syncbox.err{border-color:#E5CFCD;background:#F8EDEC;color:var(--rose)}
+.syncbox.warn{border-color:var(--line);background:#F3EDE9;color:#5F5F66}
+.syncbox .sh{display:flex;align-items:center;gap:8px;font-weight:700}
+.syncbox .sbar{height:6px;background:#E6E2DE;border-radius:20px;overflow:hidden;margin-top:8px}
+.syncbox .sbar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7A848D,#A9B7AA);
+  transition:width .25s;border-radius:20px}
+.syncbox .smsg{font-weight:500;margin-top:5px;font-size:12px;opacity:.92}
+.tag{font-size:11px;background:#F1EFEC;color:var(--ink2);border:1px solid var(--line);
+  padding:1px 8px;border-radius:20px;font-weight:700}
+.tag.ok{background:#EDF1ED;color:var(--ok);border-color:#D3DED5}
+.tag.bad{background:#F8EDEC;color:var(--rose);border-color:#E5CFCD}
+.spacer{margin-left:auto}
+.tokenspill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
+  background:#F6EDEC;color:var(--steel-d);border:1px solid #E3D2D0;white-space:nowrap}
+.tokenspill.warn{background:#F3EDE9;color:#5F5F66;border-color:var(--line)}
+.hint2{font-size:12px;color:var(--muted)}
+.hint2.bad{color:var(--rose);font-weight:700}
+.sub2{font-size:12px;color:var(--muted);line-height:1.7;margin-top:10px}
+.sub2 code{background:#F1EFEC;padding:1px 5px;border-radius:4px;font-size:11.5px}
+.datefilter{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-top:12px;
+  padding:11px 13px;border-radius:12px;background:#F7F6F3;border:1px solid var(--line)}
+.dfchk{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;
+  color:var(--ink2);cursor:pointer}
+.dfchk input{width:20px;height:20px;accent-color:var(--steel);cursor:pointer;margin:0}
+.dfhint{font-size:11.5px;color:var(--muted);line-height:1.6;flex:1 1 200px;min-width:0}
+/* 站內相機（可連拍） */
+.camwrap{position:fixed;inset:0;z-index:200;background:#0B0F14;display:none;
+  flex-direction:column;padding:calc(8px + env(safe-area-inset-top,0px)) 10px
+  calc(10px + env(safe-area-inset-bottom,0px))}
+.camwrap.on{display:flex}
+.camhd{display:flex;align-items:center;gap:10px;color:#fff;padding:4px 2px 10px}
+.camhd b{font-size:14.5px;font-weight:800}
+.camhd .camcnt{font-size:12.5px;font-weight:800;background:rgba(255,255,255,.16);
+  border-radius:20px;padding:3px 11px}
+.camhd .camx{margin-left:auto;width:40px;height:40px;border:none;border-radius:11px;
+  background:rgba(255,255,255,.14);color:#fff;font-size:18px;line-height:1;cursor:pointer;
+  font-family:inherit;padding:0}
+.camview{position:relative;flex:1 1 auto;min-height:0;border-radius:14px;overflow:hidden;
+  background:#000;display:flex;align-items:center;justify-content:center}
+.camview video{width:100%;height:100%;object-fit:contain;display:block;background:#000}
+.camview .camerr{color:#fff;font-size:13.5px;line-height:1.8;text-align:center;padding:20px}
+.camview .camerr b{display:block;font-size:15px;margin-bottom:6px}
+.camstrip{display:flex;gap:8px;padding:10px 2px;overflow-x:auto;min-height:0}
+.camstrip:empty{display:none}
+.camstrip .camshot{position:relative;flex:0 0 68px;width:68px;height:68px;border-radius:10px;
+  overflow:hidden;background:#1B222B}
+.camstrip .camshot img{width:100%;height:100%;object-fit:cover;display:block}
+.camstrip .camshot .cx{position:absolute;right:2px;top:2px;width:22px;height:22px;border:none;
+  border-radius:50%;background:rgba(0,0,0,.66);color:#fff;font-size:12px;line-height:1;
+  cursor:pointer;font-family:inherit;padding:0}
+.camft{display:flex;align-items:center;gap:10px;padding:6px 2px 2px}
+.camft .shutter{flex:0 0 auto;width:74px;height:74px;border-radius:50%;border:4px solid #fff;
+  background:rgba(255,255,255,.22);cursor:pointer;font-family:inherit;font-size:12px;
+  font-weight:800;color:#fff;line-height:1.2;padding:0}
+.camft .shutter:active{background:rgba(255,255,255,.5)}
+.camft .shutter:disabled{opacity:.4;cursor:not-allowed}
+.camft .btn{flex:1 1 0;min-width:0;min-height:52px}
+.camft .btn.ghost{background:rgba(255,255,255,.14);color:#fff}
+.camft .btn.ghost:active{background:rgba(255,255,255,.26)}
+.camflash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;
+  transition:opacity .12s}
+.camflash.on{opacity:.85;transition:none}
+@media (max-width:420px){
+  .camft .shutter{width:66px;height:66px;font-size:11.5px}
+  .camstrip .camshot{flex:0 0 60px;width:60px;height:60px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="logo">驗</div>
+    <div class="brand">
+      <h1>查驗助手</h1>
+    </div>
+    <div class="hactions">
+      <a class="iconbtn" href="../settings/index.html" target="_blank" rel="noopener"
+         title="設定" aria-label="設定"><span aria-hidden="true">⚙</span></a>
+    </div>
+  </div>
+  <div class="sysbar">
+    <div class="sysswitch" role="tablist" aria-label="系統切換">
+      <a href="../index.html" role="tab" aria-selected="false">查驗助手</a>
+      <a href="../build/index.html" role="tab" aria-selected="false">營造助手</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ 施工照片歸檔 ============ -->
+  <section class="panel on" id="p-photo" role="tabpanel" aria-label="施工照片歸檔">
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>歸檔資料</h2>
+        <span class="hintx" id="connTxt">尚未連線</span>
+        <span class="dot" id="connDot" style="margin-left:0"></span>
+      </div>
+      <div class="grid2">
+        <label class="fld">
+          <span>歸檔日期</span>
+          <input type="date" id="fDate">
+        </label>
+        <label class="fld">
+          <span>樁號</span>
+          <select id="fStation">
+            <option value="">— 請先選擇日期 —</option>
+          </select>
+        </label>
+      </div>
+      <div class="hint2" id="stationHint" style="margin-top:8px"></div>
+
+      <div class="datefilter">
+        <label class="dfchk">
+          <input type="checkbox" id="chkDateFilter" checked>
+          <span>只加入「所選日期」拍的照片</span>
+        </label>
+        <span class="dfhint" id="dfHint">依檔案的拍攝／修改日期比對；開啟後選照片時會自動略過其他日期的照片。</span>
+      </div>
+
+      <div class="sub2">
+        資料夾規則：<code>義力 / 查驗照片 / 日期 / 樁號 /</code>　·　檔名規則：<code>日期_樁號_序號.png</code><br>
+        樁號選單依「查驗記錄表」中該日期的查驗紀錄產生，只列出當日有查驗的樁號。<br>
+        自動轉正：先用 OCR 找「工程名稱／檢查項目／檢查日期」的位置判斷方向；判不出來時會在縮圖上顯示「這樣對嗎？」並可按一下轉 180°。
+      </div>
+
+      <div class="rowline">
+        <label class="chk">
+          <input type="checkbox" id="chkWm2" checked>
+          壓上日期浮水印
+        </label>
+        <label class="chk">
+          <input type="checkbox" id="chkOrient2" checked>
+          自動轉正
+        </label>
+      </div>
+
+      <div class="connrow">
+        <span class="tag" id="connTag" style="display:none"></span>
+        <div style="min-width:0">
+          <div class="cmail" id="connMail"></div>
+        </div>
+        <button type="button" class="btn ghost sm" id="btnConnect">🔗 連線 Google Drive</button>
+        <button type="button" class="btn ghost sm" id="btnSwitch" style="display:none">切換帳號</button>
+        <button type="button" class="btn ghost sm" id="btnLogout" style="display:none">登出</button>
+      </div>
+      <div class="errbox" id="connErr"></div>
+      <div class="syncbox" id="syncBox">
+        <div class="sh"><span id="syncIcon">⏳</span><span id="syncTitle">正在自動連線…</span></div>
+        <div class="smsg" id="syncMsg"></div>
+        <div class="sbar" id="syncBarWrap"><i id="syncBar"></i></div>
+      </div>
+      <div class="warnbox" id="connWarn" style="display:none">
+        <b>尚未連線。</b>請按「🔗 連線 Google Drive」並用你的 Google 帳號授權一次，之後就能把照片直接歸檔到自己的雲端硬碟。
+        授權只要求 <code>drive.file</code> 權限，只能存取本程式建立的檔案。
+      </div>
+      <div class="warnbox" id="relinkWarn" style="display:none">
+        <b>需要重新授權。</b><span id="relinkWhy"></span><br>
+        Google 的存取權杖只有 1 小時有效期，且瀏覽器端無法取得 refresh token，所以久未使用或關閉過瀏覽器後，必須手動再按一次授權。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>加入照片</h2>
+        <span class="hintx" id="stageTag">0 張</span>
+      </div>
+      <div class="addrow">
+        <button type="button" class="addbtn" id="tileCam">
+          <span class="big" aria-hidden="true">📷</span>
+          <span>拍照</span>
+          <span class="sm2">開相機，可連拍多張</span>
+        </button>
+        <label class="addbtn" for="fileInput2">
+          <span class="big" aria-hidden="true">🖼</span>
+          <span>本機上傳</span>
+          <span class="sm2">從相簿選，可多選</span>
+        </label>
+      </div>
+      <input type="file" id="fileInput2" accept="image/*" multiple hidden>
+      <input type="file" id="camInput2" accept="image/*" capture="environment" hidden>
+
+      <div class="cambuf" id="camBuf" style="display:none">
+        <div class="cambufhd">
+          <b>已拍 <span id="camBufCount">0</span> 張</b>
+          <button type="button" class="btn ghost sm" id="camBufClear" style="margin-left:auto">清除</button>
+        </div>
+        <div class="cambufgrid" id="camBufGrid"></div>
+        <div class="cambufact">
+          <button type="button" class="btn ghost" id="camShootMore">📷 再拍一張</button>
+          <button type="button" class="btn" id="camUse">使用照片（0）</button>
+        </div>
+      </div>
+
+      <div class="progwrap" id="progWrap">
+        <div class="progbar"><i id="progBar"></i></div>
+        <div class="progtxt" id="progTxt">—</div>
+        <div class="progbatch" id="progBatch"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>暫存區 <span class="cnt" id="stageCount">0 張</span></h2>
+        <button type="button" class="btn ghost sm" id="btnClearStage" style="margin-left:auto">清空暫存</button>
+      </div>
+      <div class="stage2">
+        <div class="sh">
+          <span class="t">尚未上傳的照片</span>
+          <span class="cnt" id="stageCount2">0 張</span>
+        </div>
+
+        <div class="uncertain" id="uncertainBar" style="display:none"></div>
+
+        <div class="ocrprep" id="ocrPrep" style="display:none">
+          <div class="op-h"><span class="op-t" id="ocrPrepTxt">正在準備 OCR 模型…</span><span class="op-p" id="ocrPrepPct">0%</span></div>
+          <div class="op-bar"><i id="ocrPrepBar"></i></div>
+          <div class="op-s" id="ocrPrepSub">首次使用需下載約 5.8 MB，之後完全離線也能用。</div>
+        </div>
+
+        <div class="grid2t" id="stageGrid"></div>
+
+        <div class="go2">
+          <button class="btn amber" id="btnGo" type="button" disabled>☁ 確認上傳</button>
+          <span class="hint2" id="goHint">請先加入照片</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>上傳完成</h2>
+        <span class="tag ok" id="doneCount">0 張</span>
+        <button type="button" class="btn ghost sm" id="btnClearDone" style="margin-left:auto">清空本區</button>
+      </div>
+      <div class="done2">
+        <div class="sh"><span class="t">已成功上傳到 Google 雲端硬碟</span></div>
+        <div id="doneList"></div>
+      </div>
+    </div>
+
+    <!-- ===== 已上傳紀錄（維持原本樣式，整張卡以 #histCard 包住） ===== -->
+    <div id="histCard">
+      <div class="card">
+        <div class="card-h">
+          <h2>已上傳紀錄</h2>
+          <span class="tag ok" id="histTag">0 筆</span>
+          <span class="spacer"></span>
+          <button class="btn btn-ghost btn-sm" id="btnSyncNow" type="button">↻ 從 Drive 匯入</button>
+          <button class="btn btn-ghost btn-sm" id="btnExport" type="button">⬇ 匯出 JSON</button>
+        </div>
+        <div class="card-b">
+          <div class="filterbar">
+            <span class="lbl">日期篩選</span>
+            <div class="seg" id="segFilter">
+              <button type="button" data-mode="all">全部</button>
+              <button type="button" data-mode="day">單日</button>
+              <button type="button" data-mode="range">區間</button>
+            </div>
+            <input type="date" id="fFrom" style="display:none">
+            <span class="sep" id="sepRange" style="display:none">～</span>
+            <input type="date" id="fTo" style="display:none">
+            <button class="btn btn-ghost btn-sm" id="btnClearFilter" type="button">清除篩選／顯示全部</button>
+            <span class="fcount" id="fCount">符合 0 筆 / 共 0 筆</span>
+          </div>
+
+          <div class="batchbar">
+            <label class="chkbox"><input type="checkbox" id="chkAll"> 全選目前篩選結果</label>
+            <span class="selcount zero" id="selCount">已選 0 筆</span>
+            <span class="spacer"></span>
+            <button class="btn btn-ghost btn-sm" id="btnCopy" type="button" disabled>📋 複製連結清單</button>
+            <button class="btn btn-ghost btn-sm" id="btnTxt" type="button" disabled>⬇ 清單 TXT</button>
+            <button class="btn btn-ghost btn-sm" id="btnCsv" type="button" disabled>⬇ 清單 CSV</button>
+            <button class="btn btn-primary btn-sm" id="btnZip" type="button" disabled>⬇ 打包下載（ZIP）</button>
+          </div>
+          <div class="batchprog" id="batchProg">
+            <div class="progbar"><i id="batchBar" style="width:0"></i></div>
+            <div class="progtxt" id="batchTxt">—</div>
+          </div>
+
+          <div class="list" id="histList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 舊版上傳卡（保留 DOM 供 drive-page.js 綁定，不顯示） -->
+    <div class="card" id="legacyUploadCard">
+      <div class="card-b">
+        <div class="field">
+          <label for="fItem">工項／樁號</label>
+          <input type="text" id="fItem" placeholder="例如 PR4-1">
+        </div>
+        <div class="field">
+          <label for="fNote">說明</label>
+          <textarea id="fNote" placeholder="選填"></textarea>
+        </div>
+        <div class="wmbar">
+          <span class="lbl">歸檔日期浮水印</span>
+          <label class="switch">
+            <input type="checkbox" id="chkWm" checked>
+            <span class="track"></span>
+            <span class="sw" id="wmState">開啟</span>
+          </label>
+        </div>
+        <div class="drop" id="drop"></div>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+        <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none">
+        <div class="prevwrap" id="prevWrap">
+          <div class="prevhead"><span class="t">浮水印預覽</span><span class="tag" id="prevTag">—</span></div>
+          <div class="prevbox"><img id="prevImg" alt="浮水印預覽"></div>
+          <div class="prevnote" id="prevNote"></div>
+        </div>
+        <div class="batchbar">
+          <button class="btn btn-amber" id="btnUpload" type="button" disabled>☁ 開始上傳</button>
+          <button class="btn btn-ghost" id="btnCamera" type="button">📷 直接拍攝</button>
+          <button class="btn btn-ghost" id="btnClear" type="button">清除佇列</button>
+          <span class="spacer"></span>
+          <span class="wmhint" id="uploadHint">請先加入照片</span>
+          <span class="tag" id="queueTag" style="display:none">0 張</span>
+        </div>
+        <div class="list" id="queueList"></div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ===== 站內相機（可連續拍多張） ===== -->
+<div class="camwrap" id="camModal" role="dialog" aria-modal="true" aria-label="拍照">
+  <div class="camhd">
+    <b>拍照</b>
+    <span class="camcnt" id="camModalCount">0 張</span>
+    <button type="button" class="camx" id="camClose" aria-label="關閉">✕</button>
+  </div>
+  <div class="camview" id="camView">
+    <video id="camVideo" playsinline autoplay muted></video>
+    <div class="camflash" id="camFlash"></div>
+  </div>
+  <div class="camstrip" id="camStrip"></div>
+  <div class="camft">
+    <button type="button" class="btn ghost" id="camCancel">取消</button>
+    <button type="button" class="shutter" id="camShutter">拍一張</button>
+    <button type="button" class="btn" id="camUse2">使用照片（0）</button>
+  </div>
+</div>
+
+<script src="../assets/jszip.min.js"></script>
+<script src="../assets/core.js"></script>
+<script src="../assets/store.js"></script>
+<script src="../assets/gdrive.js"></script>
+<script src="../assets/watermark.js"></script>
+<script src="../assets/orient.js"></script>
+<script src="../assets/orient-struct3.js"></script>
+<script src="../assets/orient-skew.js"></script>
+<script src="../assets/orient-ocr.js"></script>
+<script src="../assets/orient-switch.js"></script>
+<script src="../assets/photo-edit.js"></script>
+<script src="../assets/gdrive-photo.js"></script>
+<script src="../assets/drive-page.js"></script>
+<script src="../assets/batch-del.js"></script>
+<script src="../assets/drive-v2.js"></script>
+<script>
+(function(){
+  if(!('serviceWorker' in navigator))return;
+  try{navigator.serviceWorker.register('../sw-ocr.js',{scope:'../'}).catch(function(){});}catch(e){}
+})();
+</script>
+</body>
+</html>

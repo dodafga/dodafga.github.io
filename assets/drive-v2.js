@@ -874,8 +874,11 @@ function bind(){
   var fi=$("fileInput2");
   fi&&C.on(fi,"change",function(){fi.files&&fi.files.length&&addFiles(fi.files);fi.value=""});
   var ci=$("camInput2");
-  /* 拍照：改用「手機本機相機 App」，可連拍多張，拍完按「使用照片」一次帶入 */
-  var camBuf=[],camSeq=0;
+  /* ===== 拍照：站內相機，同一個畫面可連續拍多張 =====
+     開一次相機 → 一直按快門 → 照片累積在下方縮圖列（可單張刪除）
+     → 按「使用照片」一次全部帶入。不會每拍一張就跳出相機再重開。 */
+  var camBuf=[],camSeq=0,camStream=null,camBusy=!1;
+
   function camBufRender(){
     var box=$("camBuf"),grid=$("camBufGrid"),cnt=$("camBufCount"),use=$("camUse");
     if(!box)return;
@@ -892,13 +895,130 @@ function bind(){
     camBuf.forEach(function(s){try{URL.revokeObjectURL(s.url)}catch(e){}});
     camBuf=[];camBufRender();
   }
-  function camOpenNative(){
-    if(!ci){toast("找不到相機入口",!0);return}
-    try{ci.value=""}catch(e){}
-    ci.click();
+
+  /* ---- 站內相機視窗 ---- */
+  function camStripRender(){
+    var strip=$("camStrip"),cnt=$("camModalCount"),u1=$("camUse2");
+    if(cnt)cnt.textContent=camBuf.length+" 張";
+    if(u1)u1.textContent="使用照片（"+camBuf.length+"）";
+    if(!strip)return;
+    var html="";
+    camBuf.forEach(function(s,i){
+      html+='<div class="camshot" data-i="'+i+'"><img src="'+s.url+'" alt="第 '+(i+1)+' 張">'+
+        '<button type="button" class="cx" data-cx="'+i+'" aria-label="移除第 '+(i+1)+' 張">✕</button></div>';
+    });
+    strip.innerHTML=html;
+    try{strip.scrollLeft=strip.scrollWidth}catch(e){}
   }
-  C.on("tileCam","click",camOpenNative);
-  C.on("camShootMore","click",camOpenNative);
+  function camStop(){
+    if(camStream){try{camStream.getTracks().forEach(function(t){t.stop()})}catch(e){}camStream=null}
+    var v=$("camVideo");
+    if(v){try{v.pause()}catch(e){}try{v.srcObject=null}catch(e){}}
+  }
+  function camClose(){
+    camStop();
+    var m=$("camModal");
+    if(m)m.classList.remove("on");
+    document.body.style.overflow="";
+  }
+  function camErrShow(title,msg){
+    var view=$("camView");
+    if(!view)return;
+    view.innerHTML='<div class="camerr"><b>'+esc(title)+"</b>"+esc(msg)+"</div>";
+    var sh=$("camShutter");if(sh)sh.disabled=!0;
+  }
+  function camOpen(){
+    var m=$("camModal");
+    if(!m)return;
+    m.classList.add("on");
+    document.body.style.overflow="hidden";
+    camStripRender();
+    var sh=$("camShutter");if(sh)sh.disabled=!1;
+    var view=$("camView");
+    /* 若先前顯示過錯誤訊息，先把 video 還原回來 */
+    if(view&&!$("camVideo")){
+      view.innerHTML='<video id="camVideo" playsinline autoplay muted></video><div class="camflash" id="camFlash"></div>';
+    }
+    var v=$("camVideo");
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+      camErrShow("這個瀏覽器不支援站內相機","請改用「本機上傳」，或用手機的相機 App 拍好再選照片。");
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},
+      audio:!1
+    }).then(function(st){
+      camStream=st;
+      if(!v)return;
+      v.srcObject=st;
+      var p=v.play&&v.play();
+      if(p&&p.catch)p.catch(function(){});
+    }).catch(function(e){
+      var name=e&&e.name?e.name:"";
+      var why=name==="NotAllowedError"?"相機權限被拒絕。請在瀏覽器網址列左側允許相機，或改用「本機上傳」。":
+              name==="NotFoundError"?"找不到可用的相機。請改用「本機上傳」。":
+              name==="NotReadableError"?"相機被其他程式占用中。請關閉其他相機 App 後再試。":
+              "無法開啟相機（"+(e&&e.message?e.message:name||"未知原因")+"）。";
+      camErrShow("開不了相機",why);
+    });
+  }
+  function camShoot(){
+    if(camBusy)return;
+    var v=$("camVideo");
+    if(!v||!v.videoWidth){toast("相機還沒準備好，請稍候",!0);return}
+    camBusy=!0;
+    var sh=$("camShutter");if(sh)sh.disabled=!0;
+    var fl=$("camFlash");
+    if(fl){fl.classList.add("on");setTimeout(function(){fl.classList.remove("on")},110)}
+    try{
+      var w=v.videoWidth,h=v.videoHeight;
+      var cv=document.createElement("canvas");
+      cv.width=w;cv.height=h;
+      cv.getContext("2d").drawImage(v,0,0,w,h);
+      cv.toBlob(function(blob){
+        if(!blob){camBusy=!1;if(sh)sh.disabled=!1;toast("拍照失敗，請再試一次",!0);return}
+        var nm="cam_"+(++camSeq)+"_"+Date.now()+".jpg";
+        var file;
+        try{file=new File([blob],nm,{type:"image/jpeg",lastModified:Date.now()})}
+        catch(e){blob.name=nm;file=blob}
+        camBuf.push({file:file,url:URL.createObjectURL(blob)});
+        camStripRender();camBufRender();
+        camBusy=!1;if(sh)sh.disabled=!1;
+      },"image/jpeg",0.92);
+    }catch(e){
+      camBusy=!1;if(sh)sh.disabled=!1;
+      toast("拍照失敗："+(e&&e.message?e.message:"未知原因"),!0);
+    }
+  }
+  function camUseAll(){
+    if(!camBuf.length){toast("還沒有拍到照片",!0);return}
+    var files=camBuf.map(function(s){return s.file});
+    camBufClear();camStripRender();
+    camClose();
+    addFiles(files);
+    toast("已帶入 "+files.length+" 張");
+  }
+
+  C.on("tileCam","click",camOpen);
+  C.on("camShootMore","click",camOpen);
+  C.on("camClose","click",camClose);
+  C.on("camCancel","click",camClose);
+  C.on("camShutter","click",camShoot);
+  C.on("camUse2","click",camUseAll);
+  C.on("camStrip","click",function(e){
+    var b=e.target.closest?e.target.closest("button[data-cx]"):null;
+    if(!b)return;
+    var i=Number(b.getAttribute("data-cx"));
+    if(isNaN(i)||!camBuf[i])return;
+    try{URL.revokeObjectURL(camBuf[i].url)}catch(e2){}
+    camBuf.splice(i,1);camStripRender();camBufRender();
+  });
+  /* 關閉視窗時一定要放掉相機，否則鏡頭指示燈會一直亮 */
+  window.addEventListener("pagehide",camStop);
+  document.addEventListener("visibilitychange",function(){
+    if(document.hidden&&camStream)camStop();
+  });
+
   C.on("camBufClear","click",function(){if(!camBuf.length)return;camBufClear();toast("已清除剛拍的照片")});
   C.on("camBufGrid","click",function(e){
     var b=e.target.closest?e.target.closest("button[data-cx]"):null;
@@ -915,6 +1035,7 @@ function bind(){
     addFiles(files);
     toast("已帶入 "+files.length+" 張");
   });
+  /* 後備：站內相機不支援時，仍可用手機相機 App 拍單張 */
   ci&&C.on(ci,"change",function(){
     var fs=ci.files?C.toArray(ci.files):[];
     ci.value="";

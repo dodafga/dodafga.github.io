@@ -59,6 +59,7 @@ sweep(document)})();</script>
 <link rel="stylesheet" href="../assets/drive-v2.css">
 <link rel="stylesheet" href="../assets/site.css">
 <link rel="stylesheet" href="../assets/drive-hist.css">
+<link rel="stylesheet" href="../assets/cam.css">
 <style>
 /* 連線狀態列（沿用 drive-page.js 的 id，外觀比照營造助手） */
 .connrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:14px;
@@ -231,6 +232,14 @@ sweep(document)})();</script>
   .camzoom input[type=range]{width:180px}
 }
 
+/* 開相機時：把頁首／導覽列／內容整個收起來，取景從螢幕最頂端鋪到最底端 */
+html.camopen,html.camopen body{overflow:hidden!important;height:100%!important;
+  overscroll-behavior:none}
+html.camopen body{position:fixed!important;left:0;right:0;top:0;bottom:0;width:100%}
+html.camopen header,html.camopen .tabbar,html.camopen main,
+html.camopen .toast{display:none!important}
+html.camopen #camModal.camwrap{display:flex!important}
+
 /* 覆寫 site.css 舊的 .camwrap 置中容器規則（避免與全螢幕取景衝突） */
 #camModal.camwrap{display:none;flex-direction:column;align-items:stretch;
   justify-content:flex-start;padding:0;background:#000;z-index:200}
@@ -266,11 +275,49 @@ sweep(document)})();</script>
 <main>
 
   <!-- ============ 施工照片歸檔 ============ -->
-  <section class="panel on" id="p-photo" role="tabpanel" aria-label="施工照片歸檔">
+  
+    <div class="card">
+      <div class="cardhd">
+        <h2>照片上傳</h2>
+        <span class="hintx" id="stageTag">0 張</span>
+      </div>
+      <div class="addrow">
+        <button type="button" class="addbtn" id="tileCam">
+          <span class="big" aria-hidden="true">📷</span>
+          <span>拍照</span>
+          <span class="sm2">開相機，可連拍多張、可變焦</span>
+        </button>
+        <label class="addbtn" for="fileInput2">
+          <span class="big" aria-hidden="true">🖼</span>
+          <span>本機上傳</span>
+          <span class="sm2">從相簿選，可多選</span>
+        </label>
+      </div>
+      <input type="file" id="fileInput2" accept="image/*" multiple hidden>
+      <input type="file" id="camInput2" accept="image/*" capture="environment" hidden>
+
+      <div class="cambuf" id="camBuf" style="display:none">
+        <div class="cambufhd">
+          <b>已拍 <span id="camBufCount">0</span> 張</b>
+          <button type="button" class="btn ghost sm" id="camBufClear" style="margin-left:auto">清除</button>
+        </div>
+        <div class="cambufgrid" id="camBufGrid"></div>
+        <div class="cambufact">
+          <button type="button" class="btn ghost" id="camShootMore">📷 再拍一張</button>
+          <button type="button" class="btn" id="camUse">使用照片（0）</button>
+        </div>
+      </div>
+
+      <div class="progwrap" id="progWrap">
+        <div class="progbar"><i id="progBar"></i></div>
+        <div class="progtxt" id="progTxt">—</div>
+        <div class="progbatch" id="progBatch"></div>
+      </div>
+    </div>
 
     <div class="card">
       <div class="cardhd">
-        <h2>歸檔資料</h2>
+        <h2>設定歸檔資料</h2>
         <span class="hintx" id="connTxt">尚未連線</span>
         <span class="dot" id="connDot" style="margin-left:0"></span>
       </div>
@@ -339,48 +386,19 @@ sweep(document)})();</script>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="wbCard">
       <div class="cardhd">
-        <h2>加入照片</h2>
-        <span class="hintx" id="stageTag">0 張</span>
+        <h2>記錄小白板資料</h2>
+        <span class="hintx" id="wbCount">0 張</span>
       </div>
-      <div class="addrow">
-        <button type="button" class="addbtn" id="tileCam">
-          <span class="big" aria-hidden="true">📷</span>
-          <span>拍照</span>
-          <span class="sm2">開相機，可連拍多張、可變焦</span>
-        </button>
-        <label class="addbtn" for="fileInput2">
-          <span class="big" aria-hidden="true">🖼</span>
-          <span>本機上傳</span>
-          <span class="sm2">從相簿選，可多選</span>
-        </label>
-      </div>
-      <input type="file" id="fileInput2" accept="image/*" multiple hidden>
-      <input type="file" id="camInput2" accept="image/*" capture="environment" hidden>
-
-      <div class="cambuf" id="camBuf" style="display:none">
-        <div class="cambufhd">
-          <b>已拍 <span id="camBufCount">0</span> 張</b>
-          <button type="button" class="btn ghost sm" id="camBufClear" style="margin-left:auto">清除</button>
-        </div>
-        <div class="cambufgrid" id="camBufGrid"></div>
-        <div class="cambufact">
-          <button type="button" class="btn ghost" id="camShootMore">📷 再拍一張</button>
-          <button type="button" class="btn" id="camUse">使用照片（0）</button>
-        </div>
-      </div>
-
-      <div class="progwrap" id="progWrap">
-        <div class="progbar"><i id="progBar"></i></div>
-        <div class="progtxt" id="progTxt">—</div>
-        <div class="progbatch" id="progBatch"></div>
-      </div>
+      <div class="hint2" style="margin-bottom:10px">每一張照片都可以各自寫說明（樁號、缺失、位置…），上傳時會寫進該張照片的 Google Drive 說明欄。</div>
+      <div id="wbList"></div>
+      <div class="empty" id="wbEmpty">暫存區還沒有照片。請先在上面「加入照片」。</div>
     </div>
 
     <div class="card">
       <div class="cardhd">
-        <h2>暫存區 <span class="cnt" id="stageCount">0 張</span></h2>
+        <h2>暫存 <span class="cnt" id="stageCount">0 張</span></h2>
         <button type="button" class="btn ghost sm" id="btnClearStage" style="margin-left:auto">清空暫存</button>
       </div>
       <div class="stage2">
@@ -408,22 +426,18 @@ sweep(document)})();</script>
 
     <div class="card">
       <div class="cardhd">
-        <h2>上傳完成</h2>
-        <span class="tag ok" id="doneCount">0 張</span>
-        <button type="button" class="btn ghost sm" id="btnClearDone" style="margin-left:auto">清空本區</button>
-      </div>
-      <div class="done2">
-        <div class="sh"><span class="t">已成功上傳到 Google 雲端硬碟</span></div>
-        <div id="doneList"></div>
-      </div>
-    </div>
-
-    <!-- ===== 已上傳（與營造助手的「已上傳」一模一樣） ===== -->
-    <div class="card">
-      <div class="cardhd">
         <h2>已上傳</h2>
         <span class="hintx" id="libSum"></span>
       </div>
+      <div class="done2" style="margin-bottom:14px">
+        <div class="sh">
+          <span class="t">本次上傳結果</span>
+          <span class="tag ok" id="doneCount">0 張</span>
+          <button type="button" class="btn ghost sm" id="btnClearDone" style="margin-left:auto">清空本區</button>
+        </div>
+        <div id="doneList"></div>
+      </div>
+
       <div class="grid2">
         <label class="fld">
           <span>日期</span>
@@ -554,6 +568,8 @@ sweep(document)})();</script>
     <button type="button" class="camuse" id="camUse2" disabled>使用照片（0）</button>
   </div>
 <!-- 剛拍照片檢視器 -->
+
+
 <div class="camviewer" id="camViewer" role="dialog" aria-modal="true" aria-label="檢視照片">
   <div class="cvhd">
     <b>剛拍的照片</b>
@@ -567,7 +583,6 @@ sweep(document)})();</script>
     <button type="button" id="cvNext">下一張 ›</button>
   </div>
 </div>
-
 </div>
 
 <script src="../assets/jszip.min.js"></script>

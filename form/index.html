@@ -680,16 +680,27 @@ PR1-5（0K+154）"></textarea>
     pos:"", desc:"", autoNum:true,
     apply:"",
     contractor:"", site:"", supervisor:"",
-    locks:{ project:true, contractor:true, site:true, supervisor:true },
+    locks:{ project:true, contractor:true, site:true, supervisor:true, no:false, itemNo:false, itemName:false, unit:false, detail:false, date:false, time:false, pos:false, desc:false, apply:false, attTitle:false },
     attach:{ enabled:false, title:"", rows:[], contractor:"", supervisor:"", photos:[] }
   };
 
   /* v17：可固定／取消固定的欄位（勾選＝固定不可改） */
   var LOCK_FIELDS = [
     { key:"project",    id:"fProject",    tag:"lkProject",    name:"工程名稱" },
+    { key:"no",         id:"fNo",         tag:"",             name:"編號" },
+    { key:"itemNo",     id:"fItemNo",     tag:"",             name:"契約項次" },
+    { key:"itemName",   id:"fItemName",   tag:"",             name:"契約名稱／規格" },
+    { key:"unit",       id:"fUnit",       tag:"",             name:"單位位置" },
+    { key:"detail",     id:"fDetail",     tag:"",             name:"契約細項" },
+    { key:"date",       id:"fDate",       tag:"",             name:"預定抽查日期" },
+    { key:"time",       id:"fTime",       tag:"",             name:"預定抽查時間" },
+    { key:"pos",        id:"fPos",        tag:"",             name:"查驗位置" },
+    { key:"desc",       id:"fDesc",       tag:"",             name:"查驗內容" },
+    { key:"apply",      id:"fApply",      tag:"",             name:"申請日期" },
     { key:"contractor", id:"fContractor", tag:"lkContractor", name:"承包商" },
     { key:"site",       id:"fSite",       tag:"lkSite",       name:"工地主任" },
-    { key:"supervisor", id:"fSupervisor", tag:"lkSupervisor", name:"監造單位" }
+    { key:"supervisor", id:"fSupervisor", tag:"lkSupervisor", name:"監造單位" },
+    { key:"attTitle",   id:"fAttTitle",   tag:"",             name:"附件表單標題" }
   ];
   var LOCK_KEY = "inspection-form-locks-v1";
 
@@ -748,6 +759,15 @@ PR1-5（0K+154）"></textarea>
         el.readOnly = false;
         el.removeAttribute("aria-readonly");
         el.classList.remove("locked");
+      }
+      if(!tag){
+        var lab = document.querySelector('label[for="'+f.id+'"]');
+        if(lab){
+          tag = document.createElement("span");
+          tag.className = "locktag";
+          tag.id = "lk" + f.key.charAt(0).toUpperCase() + f.key.slice(1);
+          lab.appendChild(tag);
+        }
       }
       if(tag){
         tag.textContent = on ? "固定" : "可填";

@@ -1,9 +1,0 @@
-name: deploy-r24
-# 一次性部署已完成（2026-11-14）。此 workflow 已中和：
-# 只保留手動觸發，不會再隨 push 自動執行。可安全刪除。
-on: workflow_dispatch
-jobs:
-  noop:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "one-off deploy already completed; nothing to do"

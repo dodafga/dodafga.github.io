@@ -1,0 +1,67 @@
+name: r71-apply
+on:
+  push:
+    paths:
+      - '.github/workflows/r71-apply.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch and place files
+        run: |
+          set -e
+          mkdir -p drive progress form build assets
+          fetch() { curl -fsSL --retry 3 --retry-delay 2 -o "$2" "$1"; echo "  $2 $(wc -c < "$2")"; }
+          fetch "https://static.teamily.ai/files/24ae0a5f-5c9c-44b1-8b14-d0ee41fcdf71/index.html" index.html
+          fetch "https://static.teamily.ai/files/21ac1382-1941-4758-8218-105cbd7f0cb1/drive_index.html" drive/index.html
+          fetch "https://static.teamily.ai/files/e8ce3d84-d9a7-4391-9551-4176c88e5b30/progress_index.html" progress/index.html
+          fetch "https://static.teamily.ai/files/d5af200b-5027-4305-999b-2a6f689c1898/form_index.html" form/index.html
+          fetch "https://static.teamily.ai/files/6c950c88-0ffc-4528-a5c8-2a19bb2c63be/build_index.html" build/index.html
+          fetch "https://static.teamily.ai/files/f9b0af64-1bad-4be2-bede-25788068652c/assets_pile-measure.js" assets/pile-measure.js
+          fetch "https://static.teamily.ai/files/c1d58d90-2c21-44b1-9006-24532d9bf33d/assets_daily-flow.js" assets/daily-flow.js
+          fetch "https://static.teamily.ai/files/1f0fd5c7-d7f9-4b68-8ffc-2ab4dbc7dc52/assets_drive-v2.js" assets/drive-v2.js
+          fetch "https://static.teamily.ai/files/2931f590-324d-4b1b-8a0d-fef05bba1c90/assets_assistant.js" assets/assistant.js
+          fetch "https://static.teamily.ai/files/aaa2db76-fc58-48c4-8a9f-5b10dc08d159/assets_site.css" assets/site.css
+          fetch "https://static.teamily.ai/files/02060268-a020-45d7-ae38-bcb9b768ba33/assets_cam.css" assets/cam.css
+      - name: Verify content markers
+        run: |
+          set -e
+          chk() { grep -q "$2" "$1" || { echo "MISSING in $1: $2"; exit 1; }; echo "  ok $1"; }
+          chk index.html 'data-mode="progress"'
+          chk drive/index.html 'dailyMount'
+          chk drive/index.html 'pmMount'
+          chk drive/index.html 'recMount'
+          chk drive/index.html 'pile-measure.js'
+          chk drive/index.html 'daily-flow.js'
+          chk progress/index.html 'pmqMount'
+          chk progress/index.html 'pile-measure.js'
+          chk form/index.html '手機優先版面（form/）'
+          chk build/index.html 'comboList'
+          chk build/index.html 'comboEmpty'
+          chk assets/pile-measure.js 'PileMeasure'
+          chk assets/daily-flow.js 'DailyFlow'
+          chk assets/drive-v2.js 'stationsForDate'
+          chk assets/assistant.js 'build-assistant-combos-v1'
+          chk assets/assistant.js '__buildAutoConnect'
+          chk assets/cam.css 'camwrap:not(.on)'
+          chk assets/site.css 'crewhint'
+          echo "ALL MARKERS OK"
+      - name: Commit
+        run: |
+          set -e
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add -A
+          git commit -m "查驗助手三頁聯動：今日查驗人員固定、逐樁紀錄、完成寫入紀錄表；樁位資料表移至相片歸檔、樁位資料查詢移至進度；移除紀錄表頁；手機優先版面；營造助手自動連線與常用項目" || echo "nothing to commit"
+          git push origin HEAD:main
+      - name: Self delete
+        run: |
+          git rm -f .github/workflows/r71-apply.yml || true
+          git commit -m "chore: remove one-time workflow" || true
+          git push origin HEAD:main || true

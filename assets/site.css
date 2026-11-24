@@ -409,6 +409,28 @@ main{flex:1 1 auto;max-width:760px;width:100%;margin:0 auto;
   .camshot{flex:0 0 62px;width:62px;height:62px}
 }
 
+/* ===== 拍照緩衝區（本機相機 App 連拍多張 → 使用照片） ===== */
+.cambuf{margin-top:12px;border:1px solid var(--line);border-radius:12px;
+  background:#FAFAF8;overflow:hidden}
+.cambufhd{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-bottom:1px solid var(--line)}
+.cambufhd b{font-size:13.5px;font-weight:800;color:var(--ink)}
+.cambufgrid{display:flex;gap:8px;padding:10px 12px;overflow-x:auto}
+.cambufgrid:empty{display:none}
+.cambufgrid .camshot{position:relative;flex:0 0 76px;width:76px;height:76px;
+  border-radius:9px;overflow:hidden;background:#EDEBE7}
+.cambufgrid .camshot img{width:100%;height:100%;object-fit:cover;display:block}
+.cambufgrid .camshot .cx{position:absolute;right:2px;top:2px;width:22px;height:22px;
+  border:none;border-radius:50%;background:rgba(20,24,28,.72);color:#fff;font-size:12px;
+  line-height:1;cursor:pointer;font-family:inherit;padding:0}
+.cambufact{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+.cambufact .btn{flex:1 1 0;min-width:0}
+.cambufact .btn.ghost{flex:0 0 auto}
+@media (max-width:420px){
+  .cambufact .btn{font-size:13px;padding:11px 8px}
+  .cambufgrid .camshot{flex:0 0 64px;width:64px;height:64px}
+}
+
 /* ===== 每張照片自己的說明（暫存區檢視器） ===== */
 .vnote{padding:10px 12px 0}
 .vnote-l{display:block;font-size:12px;font-weight:800;color:var(--ink2);margin-bottom:5px}

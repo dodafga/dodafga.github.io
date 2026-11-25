@@ -1,0 +1,46 @@
+name: r73-apply
+on:
+  push:
+    paths:
+      - '.github/workflows/r73-apply.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply patch
+        run: |
+          python3 .r73/patch.py .
+          python3 .r73/icons.py .
+      - name: Verify
+        run: |
+          set -e
+          grep -q 'apple-mobile-web-app-capable' drive/index.html
+          grep -q 'apple-touch-icon' drive/index.html
+          grep -q 'manifest.json' drive/index.html
+          grep -q 'display-mode: standalone' drive/index.html
+          grep -q 'drive-offline-v4' sw-ocr.js
+          if grep -qE 'try \{ cl\.navigate' sw-ocr.js; then echo "forced navigate still present"; exit 1; fi
+          python3 -c "import json;json.load(open('manifest.json'))"
+          node --check sw-ocr.js
+          test -s assets/icon-180.png
+          test -s assets/icon-192.png
+          echo VERIFY_OK
+      - name: Commit
+        run: |
+          git config user.name "r73-bot"
+          git config user.email "r73-bot@users.noreply.github.com"
+          git add drive/index.html sw-ocr.js manifest.json assets/icon-180.png assets/icon-192.png
+          git commit -m "fix(drive): iOS standalone mode fix (remove SW forced reload, add app meta + manifest + icons)"
+          git push
+      - name: Self delete
+        run: |
+          git rm .github/workflows/r73-apply.yml
+          git rm -r .r73
+          git commit -m "chore: remove one-off r73 workflow and patch"
+          git push

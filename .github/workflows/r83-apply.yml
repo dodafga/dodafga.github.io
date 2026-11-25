@@ -1,0 +1,53 @@
+name: r83-apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r83-apply.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and verify
+        run: |
+          set -e
+          B="https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents"
+          mkdir -p assets drive progress
+          curl -fsSL -o assets/pile-fix.js "$B/pile-fix/pile-fix.js"
+          curl -fsSL -o assets/mat-side.js "$B/mat-side/mat-side.js"
+          curl -fsSL -o drive/index.html "$B/drive/drive.html"
+          curl -fsSL -o progress/index.html "$B/progress/progress.html"
+          echo "--- sizes ---"
+          wc -c assets/pile-fix.js assets/mat-side.js drive/index.html progress/index.html
+          echo "--- sha256 ---"
+          sha256sum assets/pile-fix.js assets/mat-side.js drive/index.html progress/index.html
+          echo "--- sanity ---"
+          grep -c "PileFix" assets/pile-fix.js
+          grep -c "MatSide" assets/mat-side.js
+          grep -c "pile-fix.js" drive/index.html
+          grep -c "pile-fix.js" progress/index.html
+          grep -c "mat-side.js" progress/index.html
+          grep -c "pfxMount" drive/index.html
+          grep -c "pfxMount" progress/index.html
+          grep -c "msideMount" progress/index.html
+          test "$(wc -c < assets/pile-fix.js)" -gt 18000
+          test "$(wc -c < assets/mat-side.js)" -gt 6000
+          test "$(wc -c < drive/index.html)" -gt 30000
+          test "$(wc -c < progress/index.html)" -gt 60000
+      - name: Commit
+        run: |
+          set -e
+          git config user.name "dodafga"
+          git config user.email "132368659+dodafga@users.noreply.github.com"
+          git add assets/pile-fix.js assets/mat-side.js drive/index.html progress/index.html
+          git commit -m "feat: 樁號可修正、材料未分類岸別自動歸右岸"
+          git push
+      - name: Self delete
+        run: |
+          set -e
+          git rm .github/workflows/r83-apply.yml
+          git commit -m "chore: remove one-shot workflow r83-apply"
+          git push

@@ -39,6 +39,9 @@
   <button type="button" class="tab" data-panel="event" role="tab" aria-selected="false">
     <span class="ic" aria-hidden="true">📅</span>日期事項
   </button>
+  <button type="button" class="tab" data-panel="cloud" role="tab" aria-selected="false">
+    <span class="ic" aria-hidden="true">☁</span>雲端
+  </button>
 </div>
 
 <main>
@@ -279,6 +282,22 @@
 
   </section>
 
+  <!-- ============ 4. 雲端備份（營造助手專用，與查驗助手分開） ============ -->
+  <section class="panel" id="p-cloud" role="tabpanel" aria-label="雲端備份">
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>資料存放</h2>
+      </div>
+      <div class="hintx" style="margin:0 0 10px">
+        營造助手的資料存放在 <b>營造助手資料／build-data.json</b>；查驗助手的資料存放在
+        <b>營建查驗資料／inspection-data.json</b>。兩份備份各自獨立，不會互相覆蓋。
+      </div>
+      <div id="bcMount"></div>
+    </div>
+
+  </section>
+
 </main>
 
 <!-- ===== 站內相機：全螢幕取景、可連拍多張 ===== -->
@@ -321,7 +340,7 @@
   </div>
 </div>
 </div>
-<!-- 剛拍照片檤視器 -->
+<!-- 剛拍照片瀏覽器 -->
 
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -332,6 +351,30 @@
 <script src="../assets/gdrive-photo.js"></script>
 <script src="../assets/zoomlock.js"></script>
 <script src="../assets/cam.js"></script>
+<script src="../assets/build-cloud.js"></script>
+<script>
+/* 營造助手：照片歸檔到自己的資料夾（義力／營造照片），
+   與查驗助手的「義力／施工照片」完全分開。 */
+(function(){
+  try{
+    var G=window.GDrivePhoto;
+    if(G&&G.setPhotoRoot) G.setPhotoRoot('營造照片');
+  }catch(e){}
+})();
+</script>
 <script src="../assets/assistant.js"></script>
+<script>
+/* 雲端頁籤：營造助手專用備份（build-data.json） */
+(function(){
+  function boot(){
+    try{
+      var BC=window.BuildCloud, el=document.getElementById('bcMount');
+      if(BC&&BC.mount&&el) BC.mount(el);
+    }catch(e){ console.error('[build-cloud]',e); }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
+  else boot();
+})();
+</script>
 </body>
 </html>

@@ -1,0 +1,73 @@
+name: r85-fix-daily-flow
+on:
+  push:
+    paths:
+      - .github/workflows/r85-fix.yml
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+      - name: restore good version
+        run: git checkout f8e7dd54acc3d8a4c27bdfe9a810ad743d7d42af -- assets/daily-flow.js
+      - name: patch
+        run: |
+          python3 - <<'PY'
+          import io
+          p = 'assets/daily-flow.js'
+          s = io.open(p, encoding='utf-8').read()
+          assert 'PILE_RE' not in s
+          helpers = (
+            "  var PILE_RE = /^[A-Za-z]{1,8}\\d*-[0-9]{1,3}$/;\n\n"
+            "  function realPileSet() {\n"
+            "    var set = {};\n"
+            "    try {\n"
+            "      var S0 = S();\n"
+            "      if (S0 && S0.load && S0.pileNosOf && S0.pierList) {\n"
+            "        var d = S0.load();\n"
+            "        S0.pierList().forEach(function (pier) {\n"
+            "          (S0.pileNosOf(d, pier) || []).forEach(function (no) {\n"
+            "            var k = String(no || '').trim();\n"
+            "            if (k) set[k] = 1;\n"
+            "          });\n"
+            "        });\n"
+            "      }\n"
+            "    } catch (e) {}\n"
+            "    return set;\n"
+            "  }\n\n"
+            "  function isPileNo(no, set) {\n"
+            "    var v = String(no || '').trim();\n"
+            "    if (!v) return false;\n"
+            "    if (set && Object.keys(set).length) return !!set[v];\n"
+            "    return PILE_RE.test(v);\n"
+            "  }\n\n"
+          )
+          a1 = "  function pilesOfDay(dateISO) {"
+          assert a1 in s, 'anchor a1'
+          s = s.replace(a1, helpers + a1, 1)
+          b1 = "var out = [];\n    try {\n      var PM = global.PileMeasure;"
+          assert b1 in s, 'anchor b1'
+          s = s.replace(b1, "var out = [];\n    var set = realPileSet();\n    try {\n      var PM = global.PileMeasure;", 1)
+          b2 = "if (String(r.date || '') === String(dateISO) && r.pile) out.push(r.pile);"
+          assert b2 in s, 'anchor b2'
+          s = s.replace(b2, "if (String(r.date || '') === String(dateISO) && isPileNo(r.pile, set)) out.push(String(r.pile).trim());", 1)
+          b3 = "var it = String(h.item || '').trim();\n          if (it) out.push(it);"
+          assert b3 in s, 'anchor b3'
+          s = s.replace(b3, "var it = String(h.pile || h.item || '').trim();\n          if (isPileNo(it, set)) out.push(it);", 1)
+          io.open(p, 'w', encoding='utf-8').write(s)
+          print('patched bytes:', len(s.encode('utf-8')))
+          PY
+          node --check assets/daily-flow.js
+          grep -c isPileNo assets/daily-flow.js
+      - name: commit
+        run: |
+          git config user.name dodafga
+          git config user.email 132368659+dodafga@users.noreply.github.com
+          git rm -q .github/workflows/r85-fix.yml
+          git add assets/daily-flow.js
+          git commit -m "fix: 當日已做只顯示查驗樁號，排除營造工項照片紀錄"
+          git push

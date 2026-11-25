@@ -21,7 +21,7 @@
  */
 'use strict';
 
-var CACHE = 'drive-offline-v3';
+var CACHE = 'drive-offline-v4';
 
 /* /drive/ 頁面本身（兩種寫法都收） */
 var PAGE_URLS = ['/drive/', '/drive/index.html'];
@@ -91,18 +91,12 @@ self.addEventListener('activate', function (e) {
       });
       return Promise.all(old.map(function (k) { return caches.delete(k); }))
         .then(function () { return old.length; });
-    }).then(function (oldCount) {
-      return self.clients.claim().then(function () {
-        /* 只有「這次真的清掉了舊版快取」才重載已開啟的分頁（一次性遷移）。
-           這樣使用者不必自己按重新整理，就能離開被舊快取黏住的畫面；
-           也不會在正常情況下造成重載迴圈。 */
-        if (!oldCount) return null;
-        return self.clients.matchAll({ type: 'window' }).then(function (cs) {
-          cs.forEach(function (cl) {
-            try { cl.navigate(cl.url); } catch (err) {}
-          });
-        });
-      });
+    }).then(function () {
+      /* 只接管控制權，不再強制重載任何已開啟的分頁。
+         舊版會在清掉舊快取時對所有分頁呼叫 cl.navigate()，
+         這在 iOS「加到主畫面」的 standalone 模式會造成白屏／重載迴圈，
+         因此移除強制重載；新版本改由 network-first 自然取得。 */
+      return self.clients.claim();
     })
   );
 });

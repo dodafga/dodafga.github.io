@@ -1,1 +1,15 @@
-PLACEHOLDER_MANIFEST
+{
+  "name": "查驗助手 · 施工照片歸檔",
+  "short_name": "施工照片歸檔",
+  "description": "施工照片上傳歸檔、樁位資料與查驗紀錄（查驗助手）",
+  "lang": "zh-Hant",
+  "start_url": "./drive/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7F6F3",
+  "theme_color": "#7A848D",
+  "icons": [
+    { "src": "./assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" }
+  ]
+}

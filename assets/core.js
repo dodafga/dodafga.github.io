@@ -1,7 +1,7 @@
 /*!
  * core.js — 全站共用小工具（零依賴）
  *
- * 目的：把原本在 6～7 個頁面各自複製一份的小函式收攏到一處，
+ * 目的：把原本在 6～7 個頁面各自複製一份的小函式收斂到一處，
  *       並集中管理「魔術數字」（長邊上限、紀錄上限、偵測寬度…）。
  *
  * 相容性：全部 ES5 語法（var / function），不使用 arrow、const、optional chaining，
@@ -143,7 +143,7 @@
     };
   }
 
-  /** 合併同一輪事件內的多次呼叫（下一個 tick 只跑一次） */
+  /** 合併同一輪事件內的多個呼叫（下一個 tick 只跑一次） */
   function coalesce(fn) {
     var queued = false, self = null, args = null;
     return function () {
@@ -269,4 +269,100 @@
     on: on,
     toArray: toArray
   };
+})(typeof window !== 'undefined' ? window : this);
+
+/* ===== 樁號修正 / 材料岸別歸類：自動掛載（drive/ 與 progress/） =====
+   由 core.js 統一載入，避免改動各頁 HTML。
+   只在查驗助手（drive/、progress/）生效，營造助手（build/）不會載入。 */
+(function (global) {
+  'use strict';
+  var path = String((global.location && global.location.pathname) || '');
+  var isDrive = /\/drive\//.test(path);
+  var isProgress = /\/progress\//.test(path);
+  if (!isDrive && !isProgress) return;
+
+  function loadScript(src, cb) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = function () { try { cb(); } catch (e) { console.error(e); } };
+    s.onerror = function () { console.error('[core] 載入失敗', src); };
+    document.head.appendChild(s);
+  }
+
+  function makeCard(title, tagText, mountId) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.id = mountId + 'Card';
+    var hd = document.createElement('div');
+    hd.className = 'cardhd';
+    var h2 = document.createElement('h2');
+    h2.textContent = title;
+    hd.appendChild(h2);
+    if (tagText) {
+      var tg = document.createElement('span');
+      tg.className = 'hintx';
+      tg.textContent = tagText;
+      hd.appendChild(tg);
+    }
+    var bd = document.createElement('div');
+    var mount = document.createElement('div');
+    mount.id = mountId;
+    bd.appendChild(mount);
+    card.appendChild(hd);
+    card.appendChild(bd);
+    return card;
+  }
+
+  function insertAfterCloudCard(card) {
+    var cloud = document.getElementById('cloudCard') || document.getElementById('cdbMount');
+    if (cloud && cloud.parentNode) {
+      var anchor = cloud.id === 'cloudCard' ? cloud : cloud.closest('.card');
+      if (anchor && anchor.parentNode) {
+        anchor.parentNode.insertBefore(card, anchor.nextSibling);
+        return true;
+      }
+    }
+    var main = document.querySelector('main');
+    if (main) { main.appendChild(card); return true; }
+    return false;
+  }
+
+  function boot() {
+    /* 樁號修正 */
+    if (!document.getElementById('pfxMount')) {
+      var c1 = makeCard('樁號修正', '樁號記錯可改', 'pfxMount');
+      insertAfterCloudCard(c1);
+    }
+    loadScript('../assets/pile-fix.js', function () {
+      if (global.PileFix && document.getElementById('pfxMount')) {
+        global.PileFix.mount(document.getElementById('pfxMount'));
+      }
+    });
+
+    /* 材料岸別歸類（只有資料進度頁有材料管控） */
+    if (isProgress) {
+      if (!document.getElementById('msideMount')) {
+        var stats = document.getElementById('matStats');
+        if (stats && stats.parentNode) {
+          var wrap = document.createElement('div');
+          wrap.style.margin = '10px 0 0';
+          var m = document.createElement('div');
+          m.id = 'msideMount';
+          wrap.appendChild(m);
+          stats.parentNode.insertBefore(wrap, stats.nextSibling);
+        }
+      }
+      loadScript('../assets/mat-side.js', function () {
+        if (!global.MatSide) return;
+        try { global.MatSide.autoRunOnce(); } catch (e) { console.error('[mside]', e); }
+        if (document.getElementById('msideMount')) {
+          global.MatSide.mount(document.getElementById('msideMount'));
+        }
+      });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else { boot(); }
 })(typeof window !== 'undefined' ? window : this);

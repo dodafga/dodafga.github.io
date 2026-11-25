@@ -1,0 +1,22 @@
+name: cleanup-deploy
+
+on:
+  push:
+    paths:
+      - '.github/workflows/cleanup-deploy.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          git config user.name canon
+          git config user.email canon8741311@gmail.com
+          git rm -r -q deploy || true
+          git rm -q .github/workflows/cleanup-deploy.yml || true
+          git commit -m "chore: remove deploy helper files" || echo nothing
+          git push

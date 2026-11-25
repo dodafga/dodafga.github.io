@@ -1,0 +1,30 @@
+name: apply-p3
+
+on:
+  push:
+    paths:
+      - '.github/workflows/p3.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 deploy/apply_p3.py
+      - run: |
+          grep -c "twbox" progress/index.html
+          node --check assets/cloud-db.js
+      - run: |
+          git config user.name canon
+          git config user.email canon8741311@gmail.com
+          git add -A
+          git commit -m "資料進度頁：手機表格左右滑動提示"
+          git push
+      - if: always()
+        run: |
+          git rm -q .github/workflows/p3.yml || true
+          git commit -m "chore: cleanup" || true
+          git push || true

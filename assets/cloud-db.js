@@ -15,7 +15,8 @@
     hist: 'inspection-drive-photo-history',
     imported: 'inspection-drive-photo-imported',
     staff: 'inspection-daily-staff-v1',
-    cur: 'inspection-daily-current-v1'
+    cur: 'inspection-daily-current-v1',
+    lastBackup: 'inspection-cloud-last-backup'
   };
 
   var PAYLOAD_KIND = 'full-backup';
@@ -67,6 +68,28 @@
   }
 
   function stats() { return collect().counts; }
+
+  function fmtTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+      ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function getLastBackup() {
+    try { return localStorage.getItem(K.lastBackup) || ''; } catch (e) { return ''; }
+  }
+
+  function setLastBackup(iso) {
+    try { localStorage.setItem(K.lastBackup, iso || new Date().toISOString()); } catch (e) {}
+  }
+
+  function lastBackupText() {
+    var t = getLastBackup();
+    return t ? '\u6700\u5f8c\u5099\u4efd\uff1a' + fmtTime(t) : '\u5c1a\u672a\u5099\u4efd';
+  }
 
   function write(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); return true; }
@@ -124,7 +147,10 @@
       return Promise.reject(new Error('尚未設定 Google OAuth Client ID，請先到「設定」完成設定'));
     }
     var payload = collect();
-    return G.save(payload).then(function () { return payload.counts; });
+    return G.save(payload).then(function () {
+      setLastBackup(payload.savedAt || new Date().toISOString());
+      return payload.counts;
+    });
   }
 
   function load() {
@@ -185,6 +211,7 @@
     node.innerHTML = [
       '<div class="cdb">',
       '  <div class="cdb-line"><span class="cdb-dot" id="cdbDot"></span><span id="cdbState">本機資料</span><span class="cdb-sp"></span><span id="cdbCounts"></span></div>',
+      '  <div class="cdb-note" id="cdbLast">' + esc(lastBackupText()) + '</div>',
       '  <div class="cdb-note" id="cdbNote">' + esc(opts.note || '把本機全部資料（樁位進度、查驗紀錄、樁位資料、材料、已上傳紀錄）整合成一份存到 Google Drive；換裝置按「載入」就全部回來。') + '</div>',
       '  <div class="cdb-btns">',
       '    <button type="button" class="btn" id="cdbSave">☁ 存入雲端</button>',
@@ -195,11 +222,12 @@
     ].join('');
 
     var btnSave = $('cdbSave'), btnLoad = $('cdbLoad');
-    var msg = $('cdbMsg'), cnt = $('cdbCounts'), st2 = $('cdbState'), dot = $('cdbDot');
+    var msg = $('cdbMsg'), cnt = $('cdbCounts'), st2 = $('cdbState'), dot = $('cdbDot'), last = $('cdbLast');
 
     function paint() {
       var s = stats();
       if (cnt) cnt.textContent = summaryText(s);
+      if (last) last.textContent = lastBackupText();
     }
 
     function say(text, isErr) {
@@ -258,6 +286,9 @@
     stats: stats,
     refresh: refresh,
     mount: mount,
-    summary: summaryText
+    summary: summaryText,
+    getLastBackup: getLastBackup,
+    setLastBackup: setLastBackup,
+    lastBackupText: lastBackupText
   };
 })(typeof window !== 'undefined' ? window : this);

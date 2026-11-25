@@ -1,4 +1,5 @@
 name: r73-apply
+# trigger: 2026-11-25T03:05Z iOS standalone fix
 on:
   push:
     paths:

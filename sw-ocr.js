@@ -21,7 +21,7 @@
  */
 'use strict';
 
-var CACHE = 'drive-offline-v4';
+var CACHE = 'drive-offline-v5';
 
 /* /drive/ 頁面本身（兩種寫法都收） */
 var PAGE_URLS = ['/drive/', '/drive/index.html'];
@@ -126,27 +126,24 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  /* ---- 頁面與程式／樣式：network-first（先上網拿最新版，離線才用快取）---- */
+  /* ---- 頁面導覽：完全不攔截，交給瀏覽器直接上網 ----
+     iOS「加到主畫面」的 standalone 模式對 SW 回應的導覽特別敏感，
+     一旦拿到舊的頁面外殼就會白屏且無法自行恢復，因此導覽一律放行。 */
+  if (req.mode === 'navigate') return;
+
+  /* ---- 程式／樣式：network-first（先上網拿最新版，離線才用快取）---- */
   e.respondWith(
     caches.open(CACHE).then(function (c) {
-      var net = req.mode === 'navigate'
-        ? fetch(req, { cache: 'no-cache' })
-        : fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' });
+      var net = fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' });
       return net.then(function (res) {
         if (res && res.ok && res.type === 'basic') {
           try { c.put(req, res.clone()); } catch (err) {}
         }
         return res;
       }).catch(function () {
-        /* 離線：退回快取。導覽請求連頁面快取都沒有時，回頁面快取的最後手段。 */
+        /* 離線：退回快取（導覽請求已在上面放行，不會走到這裡）。 */
         return c.match(req, { ignoreSearch: true }).then(function (hit) {
-          if (hit) return hit;
-          if (req.mode === 'navigate') {
-            return c.match(PAGE_URLS[0], { ignoreSearch: true }).then(function (pg) {
-              return pg || Response.error();
-            });
-          }
-          return Response.error();
+          return hit || Response.error();
         });
       });
     })

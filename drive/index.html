@@ -666,6 +666,19 @@ html.camopen #camModal.camwrap{display:flex!important}
       try{ navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ try{ r.unregister(); }catch(e){} }); }).catch(function(){}); }catch(e){}
       return;
     }
+    /* 一般瀏覽器：若目前被「舊版」SW 控制（舊版會強制重載分頁、並用快取回應導覽），
+       先解除它並重載一次；重載後就由新版 SW 接手（新版不攔導覽、不強制重載）。 */
+    try{
+      var ctrl = navigator.serviceWorker.controller;
+      var KEY='sw-selfheal-v5';
+      if(!sessionStorage.getItem(KEY) && ctrl && ctrl.scriptURL && ctrl.scriptURL.indexOf('sw-ocr.js') >= 0){
+        sessionStorage.setItem(KEY,'1');
+        navigator.serviceWorker.getRegistrations().then(function(rs){
+          return Promise.all(rs.map(function(r){ return r.unregister().catch(function(){}); }));
+        }).then(function(){ location.reload(); }).catch(function(){});
+        return;
+      }
+    }catch(e){}
     navigator.serviceWorker.register('../sw-ocr.js',{scope:'../'}).catch(function(){});
   }catch(e){}
 })();

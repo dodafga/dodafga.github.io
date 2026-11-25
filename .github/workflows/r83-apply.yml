@@ -11,39 +11,103 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch and verify
+      - name: Patch pages
         run: |
           set -e
-          B="https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents"
-          mkdir -p assets drive progress
-          curl -fsSL -o assets/pile-fix.js "$B/pile-fix/pile-fix.js"
-          curl -fsSL -o assets/mat-side.js "$B/mat-side/mat-side.js"
-          curl -fsSL -o drive/index.html "$B/drive/drive.html"
-          curl -fsSL -o progress/index.html "$B/progress/progress.html"
-          echo "--- sizes ---"
-          wc -c assets/pile-fix.js assets/mat-side.js drive/index.html progress/index.html
-          echo "--- sha256 ---"
-          sha256sum assets/pile-fix.js assets/mat-side.js drive/index.html progress/index.html
+          python3 - <<'PY'
+import io, sys, os
+
+def rd(p):
+    with io.open(p, encoding='utf-8') as f:
+        return f.read()
+
+def wr(p, s):
+    with io.open(p, 'w', encoding='utf-8') as f:
+        f.write(s)
+
+CARD = '''  <!-- ============ 樁號修正（已記錄樁號可改） ============ -->
+  <div class="card" id="pfxCard">
+    <div class="card-h">
+      <h2>樁號修正</h2>
+      <span class="tag">樁號記錯可改</span>
+    </div>
+    <div class="card-b">
+      <div id="pfxMount"></div>
+    </div>
+  </div>
+
+'''
+
+# ---------- progress ----------
+p = 'progress/index.html'
+h = rd(p)
+assert 'pile-fix.js' not in h, 'progress already patched'
+assert '<script src="../assets/cloud-db.js"></script>' in h
+h = h.replace('<script src="../assets/cloud-db.js"></script>',
+              '<script src="../assets/cloud-db.js"></script>\n<script src="../assets/pile-fix.js"></script>\n<script src="../assets/mat-side.js"></script>', 1)
+
+anchor = '  <!-- ============ 樁位資料查詢（單日日期／樁號） ============ -->'
+assert anchor in h, 'progress anchor missing'
+h = h.replace(anchor, CARD + anchor, 1)
+
+assert 'id="matStats"' in h
+h = h.replace('<div class="matgrid" id="matStats"></div>',
+              '<div class="matgrid" id="matStats"></div>\n      <div style="margin:10px 0 0"><div id="msideMount"></div></div>', 1)
+
+# boot hooks
+hook_old = """  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();"""
+hook_new = """  function extra(){
+    try{
+      if(window.PileFix && document.getElementById('pfxMount')){
+        window.PileFix.mount(document.getElementById('pfxMount'));
+      }
+    }catch(e){ console.error('[pfx]', e); }
+    try{
+      if(window.MatSide){
+        window.MatSide.autoRunOnce();
+        if(document.getElementById('msideMount')) window.MatSide.mount(document.getElementById('msideMount'));
+      }
+    }catch(e){ console.error('[mside]', e); }
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', function(){ boot(); extra(); }); } else { boot(); extra(); }"""
+assert hook_old in h, 'progress boot hook missing'
+h = h.replace(hook_old, hook_new, 1)
+wr(p, h)
+print('progress ok', len(h))
+
+# ---------- drive ----------
+p = 'drive/index.html'
+h = rd(p)
+assert 'pile-fix.js' not in h, 'drive already patched'
+assert '<script src="../assets/cloud-db.js"></script>' in h
+h = h.replace('<script src="../assets/cloud-db.js"></script>',
+              '<script src="../assets/cloud-db.js"></script>\n<script src="../assets/pile-fix.js"></script>', 1)
+
+anchor = '    <!-- ============ 樁位資料（暫存／臨時修改） ============ -->'
+assert anchor in h, 'drive anchor missing'
+h = h.replace(anchor, CARD + anchor, 1)
+
+zl = """    try{ if(window.PageZoomLock&&window.PageZoomLock.lockPage) window.PageZoomLock.lockPage(); }catch(e){ console.error('[zoomlock]',e); }"""
+assert zl in h, 'drive zoomlock missing'
+h = h.replace(zl, zl + """
+    try{ if(window.PileFix&&document.getElementById('pfxMount')) window.PileFix.mount(document.getElementById('pfxMount')); }catch(e){ console.error('[pfx]',e); }""", 1)
+wr(p, h)
+print('drive ok', len(h))
+PY
           echo "--- sanity ---"
-          grep -c "PileFix" assets/pile-fix.js
-          grep -c "MatSide" assets/mat-side.js
           grep -c "pile-fix.js" drive/index.html
+          grep -c "pfxMount" drive/index.html
           grep -c "pile-fix.js" progress/index.html
           grep -c "mat-side.js" progress/index.html
-          grep -c "pfxMount" drive/index.html
           grep -c "pfxMount" progress/index.html
           grep -c "msideMount" progress/index.html
-          test "$(wc -c < assets/pile-fix.js)" -gt 18000
-          test "$(wc -c < assets/mat-side.js)" -gt 6000
-          test "$(wc -c < drive/index.html)" -gt 30000
-          test "$(wc -c < progress/index.html)" -gt 60000
       - name: Commit
         run: |
           set -e
           git config user.name "dodafga"
           git config user.email "132368659+dodafga@users.noreply.github.com"
-          git add assets/pile-fix.js assets/mat-side.js drive/index.html progress/index.html
-          git commit -m "feat: 樁號可修正、材料未分類岸別自動歸右岸"
+          git add drive/index.html progress/index.html
+          git commit -m "feat: 樁號可修正、材料未分類岸別歸右岸"
           git push
       - name: Self delete
         run: |

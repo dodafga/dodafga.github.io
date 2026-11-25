@@ -508,13 +508,23 @@ html.camopen #camModal.camwrap{display:flex!important}
       </div>
     </div>
 
-    <!-- ============ 樁位資料表（上傳完接著作紀錄） ============ -->
+    <!-- ============ 樁位資料（暫存／臨時修改） ============ -->
     <div class="card" id="pileCard">
       <div class="cardhd">
-        <h2>樁位資料表</h2>
-        <span class="hintx">每支樁位一筆檢查資訊</span>
+        <h2>樁位資料（暫存／臨時修改）</h2>
+        <span class="hintx">現場隨手記、隨時改；查詢請到「資料進度頁」</span>
       </div>
       <div id="pmMount"></div>
+      <div class="hint2" style="margin:10px 2px 0">這裡只做「暫存、輸入、臨時改資料」。要找舊資料、依日期或樁號查詢，請到 <a href="../progress/index.html">資料進度頁</a> 的「樁位資料查詢」。</div>
+    </div>
+
+    <!-- ============ 雲端存放／載入（本機暫存 → 雲端） ============ -->
+    <div class="card" id="cloudCard">
+      <div class="cardhd">
+        <h2>雲端存放</h2>
+        <span class="hintx">暫存資料先存上雲端，換裝置再載入</span>
+      </div>
+      <div id="cdbMount"></div>
     </div>
 
     <!-- 舊版上傳卡（保留 DOM 供 drive-page.js 綁定，不顯示） -->
@@ -654,11 +664,13 @@ html.camopen #camModal.camwrap{display:flex!important}
 <script src="../assets/daily-flow.js"></script>
 <script src="../assets/drive-v2.js"></script>
 <script src="../assets/drive-lib.js"></script>
+<script src="../assets/cloud-db.js"></script>
 <script>
 (function(){
   function boot(){
     try{ if(window.DailyFlow&&document.getElementById('dailyMount')) window.DailyFlow.mountDaily(document.getElementById('dailyMount')); }catch(e){ console.error('[daily]',e); }
     try{ if(window.PileMeasure&&document.getElementById('pmMount')) window.PileMeasure.mount(document.getElementById('pmMount')); }catch(e){ console.error('[pm]',e); }
+    try{ if(window.CloudDB&&document.getElementById('cdbMount')) window.CloudDB.mount(document.getElementById('cdbMount'),{note:'把本機全部資料（今日查驗、樁位資料緩存、已上傳紀錄、樁位進度、查驗紀錄、材料）整合成一份存到 Google Drive；換裝置按「載入」就全部回來。'}); }catch(e){ console.error('[cdb]',e); }
     try{ if(window.PageZoomLock&&window.PageZoomLock.lockPage) window.PageZoomLock.lockPage(); }catch(e){ console.error('[zoomlock]',e); }
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();

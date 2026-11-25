@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="format-detection" content="telephone=no">
-<title>預壘樁進度管控表｜墩號 · 樁號 · 查驗聯動</title>
+<title>資料進度頁｜預壘樁進度管控 · 查驗紀錄 · 樁位資料查詢</title>
 <style>
   :root{
     --ink:#1b1b1d; --ink-2:#3a3a3e; --muted:#6e6e74;
@@ -296,8 +296,8 @@
   <div class="hwrap">
     <div class="logo">樁</div>
     <div>
-      <h1>預壘樁進度管控表</h1>
-      <div class="sub">布袋商港聯外道路新闢工程 · 墩號／樁號 · 進度以查驗日期為基準 · 與查驗紀錄表聯動</div>
+      <h1>資料進度頁</h1>
+      <div class="sub">布袋商港聯外道路新闢工程 · 墩號／樁號 · 資料存放與查詢都在這一頁</div>
     </div>
     <div class="hmeta">
       全案 <b>121 支</b> · 19 個墩號<br>
@@ -534,14 +534,17 @@
   </div>
 
   <div class="card">
-    <div class="card-h"><h2>雲端同步</h2><span class="tag" id="gdTag">本機儲存</span></div>
+    <div class="card-h"><h2>雲端存放</h2><span class="tag" id="gdTag">本機資料</span></div>
     <div class="card-b">
-      <!-- Google Drive 雲端同步狀態列（自動同步） -->
-      <div id="gdMount" style="margin-bottom:12px;"></div>
+      <div id="cdbMount" style="margin-bottom:14px;"></div>
       <div class="note">
-        <b>雲端同步：</b>按上方「☁ 存到 Google Drive」即把樁位進度、查驗紀錄與材料紀錄一起存到雲端；換裝置或換瀏覽器按「⬇ 從 Google Drive 載入」就是同一份資料。<br>
-        <b>自動同步：</b>已授權後，每次修改會自動推上雲端；開啟本頁時也會自動讀取較新的雲端資料。<br>
+        <b>整合存放：</b>一次把<b>樁位進度、查驗紀錄、樁位資料（緩存區）、材料管控、已上傳照片紀錄</b>整合成同一份檔案存到 Google Drive。<br>
+        <b>換裝置：</b>在新裝置打開本頁按「⬇ 從雲端載入」，上面全部資料一次回來，不用逐頁重建。<br>
         <b>資料存放：</b>未授權時資料只存在這台裝置的瀏覽器（localStorage）。
+      </div>
+      <div style="margin-top:14px;border-top:1px solid var(--line-2);padding-top:12px;">
+        <div style="font-size:12.5px;font-weight:800;color:var(--ink-2);margin-bottom:8px;">Google Drive 連線</div>
+        <div id="gdMount"></div>
       </div>
     </div>
   </div>
@@ -567,6 +570,7 @@
 <script src="../assets/progress-collapse.js"></script>
 <script src="../assets/pile-measure.js"></script>
 <script src="../assets/daily-flow.js"></script>
+<script src="../assets/cloud-db.js"></script>
 <script>
 (function(){
   function boot(){
@@ -636,6 +640,9 @@
 
   function cloudPayload(){
     S.recompute(data);
+    /* 第 9 回合：雲端改存「全站整合」的一份（含樁位資料、已上傳紀錄、當日人員），
+       不只手邊的 piles/logs/materials。 */
+    if (window.CloudDB) return window.CloudDB.collect();
     var matsForCloud = S.normalizeMaterials(mats);
     return {
       app: 'inspection-suite',
@@ -654,6 +661,17 @@
   /* 把雲端讀回的內容套進本機（含材料），並重畫 */
   function cloudApply(payload){
     if (!payload) return false;
+    /* 全站整合處理：piles/logs/materials 以外，連同樁位資料、已上傳紀錄、當日人員一起寫回。 */
+    if (window.CloudDB) {
+      var res = window.CloudDB.apply(payload);
+      if (!res) return false;
+      S.invalidate();
+      data = S.load();
+      mats = S.loadMaterials();
+      lastSig = sig(data);
+      render();
+      return true;
+    }
     var d = S.normalize(payload);
     S.recompute(d);
     S.save(d);
@@ -711,7 +729,9 @@
     cloud.loading = true;
     GD.load().then(function(j){
       var payload = (j && j.data) ? j.data : j;
-      if (!payload || (!Array.isArray(payload.piles) && !Array.isArray(payload.logs))) {
+      /* 新格式（全站整合）由 CloudDB 處理；舊檔（只有 piles/logs）走原路徑 */
+      var isFull = j && j.kind === 'full-backup';
+      if (!isFull && (!payload || (!Array.isArray(payload.piles) && !Array.isArray(payload.logs)))) {
         throw new Error('雲端檔案格式不符');
       }
       /* 雲端比本機新才覆蓋，避免把本機剛填的資料洗掉 */
@@ -1351,46 +1371,43 @@
     });
   });
 
-  /* Google Drive 雲端同步：狀態列（手動存／載）＋ 開頁自動讀取 */
-  if (GD) {
+  /* ---------------- 雲端存放（全站整合） ----------------
+     第 9 回合：資料存放與查找都在這一頁。
+     「存入雲端」＝把樁位進度＋查驗紀錄＋樁位資料（緩存區）＋材料＋已上傳紀錄整合成一份；
+     「從雲端載入」＝同一份一次寫回本機，換裝置就靠這個。 */
+  if (window.CloudDB) {
+    window.CloudDB.mount($('cdbMount'), {});
+    /* 載入後本頁自己也要重畫（CloudDB 已派 cloud-applied 事件） */
+    window.addEventListener('cloud-applied', function () {
+      S.invalidate();
+      data = S.load();
+      mats = S.loadMaterials();
+      lastSig = sig(data);
+      render();
+      cloud.lastSync = new Date().toISOString();
+      cloud.lastError = '';
+      cloudBadge();
+    });
+  } else if (GD) {
     GD.mountStatus($('gdMount'), {
       onSave: function(){
-        S.recompute(data);
-        cloud.dirty = true;
+        S.recompute(data); cloud.dirty = true;
         cloudPush().then(function(ok){
-          if (ok) toast('已存到 Google Drive（' + data.piles.length + ' 支樁、' +
-            data.logs.length + ' 筆查驗、' + mats.length + ' 筆材料）');
+          if (ok) toast('已存到 Google Drive');
           else toast('雲端存檔失敗：' + (cloud.lastError || '未知錯誤'), true);
         });
       },
       onLoad: function(){
         cloud.loading = true;
-        GD.load().then(function(j){
-          var payload = (j && j.data) ? j.data : j;
-          if (!payload || (!Array.isArray(payload.piles) && !Array.isArray(payload.logs))) {
-            throw new Error('雲端檔案格式不符（找不到 piles 或 logs）');
-          }
-          if (!window.confirm('將以雲端資料覆蓋本機目前內容。\n雲端：' +
-              (payload.logs || []).length + ' 筆查驗、' +
-              (Array.isArray(payload.materials) ? payload.materials.length : 0) + ' 筆材料\n本機：' +
-              data.logs.length + ' 筆查驗、' + mats.length + ' 筆材料\n\n確定要載入嗎？')) {
-            return;
-          }
-          cloudApply(payload);
-          cloud.lastSync = new Date().toISOString();
-          cloud.lastError = '';
-          toast('已從 Google Drive 載入：' + data.logs.length + ' 筆查驗、' + mats.length + ' 筆材料');
-        }).catch(function(e){
-          cloud.lastError = (e && e.message) ? e.message : '雲端載入失敗';
-          toast('雲端載入失敗：' + cloud.lastError, true);
-        }).then(function(){
-          cloud.loading = false;
-          cloudBadge();
-        });
+        GD.load().then(function(j){ cloudApply((j && j.data) ? j.data : j); })
+          .catch(function(e){ toast('雲端載入失敗：' + ((e && e.message) || e), true); })
+          .then(function(){ cloud.loading = false; cloudBadge(); });
       },
       settingsHref: '../settings/index.html'
     });
   }
+
+  /* 開頁自動讀取：已授權過才讀，且雲端較新才覆蓋（避免把剛填的資料洗掉） */
   cloudBadge();
   cloudBoot();
 

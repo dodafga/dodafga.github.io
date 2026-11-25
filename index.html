@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#7a4f4e">
-<title>查驗助手｜查驗單 · 相片歸檔 · 相片表 · 進度</title>
+<title>查驗助手｜查驗單 · 相片歸檔 · 相片表 · 資料進度頁</title>
 <style>
   :root{
     --ink:#1b1b1d; --ink-2:#3a3a3e; --muted:#6e6e74;
@@ -205,7 +205,7 @@
       <span class="ic" aria-hidden="true">📷</span><span class="lbl">相片表</span><span class="tick" aria-hidden="true">✓</span>
     </button>
     <button type="button" role="menuitem" data-mode="progress">
-      <span class="ic" aria-hidden="true">🏗️</span><span class="lbl">進度</span><span class="tick" aria-hidden="true">✓</span>
+      <span class="ic" aria-hidden="true">🏗️</span><span class="lbl">資料進度頁</span><span class="tick" aria-hidden="true">✓</span>
     </button>
     <div class="msep" role="separator"></div>
     <a class="mset" href="settings/index.html" target="_blank" rel="noopener" role="menuitem">
@@ -224,7 +224,7 @@
   var MODES = {
     form:  { src:"form/index.html",  name:"查驗單",       sub:"工程施工中請驗單 · 版面沿用 F-24-03 範本 · 附件共用欄位 · Google Drive 備份 · A4 直式" },
     photo: { src:"photo/index.html", name:"相片表",   sub:"工程照片記錄表 · 每頁 3 張 · 照片尺寸與範本一致 · A4 直式" },
-    progress: { src:"progress/index.html", name:"進度", sub:"預壘樁進度管控表 · 進度以查驗日期為基準 · 墩號彙總（墩開始／整墩結束） · 排序：實際施作／查驗日期／樁號" },
+    progress: { src:"progress/index.html", name:"資料進度頁", sub:"預壘樁進度管控 · 查驗紀錄 · 樁位資料查詢 · 資料存放與雲端整合" },
     drive: { src:"drive/index.html",  name:"相片歸檔", sub:"施工照片歸檔 · 拍照／本機上傳 → 上傳 Google Drive · 依日期資料夾（YYYY-MM-DD）歸檔 · 批次上傳與重試" }
   };
   var ORDER = ["form","drive","photo","progress"];

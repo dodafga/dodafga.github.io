@@ -1,5 +1,5 @@
 name: r74-apply
-# trigger: 2026-11-25T03:20Z harden iOS standalone fix
+# trigger: 2026-11-25T03:25Z rerun after patch script landed
 on:
   push:
     paths:

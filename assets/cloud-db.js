@@ -1,13 +1,5 @@
 /* cloud-db.js — 全站資料整合與雲端存放／載入（共用模組）
- *
- * 整合的資料（localStorage 鍵）：
- *   inspection-suite-data-v1        樁位進度＋查驗紀錄（store.js）
- *   inspection-materials-v1         材料管控（store.js）
- *   inspection-pile-measure-v1      樁位資料表／樁位資料緩存區（pile-measure.js）
- *   inspection-drive-photo-history  已上傳紀錄（drive-v2.js / drive-page.js）
- *   inspection-drive-photo-imported 上次從 Drive 匯入的摘要
- *   inspection-daily-staff-v1       當日固定的查驗／監造人員（daily-flow.js）
- *   inspection-daily-current-v1     目前樁號（daily-flow.js）
+ * 整合：樁位進度＋查驗紀錄、材料、樁位資料（緩存區）、已上傳紀錄、當日人員。
  */
 (function (global) {
   'use strict';
@@ -74,10 +66,7 @@
     };
   }
 
-  function stats() {
-    var p = collect();
-    return p.counts;
-  }
+  function stats() { return collect().counts; }
 
   function write(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); return true; }
@@ -90,41 +79,29 @@
     if (!d || typeof d !== 'object') return null;
 
     var out = { suite: 0, mats: 0, pile: 0, hist: 0, gaps: [] };
-    var wroteSomething = false;
+    var wrote = false;
 
     var s = obj(d.suite);
     var piles = arr(s ? s.piles : d.piles);
     var logs = arr(s ? s.logs : d.logs);
     if (piles.length || logs.length) {
-      var obj2 = { version: (s && s.version) || d.version || 3, piles: piles, logs: logs };
-      if (write(K.suite, obj2)) {
-        out.suite = piles.length;
-        wroteSomething = true;
+      if (write(K.suite, { version: (s && s.version) || d.version || 3, piles: piles, logs: logs })) {
+        out.suite = piles.length; wrote = true;
       }
-    } else {
-      out.gaps.push('piles/logs');
-    }
+    } else { out.gaps.push('piles/logs'); }
 
     var mats = Array.isArray(d.materials) ? d.materials
       : (s && Array.isArray(s.materials) ? s.materials : null);
-    if (mats) {
-      if (write(K.mats, mats)) { out.mats = mats.length; wroteSomething = true; }
-    }
+    if (mats && write(K.mats, mats)) { out.mats = mats.length; wrote = true; }
 
-    if (Array.isArray(d.pile)) {
-      if (write(K.pile, d.pile)) { out.pile = d.pile.length; wroteSomething = true; }
-    }
-
-    if (Array.isArray(d.hist)) {
-      if (write(K.hist, d.hist)) { out.hist = d.hist.length; wroteSomething = true; }
-    }
+    if (Array.isArray(d.pile) && write(K.pile, d.pile)) { out.pile = d.pile.length; wrote = true; }
+    if (Array.isArray(d.hist) && write(K.hist, d.hist)) { out.hist = d.hist.length; wrote = true; }
 
     var imp = obj(d.imported); if (imp) write(K.imported, imp);
     var stf = obj(d.staff); if (stf && stf.date) write(K.staff, stf);
     var cur = obj(d.cur); if (cur && (cur.date || cur.pile)) write(K.cur, cur);
 
-    if (!wroteSomething) return null;
-
+    if (!wrote) return null;
     refresh();
     return out;
   }

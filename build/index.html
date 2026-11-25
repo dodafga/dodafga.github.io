@@ -296,6 +296,17 @@
       <div id="bcMount"></div>
     </div>
 
+    <div class="card">
+      <div class="cardhd">
+        <h2>舊照片搬移</h2>
+      </div>
+      <div class="hintx" style="margin:0 0 10px">
+        早期營造照片曾上傳到與查驗共用的「義力／施工照片」。掃描後搬到營造自己的「義力／營造照片」，
+        兩邊就不再混在一起。只改位置，不改檔名、不刪檔案。
+      </div>
+      <div id="bpmMount"></div>
+    </div>
+
   </section>
 
 </main>
@@ -345,6 +356,7 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="../assets/build-sep.js"></script>
 <script src="../assets/core.js"></script>
 <script src="../assets/gdrive.js"></script>
 <script src="../assets/watermark.js"></script>
@@ -352,6 +364,7 @@
 <script src="../assets/zoomlock.js"></script>
 <script src="../assets/cam.js"></script>
 <script src="../assets/build-cloud.js"></script>
+<script src="../assets/build-photo-move.js"></script>
 <script>
 /* 營造助手：照片歸檔到自己的資料夾（義力／營造照片），
    與查驗助手的「義力／施工照片」完全分開。 */
@@ -369,7 +382,12 @@
   function boot(){
     try{
       var BC=window.BuildCloud, el=document.getElementById('bcMount');
-      if(BC&&BC.mount&&el) BC.mount(el);
+      if(BC&&BC.mount&&el){
+        if(window.__buildSepInstallSnapshot) window.__buildSepInstallSnapshot(BC);
+        BC.mount(el);
+      }
+      var BM=window.BuildPhotoMove, mel=document.getElementById('bpmMount');
+      if(BM&&BM.mount&&mel) BM.mount(mel);
     }catch(e){ console.error('[build-cloud]',e); }
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);

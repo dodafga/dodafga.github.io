@@ -286,6 +286,16 @@ main{flex:1 1 auto;max-width:760px;width:100%;margin:0 auto;
 .libitem figcaption{font-size:11px;color:var(--ink2);padding:6px 8px 0;line-height:1.35;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .libitem .lmeta{font-size:10.5px;color:var(--muted);padding:1px 8px 7px;
+.pendrow{display:flex;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#fff}
+.pendrow .pendthumb{width:52px;height:52px;border-radius:8px;overflow:hidden;background:#EDEBE7;flex:0 0 52px;position:relative}
+.pendrow .pendthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.pendrow .pendthumb .pno{position:absolute;left:4px;top:4px;font-size:10px;color:#fff;background:rgba(0,0,0,.5);border-radius:5px;padding:1px 5px}
+.pendrow .pendinfo{min-width:0;flex:1 1 auto}
+.pendrow .pendname{font-size:12.5px;font-weight:700;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pendrow .pendmeta{font-size:11px;color:var(--muted);margin-top:2px}
+.pendrow .pendact{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+.pendrow .pendact input[type=date]{width:132px;font-size:12px;padding:6px 7px;border:1px solid var(--line);border-radius:7px}
+@media(max-width:520px){.pendrow{flex-wrap:wrap}.pendrow .pendact{width:100%;justify-content:flex-end}.pendrow .pendact input[type=date]{flex:1 1 auto;width:auto}}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* toast */

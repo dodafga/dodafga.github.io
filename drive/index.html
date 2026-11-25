@@ -495,6 +495,17 @@ html.camopen #camModal.camwrap{display:flex!important}
 
       <div class="libgrid" id="libGrid"></div>
       <div class="empty" id="libEmpty">尚未讀取</div>
+
+      <div class="pendsec" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+        <div class="sh">
+          <span class="t">待補日期（樁號已定、日期未定）</span>
+          <span class="tag" id="pendTag">0 張</span>
+          <button type="button" class="btn ghost sm" id="btnPendLoad" style="margin-left:auto">↻ 讀取</button>
+        </div>
+        <div class="hint2" style="margin:6px 0 10px">先歸檔到「待補日期」資料夾的照片，可在這裡補上日期並壓上浮水印，之後會自動移到該日期的資料夾。</div>
+        <div id="pendList"></div>
+        <div class="empty" id="pendEmpty" style="display:none">尚無待補日期的照片</div>
+      </div>
     </div>
 
     <!-- ============ 樁位資料表（上傳完接著作紀錄） ============ -->
@@ -648,6 +659,7 @@ html.camopen #camModal.camwrap{display:flex!important}
   function boot(){
     try{ if(window.DailyFlow&&document.getElementById('dailyMount')) window.DailyFlow.mountDaily(document.getElementById('dailyMount')); }catch(e){ console.error('[daily]',e); }
     try{ if(window.PileMeasure&&document.getElementById('pmMount')) window.PileMeasure.mount(document.getElementById('pmMount')); }catch(e){ console.error('[pm]',e); }
+    try{ if(window.PageZoomLock&&window.PageZoomLock.lockPage) window.PageZoomLock.lockPage(); }catch(e){ console.error('[zoomlock]',e); }
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
 })();

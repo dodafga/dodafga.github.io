@@ -640,7 +640,8 @@
         date: String(m.date || ''),
         type: key,
         tons: tons,
-        note: String(m.note || '')
+        note: String(m.note || ''),
+        side: String(m.side || m.bank || '')
       };
     }).filter(function (m) { return m.tons > 0; });
   }
@@ -701,9 +702,38 @@
     var inspectedDiffM3 = totalM3 - inspectedDesignM3;
     var inspectedPercent = inspectedDesignM3 > 0 ? Math.round(totalM3 / inspectedDesignM3 * 1000) / 10 : 0;
 
+    /* 左岸／右岸分組統計（side 欄位；舊資料無 side 歸入「未分岸」） */
+    var bySide = {};
+    ['左岸', '右岸', '未分岸'].forEach(function (sd) {
+      var o = {};
+      MATERIAL_DEFS.forEach(function (d) {
+        o[d.key] = { key: d.key, name: d.name, m3PerTon: d.m3PerTon, tons: 0, m3: 0, count: 0 };
+      });
+      bySide[sd] = { side: sd, tons: 0, m3: 0, count: 0, byType: o };
+    });
+    (Array.isArray(list) ? list : []).forEach(function (m) {
+      var d = materialDef(m.type);
+      if (!d) return;
+      var sd = (m.side === '左岸' || m.side === '右岸') ? m.side : '未分岸';
+      var t = parseFloat(m.tons) || 0, v = t * d.m3PerTon;
+      bySide[sd].tons += t, bySide[sd].m3 += v, bySide[sd].count += 1;
+      bySide[sd].byType[d.key].tons += t, bySide[sd].byType[d.key].m3 += v, bySide[sd].byType[d.key].count += 1;
+    });
+    var sideRows = ['左岸', '右岸', '未分岸'].map(function (sd) {
+      var o = bySide[sd];
+      return {
+        side: sd, tons: Math.round(o.tons * 1000) / 1000, m3: Math.round(o.m3 * 1000) / 1000, count: o.count,
+        byType: MATERIAL_DEFS.map(function (d) {
+          var x = o.byType[d.key];
+          return { key: x.key, name: x.name, tons: Math.round(x.tons * 1000) / 1000, m3: Math.round(x.m3 * 1000) / 1000, count: x.count };
+        })
+      };
+    });
+
     return {
       piles: piles,
       designM3PerPile: DESIGN_M3_PER_PILE,
+      bySide: sideRows,
       designM3: designM3,
       totalTons: Math.round(totalTons * 1000) / 1000,
       totalM3: Math.round(totalM3 * 1000) / 1000,

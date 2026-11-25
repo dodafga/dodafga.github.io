@@ -320,6 +320,9 @@
       '.pm-di b{color:#6e6e74;font-weight:600;margin-right:6px;font-size:12.5px}',
       '.pm-di span{font-weight:700;color:#1b1b1d;font-size:14px}',
       '.pm-warnv{color:#a34a45}',
+      '.pm-cachebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:13px;border-top:1px dashed #dcd8d2}',
+      '.pm-cachehint{font-size:11.5px;color:#8a8a90}',
+      '.pm-cache{margin-top:11px}',
       '.pm-empty{text-align:center;padding:26px 12px;color:#6e6e74;font-size:13px}',
       '.pm-note{font-size:12px;color:#6e6e74;line-height:1.7;margin-top:12px;background:#f8f6f4;',
       '  border:1px solid #eae7e3;border-radius:8px;padding:11px 13px}',
@@ -436,11 +439,17 @@
       '    <b>樁位資料緩存區：</b>下面每一筆都存在這台裝置，隨時可按「明細 → ✎ 載入修改」把資料調出來改，',
       '    改完按「儲存修改」覆蓋原紀錄。拍照上傳歸檔後可直接接著作紀錄。',
       '  </div>',
+      '  <div class="pm-cachebar">',
+      '    <button type="button" class="pm-btn ghost" id="pmCacheToggle">📂 顯示樁位資料緩存區（<span id="pmCacheCnt">0</span> 筆）</button>',
+      '    <span class="pm-cachehint">預設隱藏，需要時再叫出來</span>',
+      '  </div>',
+      '  <div class="pm-cache" id="pmCache" style="display:none">',
       '  <div class="pm-tblwrap"><table class="pm-rec"><thead><tr>',
       '    <th class="c" style="width:44px">序號</th><th style="width:112px">日期</th>',
       '    <th style="width:96px">樁號</th><th>重點量測</th><th class="c" style="width:96px">操作</th>',
       '  </tr></thead><tbody id="pmBody"></tbody></table></div>',
       '  <div class="pm-empty" id="pmEmpty">尚無樁位檢查紀錄，請於上方填寫後按「＋ 新增樁位檢查」</div>',
+      '  </div>',
       '</div>'
     ].join('\n');
 
@@ -591,6 +600,8 @@
       var body = $('pmBody');
       body.innerHTML = '';
       $('pmEmpty').style.display = rows.length ? 'none' : 'block';
+      var cntEl = $('pmCacheCnt');
+      if (cntEl) cntEl.textContent = String(rows.length);
 
       var dupCount = {};
       rows.forEach(function (r) {
@@ -767,6 +778,14 @@
     });
 
     render();
+
+    var cacheBtn = $('pmCacheToggle'), cacheBox = $('pmCache');
+    if (cacheBtn && cacheBox) cacheBtn.addEventListener('click', function () {
+      var open = cacheBox.style.display !== 'none';
+      cacheBox.style.display = open ? 'none' : 'block';
+      cacheBtn.innerHTML = (open ? '📂 顯示樁位資料緩存區（' : '📁 隱藏樁位資料緩存區（') +
+        '<span id="pmCacheCnt">' + rows.length + '</span> 筆）';
+    });
 
     return {
       reload: function () { rows = sortRows(load()); render(); },

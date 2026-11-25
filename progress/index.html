@@ -177,6 +177,18 @@
 
   /* 材料管控 */
   .matgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px;}
+  .sidetable{margin:0 0 16px;border:1px solid var(--line,#e3e0da);border-radius:12px;overflow:hidden;background:#fff}
+  .sidettl{font-size:13px;font-weight:800;color:var(--ink2,#3a3a40);padding:10px 13px;background:#f8f6f4;border-bottom:1px solid var(--line,#e3e0da)}
+  .side-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  .side-tbl th{text-align:right;padding:8px 10px;color:#6e6e74;font-weight:700;background:#fbfaf8;border-bottom:1px solid var(--line,#e3e0da);white-space:nowrap}
+  .side-tbl th:first-child{text-align:left}
+  .side-tbl td{padding:8px 10px;border-bottom:1px solid #f0eeea}
+  .side-tbl td.sd{font-weight:800;color:var(--ink2,#3a3a40)}
+  .side-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .side-tbl td.strong{font-weight:800;color:var(--steel-2,#2f5d7c)}
+  .side-tbl tr.mutedrow td{color:#9a9aa0}
+  .side-tbl tr:last-child td{border-bottom:none}
+  @media(max-width:520px){.side-tbl{font-size:11.5px}.side-tbl th,.side-tbl td{padding:7px 6px}}
   /* 水泥／濕細沙：固定同一列並排兩格，不上下堆疊 */
   .matpair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
   .matcard{border:1px solid var(--line);border-radius:9px;padding:12px 14px;background:#fbfaf9;}
@@ -427,6 +439,10 @@
           <div class="mk"><span class="dot"></span>水泥進料（1 T ＝ 0.8 m³）</div>
           <div class="frow">
             <div class="fld">
+              <label for="cementSide">左右岸</label>
+              <select id="cementSide"><option value="右岸">右岸</option><option value="左岸">左岸</option></select>
+            </div>
+            <div class="fld">
               <label for="cementDate">進料日期</label>
               <input type="date" id="cementDate">
             </div>
@@ -445,6 +461,10 @@
         <div class="matcard sand">
           <div class="mk"><span class="dot"></span>濕細沙進料（1 T ＝ 0.59 m³）</div>
           <div class="frow">
+            <div class="fld">
+              <label for="sandSide">左右岸</label>
+              <select id="sandSide"><option value="右岸">右岸</option><option value="左岸">左岸</option></select>
+            </div>
             <div class="fld">
               <label for="sandDate">進料日期</label>
               <input type="date" id="sandDate">
@@ -470,6 +490,7 @@
             <table class="mats" id="matTableCement">
               <thead>
                 <tr>
+                  <th style="width:64px;">岸別</th>
                   <th style="width:104px;">進料日期</th>
                   <th style="width:88px;">方數（m³）</th>
                   <th style="width:80px;">噸數（T）</th>
@@ -489,6 +510,7 @@
             <table class="mats" id="matTableSand">
               <thead>
                 <tr>
+                  <th style="width:64px;">岸別</th>
                   <th style="width:104px;">進料日期</th>
                   <th style="width:88px;">方數（m³）</th>
                   <th style="width:80px;">噸數（T）</th>
@@ -1039,6 +1061,24 @@
       '<div class="matbar ' + barCls + '"><i style="width:' + barW + '%"></i></div>' +
       '</div>';
     h += '</div>';
+    /* 左岸／右岸分岸統計（依每筆進料的「岸別」分開合計） */
+    if (sum.bySide && sum.bySide.length) {
+      h += '<div class="sidetable"><div class="sidettl">左岸／右岸分岸統計</div>' +
+        '<table class="side-tbl"><thead><tr>' +
+        '<th>岸別</th><th>水泥（m³）</th><th>濕細砂（m³）</th><th>合計（m³）</th><th>筆數</th>' +
+        '</tr></thead><tbody>';
+      sum.bySide.forEach(function (sd) {
+        var cc = 0, ss = 0;
+        sd.byType.forEach(function (t) { if (t.key === 'cement') cc = t.m3; if (t.key === 'sand') ss = t.m3; });
+        h += '<tr' + (sd.side === '未分岸' ? ' class="mutedrow"' : '') + '>' +
+          '<td class="sd">' + esc(sd.side) + '</td>' +
+          '<td class="num">' + fmt(cc) + '</td>' +
+          '<td class="num">' + fmt(ss) + '</td>' +
+          '<td class="num strong">' + fmt(sd.m3) + '</td>' +
+          '<td class="num">' + sd.count + ' 筆</td></tr>';
+      });
+      h += '</tbody></table></div>';
+    }
     $('matStats').innerHTML = h;
 
     /* 第 3 項：水泥與濕細沙各自一張表（兩欄並排），各自排序、各自計數。
@@ -1069,6 +1109,12 @@
       list.forEach(function(m){
         var def = S.materialDef(m.type) || { name: m.type, m3PerTon: 0 };
         var tr = document.createElement('tr');
+
+        var tdSide = document.createElement('td');
+        tdSide.className = 'num';
+        tdSide.textContent = m.side || '—';
+        tdSide.style.color = m.side ? '' : '#9a9aa0';
+        tr.appendChild(tdSide);
 
         var tdD = document.createElement('td');
         tdD.className = 'num';
@@ -1121,8 +1167,8 @@
 
   /* 兩種材料各自獨立填寫：水泥、濕細沙各一組欄位 */
   var MAT_ENTRY = [
-    { type: 'cement', name: '水泥', dateId: 'cementDate', tonsId: 'cementTons', noteId: 'cementNote' },
-    { type: 'sand',   name: '濕細沙', dateId: 'sandDate',   tonsId: 'sandTons',   noteId: 'sandNote' }
+    { type: 'cement', name: '水泥', sideId: 'cementSide', dateId: 'cementDate', tonsId: 'cementTons', noteId: 'cementNote' },
+    { type: 'sand',   name: '濕細沙', sideId: 'sandSide',   dateId: 'sandDate',   tonsId: 'sandTons',   noteId: 'sandNote' }
   ];
 
   function addMaterial(type){
@@ -1132,15 +1178,16 @@
     }
     if (!ent) return;
 
-    var dateEl = $(ent.dateId), tonsEl = $(ent.tonsId), noteEl = $(ent.noteId);
+    var dateEl = $(ent.dateId), tonsEl = $(ent.tonsId), noteEl = $(ent.noteId), sideEl = ent.sideId ? $(ent.sideId) : null;
     var date = dateEl.value;
     var tons = parseFloat(tonsEl.value);
     var note = noteEl.value.trim();
+    var side = sideEl ? sideEl.value : '';
 
     if (!date) { toast('請選擇' + ent.name + '進料日期', true); dateEl.focus(); return; }
     if (!isFinite(tons) || tons <= 0) { toast('請輸入大於 0 的' + ent.name + '噸數', true); tonsEl.focus(); return; }
 
-    mats.push({ id: S.uid(), date: date, type: ent.type, tons: tons, note: note });
+    mats.push({ id: S.uid(), date: date, type: ent.type, tons: tons, note: note, side: side });
     if (!S.saveMaterials(mats)) { toast('材料紀錄儲存失敗（可能空間已滿）', true); return; }
 
     tonsEl.value = '';

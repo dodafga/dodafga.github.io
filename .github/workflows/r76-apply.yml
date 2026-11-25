@@ -1,79 +1,28 @@
 name: apply-r76
+
 on:
   push:
     paths:
       - '.github/workflows/r76-apply.yml'
+
 permissions:
   contents: write
+
 jobs:
   apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: apply
-        shell: bash
-        run: |
-          cat > /tmp/p.b64 <<'B64EOF'
-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
-B64EOF
-          python3 - <<'PYEOF'
-          import base64, gzip, json, io, hashlib, sys
-          data = json.loads(gzip.decompress(base64.b64decode(io.open('/tmp/p.b64').read())).decode('utf-8'))
-          ok = True
-          for path, v in data.items():
-              s = io.open(path, encoding='utf-8').read()
-              h = hashlib.sha256(s.encode('utf-8')).hexdigest()
-              if h != v['sha256']:
-                  print('SHA MISMATCH', path, h)
-                  ok = False
-                  continue
-              lines = s.split('\n')
-              for op in sorted(v['ops'], key=lambda o: -o['start']):
-                  lines[op['start'] - 1:op['end']] = op['lines']
-              io.open(path, 'w', encoding='utf-8').write('\n'.join(lines))
-              print('patched', path)
-          sys.exit(0 if ok else 1)
-          PYEOF
+
+      - name: apply patch
+        run: python3 deploy/apply_r76.py
+
       - name: verify
         run: |
           grep -c "cloud-db.js" progress/index.html drive/index.html
           grep -c "資料進度頁" progress/index.html index.html
-          grep -c "樁位資料（暫存／臨時修改）" drive/index.html
           node --check assets/cloud-db.js
+
       - name: commit
         run: |
           git config user.name canon
@@ -81,6 +30,7 @@ B64EOF
           git add -A
           git commit -m "資料進度頁：整合存放與雲端；相片歸檔只留暫存與臨時修改"
           git push
+
       - name: cleanup
         if: always()
         run: |

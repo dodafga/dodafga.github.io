@@ -1,0 +1,46 @@
+name: r82-apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r82-apply.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and verify
+        run: |
+          set -e
+          mkdir -p assets build
+          curl -fsSL -o assets/build-sep.js "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/build-sep/build-sep.js"
+          curl -fsSL -o assets/build-photo-move.js "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/build-photo-move/build-photo-move.js"
+          curl -fsSL -o build/index.html "https://static.teamily.ai/sites/75412899-747e-4617-ad54-32193918a0c6/documents/index_v4/index.html"
+          echo "--- sizes ---"
+          wc -c assets/build-sep.js assets/build-photo-move.js build/index.html
+          echo "--- sha256 ---"
+          sha256sum assets/build-sep.js assets/build-photo-move.js build/index.html
+          echo "--- sanity ---"
+          grep -c "build-gdrive-" assets/build-sep.js
+          grep -c "BuildPhotoMove" assets/build-photo-move.js
+          grep -c "build-sep.js" build/index.html
+          grep -c "bpmMount" build/index.html
+          test "$(wc -c < assets/build-sep.js)" -gt 8000
+          test "$(wc -c < assets/build-photo-move.js)" -gt 12000
+          test "$(wc -c < build/index.html)" -gt 15000
+      - name: Commit
+        run: |
+          set -e
+          git config user.name "dodafga"
+          git config user.email "132368659+dodafga@users.noreply.github.com"
+          git add assets/build-sep.js assets/build-photo-move.js build/index.html
+          git commit -m "feat(build): 營造助手資料隔離（build-gdrive-* 命名空間、遮蔽 inspection-*、封鎖查驗模組）＋舊照片搬移工具＋載入前本機快照"
+          git push
+      - name: Self delete
+        run: |
+          set -e
+          git rm .github/workflows/r82-apply.yml
+          git commit -m "chore: remove one-shot workflow r82-apply"
+          git push

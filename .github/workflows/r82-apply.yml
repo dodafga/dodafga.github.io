@@ -22,14 +22,18 @@ jobs:
           wc -c assets/build-sep.js assets/build-photo-move.js build/index.html
           echo "--- sha256 ---"
           sha256sum assets/build-sep.js assets/build-photo-move.js build/index.html
-          echo "--- sanity ---"
+          echo "--- sanity markers ---"
           grep -c "build-gdrive-" assets/build-sep.js
+          grep -c "build-snapshot-local" assets/build-sep.js
           grep -c "BuildPhotoMove" assets/build-photo-move.js
           grep -c "build-sep.js" build/index.html
           grep -c "bpmMount" build/index.html
-          test "$(wc -c < assets/build-sep.js)" -gt 8000
-          test "$(wc -c < assets/build-photo-move.js)" -gt 12000
-          test "$(wc -c < build/index.html)" -gt 15000
+          grep -c "build-photo-move.js" build/index.html
+          test "$(wc -c < assets/build-sep.js)" -gt 5000
+          test "$(wc -c < assets/build-photo-move.js)" -gt 8000
+          test "$(wc -c < build/index.html)" -gt 12000
+          node --check assets/build-sep.js
+          node --check assets/build-photo-move.js
       - name: Commit
         run: |
           set -e

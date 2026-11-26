@@ -1,0 +1,42 @@
+name: r86 apply
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r86-apply.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and place files
+        run: |
+          set -e
+          curl -fsSL -o assets/legacy-merge.js "https://static.teamily.ai/files/a98207e0-e390-44ad-b213-009d993da962/legacy-merge.js?tk=ZmlsZTphOTgyMDdlMC1lMzkwLTQ0YWQtYjIxMy0wMDlkOTkzZGE5NjI6MTc5NTY2ODY3NQ.YTVlNzJmMmNhNzk0MzlmMDVlZTlmMzE1MzBhNmI4ODE"
+          curl -fsSL -o assets/core.js "https://static.teamily.ai/files/8a6af3b8-0418-4465-98e8-6b7563cbd7b1/core.js?tk=ZmlsZTo4YTZhZjNiOC0wNDE4LTQ0NjUtOThlOC02Yjc1NjNjYmQ3YjE6MTc5NTY2ODY3NQ.NzJhNjRmNzU0ZGJmNDY2ZDY2YzU1NDRlZDE4ZmQ0NTM"
+          curl -fsSL -o assets/daily-flow.js "https://static.teamily.ai/files/9e6a86b5-e1ca-4256-a707-fd1273558718/daily-flow.js?tk=ZmlsZTo5ZTZhODZiNS1lMWNhLTQyNTYtYTcwNy1mZDEyNzM1NTg3MTg6MTc5NTY2ODY3NQ.MjMzZTFiZDlmY2RhZmEwOWQ1ZDY4ZTFiODhmZTEzYjk"
+          curl -fsSL -o drive/index.html "https://static.teamily.ai/files/3fd7968b-7fe9-47d1-9f0a-29885151e3ec/index.html?tk=ZmlsZTozZmQ3OTY4Yi03ZmU5LTQ3ZDEtOWYwYS0yOTg4NTE1MWUzZWM6MTc5NTY2ODY3NQ.OTYxNzZmNzQwOWU3MzEzNTRkZmJmMDU1NDhhZWQ1NWY"
+          curl -fsSL -o progress/index.html "https://static.teamily.ai/files/a354532e-21b8-45c6-8a72-b2acbfb80cd4/index.html?tk=ZmlsZTphMzU0NTMyZS0yMWI4LTQ1YzYtOGE3Mi1iMmFjYmZiODBjZDQ6MTc5NTY2ODY3NQ.YjcwNjBlZjIwNTk4MTYxMjhiYjY4N2Y1N2RmOTQzNzE"
+          echo "--- sizes ---"
+          wc -c assets/legacy-merge.js assets/core.js assets/daily-flow.js drive/index.html progress/index.html
+          echo "--- checks ---"
+          grep -c "LegacyMerge" assets/legacy-merge.js
+          grep -c "legacy-merge.js" assets/core.js
+          grep -c "removePileOfDay" assets/daily-flow.js
+          grep -c "20261126a" drive/index.html progress/index.html
+      - name: Commit and push
+        run: |
+          set -e
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add assets/legacy-merge.js assets/core.js assets/daily-flow.js drive/index.html progress/index.html
+          git commit -m "feat: legacy merge + delete pile chip"
+          git push
+      - name: Remove this workflow
+        run: |
+          set -e
+          git rm .github/workflows/r86-apply.yml
+          git commit -m "chore: remove one-off r86 workflow"
+          git push

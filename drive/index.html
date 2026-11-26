@@ -1,1 +1,715 @@
-PLACEHOLDER_DRIVE
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7A848D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="施工照片歸檔">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="../assets/icon-180.png">
+<link rel="manifest" href="../manifest.json">
+<title>施工照片歸檔｜查驗助手</title>
+<link rel="stylesheet" href="../assets/drive-v2.css">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/drive-hist.css">
+<link rel="stylesheet" href="../assets/cam.css">
+<style>
+/* 連線狀態列（沿用 drive-page.js 的 id，外觀比照營造助手） */
+.connrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:14px;
+  padding-top:14px;border-top:1px solid var(--line)}
+.connrow .dot{width:9px;height:9px;border-radius:50%;background:var(--lightgray);flex:0 0 9px}
+.connrow .dot.ok{background:var(--sage)}
+.connrow .dot.wait{background:var(--steel)}
+.connrow .dot.warn{background:var(--rose2)}
+.connrow .dot.err{background:var(--rose)}
+.connrow .ctxt{font-size:13px;font-weight:700;color:var(--ink2);min-width:0}
+.connrow .cmail{font-size:11.5px;color:var(--muted)}
+.connrow .btn{margin-left:auto}
+.warnbox{background:#F3EDE9;border:1px solid var(--line);color:#5F5F66;border-radius:12px;
+  padding:11px 13px;font-size:12.5px;line-height:1.7;margin-top:12px}
+.warnbox b{color:var(--ink2)}
+.warnbox code{background:#E8E6E9;padding:1px 5px;border-radius:4px;font-size:11.5px}
+.errbox{background:#F8EDEC;border:1px solid #E5CFCD;color:var(--rose);border-radius:12px;
+  padding:11px 13px;font-size:12.5px;line-height:1.7;margin-top:12px;display:none}
+.syncbox{display:none;border:1px solid #E3D2D0;background:#F6EDEC;border-radius:12px;
+  padding:10px 13px;margin-top:12px;font-size:12.5px;color:var(--steel-d);line-height:1.7}
+.syncbox.on{display:block}
+.syncbox.err{border-color:#E5CFCD;background:#F8EDEC;color:var(--rose)}
+.syncbox.warn{border-color:var(--line);background:#F3EDE9;color:#5F5F66}
+.syncbox .sh{display:flex;align-items:center;gap:8px;font-weight:700}
+.syncbox .sbar{height:6px;background:#E6E2DE;border-radius:20px;overflow:hidden;margin-top:8px}
+.syncbox .sbar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7A848D,#A9B7AA);
+  transition:width .25s;border-radius:20px}
+.syncbox .smsg{font-weight:500;margin-top:5px;font-size:12px;opacity:.92}
+.tag{font-size:11px;background:#F1EFEC;color:var(--ink2);border:1px solid var(--line);
+  padding:1px 8px;border-radius:20px;font-weight:700}
+.tag.ok{background:#EDF1ED;color:var(--ok);border-color:#D3DED5}
+.tag.bad{background:#F8EDEC;color:var(--rose);border-color:#E5CFCD}
+.spacer{margin-left:auto}
+.tokenspill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
+  background:#F6EDEC;color:var(--steel-d);border:1px solid #E3D2D0;white-space:nowrap}
+.tokenspill.warn{background:#F3EDE9;color:#5F5F66;border-color:var(--line)}
+.hint2{font-size:12px;color:var(--muted)}
+.hint2.bad{color:var(--rose);font-weight:700}
+.sub2{font-size:12px;color:var(--muted);line-height:1.7;margin-top:10px}
+.sub2 code{background:#F1EFEC;padding:1px 5px;border-radius:4px;font-size:11.5px}
+.datefilter{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-top:12px;
+  padding:11px 13px;border-radius:12px;background:#F7F6F3;border:1px solid var(--line)}
+.dfchk{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;
+  color:var(--ink2);cursor:pointer}
+.dfchk input{width:20px;height:20px;accent-color:var(--steel);cursor:pointer;margin:0}
+.dfhint{font-size:11.5px;color:var(--muted);line-height:1.6;flex:1 1 200px;min-width:0}
+/* ===== 站內相機：全螢幕取景（近似本機相機 App） ===== */
+.camwrap{position:fixed;inset:0;z-index:200;background:#000;display:none;
+  flex-direction:column;height:100%;height:100dvh;overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none}
+.camwrap.on{display:flex}
+.camview{position:absolute;inset:0;overflow:hidden;background:#000;
+  isolation:isolate;touch-action:none;z-index:1}
+.camview video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  display:block;background:#000;transform:scale(var(--camz,1));transform-origin:center center;
+  transition:transform .16s ease-out;z-index:1}
+/* 九宮格輔助線 */
+.camgrid{position:absolute;inset:0;z-index:2;pointer-events:none}
+.camgrid i{position:absolute;background:rgba(255,255,255,.30);
+  box-shadow:0 0 2px rgba(0,0,0,.45)}
+.camgrid i:nth-child(1){left:33.333%;top:0;bottom:0;width:1px}
+.camgrid i:nth-child(2){left:66.666%;top:0;bottom:0;width:1px}
+.camgrid i:nth-child(3){top:33.333%;left:0;right:0;height:1px}
+.camgrid i:nth-child(4){top:66.666%;left:0;right:0;height:1px}
+/* 點擊對焦框 */
+.camfocus{position:absolute;z-index:5;width:78px;height:78px;margin:-39px 0 0 -39px;
+  border:2px solid #FFD400;border-radius:8px;pointer-events:none;
+  box-shadow:0 0 0 1px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.25);
+  animation:camfocusin .18s ease-out}
+.camfocus::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;
+  margin:-3px 0 0 -3px;border-radius:50%;background:#FFD400}
+@keyframes camfocusin{from{opacity:0;transform:scale(1.35)}to{opacity:1;transform:scale(1)}}
+.camflash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;
+  transition:opacity .16s ease-out;z-index:6}
+.camflash.on{opacity:.9;transition:none}
+/* 頂列 */
+.camtop{position:absolute;left:0;right:0;top:0;z-index:7;display:flex;align-items:center;
+  gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) 14px 22px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.62),rgba(0,0,0,0))}
+.camtop .camcnt{font-size:12.5px;font-weight:800;color:#fff;background:rgba(255,255,255,.20);
+  border-radius:20px;padding:5px 13px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.camtop .camx{margin-left:auto;width:42px;height:42px;border:none;border-radius:50%;
+  background:rgba(0,0,0,.42);color:#fff;font-size:17px;line-height:1;cursor:pointer;
+  font-family:inherit;padding:0;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+/* 變焦列（無段滑桿 + 倍率快捷） */
+.camzoom{position:absolute;left:50%;bottom:calc(118px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);z-index:7;display:flex;align-items:center;gap:9px;
+  padding:7px 12px;border-radius:999px;background:rgba(0,0,0,.50);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);max-width:calc(100% - 24px)}
+.camzoom .cz{min-width:38px;height:34px;padding:0 9px;border:none;border-radius:999px;
+  background:transparent;color:#fff;font-family:inherit;font-size:13px;font-weight:800;
+  cursor:pointer;line-height:1;transition:background .15s,color .15s}
+.camzoom .cz.on{background:#fff;color:#0B0F14}
+.camzoom input[type=range]{-webkit-appearance:none;appearance:none;flex:1 1 auto;width:auto;
+  min-width:150px;max-width:260px;height:26px;background:transparent;margin:0;cursor:pointer}
+.camzoom .czmin,.camzoom .czmax{font-size:11.5px;font-weight:800;color:rgba(255,255,255,.72);
+  font-variant-numeric:tabular-nums;line-height:1}
+.camzoom input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;
+  background:rgba(255,255,255,.42)}
+.camzoom input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:20px;height:20px;margin-top:-8px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.camzoom input[type=range]::-moz-range-track{height:4px;border-radius:2px;
+  background:rgba(255,255,255,.42)}
+.camzoom input[type=range]::-moz-range-thumb{width:20px;height:20px;border:none;
+  border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.camzoom .czv{min-width:44px;text-align:right;font-size:12.5px;font-weight:800;color:#fff;
+  font-variant-numeric:tabular-nums;transition:transform .12s ease-out,color .12s}
+.camzoom .czv.snap{color:#FFD400;transform:scale(1.16)}
+/* 底部：左下縮圖 / 快門 / 使用照片 */
+.cambar{position:absolute;left:0;right:0;bottom:0;z-index:7;display:grid;
+  grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;
+  padding:26px 18px calc(16px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to top,rgba(0,0,0,.78) 0%,rgba(0,0,0,.42) 55%,rgba(0,0,0,0) 100%)}
+.camthumb{justify-self:start;width:54px;height:54px;padding:0;border:2px solid rgba(255,255,255,.55);
+  border-radius:12px;overflow:hidden;background:#1B222B;cursor:pointer;display:block}
+.camthumb[hidden]{display:none}
+.camthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.shutter{justify-self:center;width:78px;height:78px;padding:0;border:4px solid #fff;
+  border-radius:50%;background:transparent;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:transform .1s}
+.shutter span{display:block;width:60px;height:60px;border-radius:50%;background:#fff;
+  transition:transform .1s,background .1s}
+.shutter:active span{transform:scale(.86);background:#E6E6E6}
+.shutter:disabled{opacity:.45;cursor:not-allowed}
+.camuse{justify-self:end;min-height:46px;padding:0 18px;border:none;border-radius:999px;
+  background:#fff;color:#0B0F14;font-family:inherit;font-size:13.5px;font-weight:800;
+  cursor:pointer;white-space:nowrap}
+.camuse:disabled{opacity:.38;cursor:not-allowed}
+.camerr{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;color:#fff;font-size:13.5px;line-height:1.85;
+  text-align:center;padding:28px;background:#05070A}
+.camerr[hidden]{display:none}
+.camerr b{display:block;font-size:15.5px;margin-bottom:8px}
+/* 剛拍照片檢視器 */
+.camviewer{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.97);display:none;
+  flex-direction:column}
+.camviewer.on{display:flex}
+.camviewer .cvhd{display:flex;align-items:center;gap:10px;color:#fff;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;flex:0 0 auto}
+.camviewer .cvhd b{font-size:13.5px;font-weight:800}
+.camviewer .cvhd .cvcnt{font-size:12.5px;font-weight:800;background:rgba(255,255,255,.18);
+  border-radius:20px;padding:4px 12px}
+.camviewer .cvhd .cvx{margin-left:auto;width:42px;height:42px;border:none;border-radius:50%;
+  background:rgba(255,255,255,.16);color:#fff;font-size:17px;line-height:1;cursor:pointer;
+  font-family:inherit;padding:0}
+.camviewer .cvbody{flex:1 1 auto;min-height:0;display:flex;align-items:center;
+  justify-content:center;padding:0 10px}
+.camviewer .cvbody img{max-width:100%;max-height:100%;object-fit:contain;display:block;
+  border-radius:8px}
+.camviewer .cvft{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px))}
+.camviewer .cvft button{flex:1 1 0;min-height:50px;border:none;border-radius:12px;
+  background:rgba(255,255,255,.16);color:#fff;font-family:inherit;font-size:13.5px;
+  font-weight:800;cursor:pointer}
+.camviewer .cvft button:disabled{opacity:.35;cursor:not-allowed}
+.camviewer .cvft button.del{background:rgba(255,80,80,.28);color:#FFD9D9}
+@media (max-width:420px){
+  .shutter{width:72px;height:72px}
+  .shutter span{width:55px;height:55px}
+  .camthumb{width:48px;height:48px}
+  .camuse{min-height:44px;padding:0 14px;font-size:12.5px}
+  .camzoom input[type=range]{width:96px}
+  .cambar{padding:10px 14px calc(12px + env(safe-area-inset-bottom,0px))}
+}
+@media (min-width:760px){
+  .shutter{width:88px;height:88px}
+  .shutter span{width:68px;height:68px}
+  .camthumb{width:64px;height:64px}
+  .camzoom input[type=range]{width:180px}
+}
+
+/* 開相機時：把頁首／導覽列／內容整個收起來，取景從螢幕最頂端鋪到最底端 */
+html.camopen,html.camopen body{overflow:hidden!important;height:100%!important;
+  overscroll-behavior:none}
+html.camopen body{position:fixed!important;left:0;right:0;top:0;bottom:0;width:100%}
+html.camopen header,html.camopen .tabbar,html.camopen main,
+html.camopen .toast{display:none!important}
+html.camopen #camModal.camwrap{display:flex!important}
+
+/* 覆寫 site.css 舊的 .camwrap 置中容器規則（避免與全螢幕取景衝突） */
+#camModal.camwrap{display:none;flex-direction:column;align-items:stretch;
+  justify-content:flex-start;padding:0;background:#000;z-index:200}
+#camModal.camwrap.on{display:flex}
+#camModal .camview{flex:1 1 auto;min-height:0;width:100%}
+#camModal .camerr{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;background:#05070A;color:#fff;padding:28px}
+#camModal .camerr[hidden]{display:none}
+#camModal .camhd{display:none}
+
+/* ===== 手機優先版面（drive/） ===== */
+/* 手機：卡片貼邊、欄位單欄、按鈕大顆好按 */
+@media (max-width:720px){
+  main{padding:6px 10px calc(28px + env(safe-area-inset-bottom,0px))!important;
+    max-width:100%!important}
+  .card{padding:13px!important;border-radius:14px!important;margin-bottom:10px!important}
+  .cardhd{padding:0 0 10px!important;gap:7px!important}
+  .cardhd h2{font-size:15px!important}
+  .cardhd .hintx{font-size:11.5px!important}
+  /* 所有兩欄格線在手機一律單欄 */
+  .grid2,.grid2t,.entry,.pm-entry,.df-grid{grid-template-columns:1fr!important}
+  .grid2{gap:9px!important}
+  /* 輸入框：16px 避免 iOS 自動放大，高度 46px 好按 */
+  .fld>span,.pm-fld>span,.df-fld>span{font-size:12.5px!important}
+  .fld input,.fld select,.fld textarea,
+  .pm-fld input,.pm-fld select,
+  .df-fld input,.df-fld select{
+    font-size:16px!important;min-height:46px!important;padding:11px 12px!important;
+    border-radius:10px!important}
+  .pm-mtable input{font-size:16px!important;min-height:42px!important;width:100%!important}
+  .pm-mtable td.design{width:40%!important;font-size:12px!important;line-height:1.5}
+  .pm-mtable th,.pm-mtable td{padding:8px 7px!important}
+  .pm-inline{gap:5px!important}
+  .pm-inline .u{font-size:11.5px!important}
+  /* 按鈕：整排、大顆 */
+  .btn,.pm-btn,.df-btn{min-height:48px!important;font-size:15px!important;
+    border-radius:11px!important;padding:12px 16px!important}
+  .btn.sm,.pm-btn.sm,.df-btn.sm{min-height:40px!important;font-size:13.5px!important;
+    padding:8px 13px!important}
+  .btnrow,.pm-btnrow,.df-row{gap:8px!important}
+  .btnrow .btn,.pm-btnrow .pm-btn,.df-row .df-btn{flex:1 1 100%!important}
+  .btn.wide{width:100%!important}
+  /* 拍照／上傳大圖示磚：手機上下排、更好按 */
+  .addrow{grid-template-columns:1fr!important;gap:9px!important}
+  .addbtn{min-height:96px!important;padding:16px!important;border-radius:13px!important}
+  .addbtn .big{font-size:30px!important}
+  .addbtn>span:nth-child(2){font-size:16px!important}
+  .addbtn .sm2{font-size:11.5px!important}
+  /* 縮圖格：手機 3 欄 */
+  .pendgrid,.libgrid,.grid2t{grid-template-columns:repeat(3,1fr)!important;gap:7px!important}
+  /* 表格：橫向捲動、字不擠 */
+  .tblwrap,.pm-tblwrap,.df-tblwrap{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+  table.pm-rec,table.df-rec{min-width:560px!important}
+  table.pm-rec th,table.df-rec th{font-size:11.5px!important;padding:7px 6px!important}
+  table.pm-rec td,table.df-rec td{font-size:12.5px!important;padding:7px 6px!important}
+  /* 已上傳工具列：換行不擠 */
+  .libbar{flex-wrap:wrap!important;gap:6px!important}
+  .libbar .libsel{flex:1 1 100%!important}
+  /* 連線列 */
+  .connrow{gap:7px!important}
+  .connrow .btn{margin-left:0!important;flex:1 1 100%!important}
+  /* 今日查驗／紀錄卡 */
+  .df-lock,.df-cur{font-size:12.5px!important;padding:10px 12px!important}
+  .df-chip{min-height:34px!important;font-size:12.5px!important;padding:6px 12px!important}
+  .df-note,.pm-note{font-size:11.5px!important;padding:10px 12px!important}
+  /* 查詢列 */
+  .pm-qbar{gap:8px!important}
+  .pm-qbar .pm-fld{min-width:100%!important;flex:1 1 100%!important}
+  .pm-qbar .pm-btn{flex:1 1 100%!important}
+  .pm-qitem{gap:7px!important;padding:9px 10px!important}
+  .pm-qi-date{flex:0 0 74px!important;font-size:12px!important}
+  .pm-qi-pile{flex:0 0 78px!important;font-size:12.5px!important}
+  .pm-qi-btn{min-height:34px!important;padding:6px 12px!important}
+  .pm-qdetail{padding:8px 0 4px 0!important}
+  .pm-dgrid{grid-template-columns:1fr!important;gap:7px!important}
+}
+/* 極窄機（320～360）再收一級 */
+@media (max-width:380px){
+  main{padding:4px 8px calc(24px + env(safe-area-inset-bottom,0px))!important}
+  .card{padding:11px!important}
+  .pendgrid,.libgrid,.grid2t{grid-template-columns:repeat(2,1fr)!important}
+  .pm-mtable td.design{width:44%!important;font-size:11.5px!important}
+}
+/* 桌機：維持置中窄欄，但欄位仍好讀 */
+@media (min-width:721px){
+  main{max-width:820px!important}
+}
+</style>
+</head>
+<body>
+<script>/* 白屏保險 */
+(function(){try{var de=document.documentElement;if(de.classList.contains("camopen")){var m=document.getElementById("camModal");if(!m||!m.classList.contains("on")){de.classList.remove("camopen");if(document.body)document.body.style.overflow="";}}}catch(e){}})();
+</script>
+
+<header>
+  <div class="hwrap">
+    <div class="logo">驗</div>
+    <div class="brand">
+      <h1>查驗助手</h1>
+    </div>
+    <div class="hactions">
+      <a class="iconbtn" href="../settings/index.html" target="_blank" rel="noopener"
+         title="設定" aria-label="設定"><span aria-hidden="true">⚙</span></a>
+    </div>
+  </div>
+  <div class="sysbar">
+    <div class="sysswitch" role="tablist" aria-label="系統切換">
+      <a href="../index.html" role="tab" aria-selected="false">查驗助手</a>
+      <a href="../build/index.html" role="tab" aria-selected="false">營造助手</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ 施工照片歸檔 ============ -->
+
+    <!-- ============ 今日查驗（人員只問一次 → 逐樁 → 完成） ============ -->
+    <div class="card" id="dailyCard">
+      <div class="cardhd">
+        <h2>今日查驗</h2>
+        <span class="hintx">人員問一次就固定</span>
+      </div>
+      <div id="dailyMount"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>照片上傳</h2>
+        <span class="hintx" id="stageTag">0 張</span>
+      </div>
+      <div class="addrow">
+        <button type="button" class="addbtn" id="tileCam">
+          <span class="big" aria-hidden="true">📷</span>
+          <span>拍照</span>
+          <span class="sm2">開相機，可連拍多張、可變焦</span>
+        </button>
+        <label class="addbtn" for="fileInput2">
+          <span class="big" aria-hidden="true">🖼</span>
+          <span>本機上傳</span>
+          <span class="sm2">從相簿選，可多選</span>
+        </label>
+      </div>
+      <input type="file" id="fileInput2" accept="image/*" multiple hidden>
+      <input type="file" id="camInput2" accept="image/*" capture="environment" hidden>
+
+      <div class="pendbox" id="pendBox" style="display:none">
+        <div class="pendhd">
+          <b>待加入 <span id="pendCount">0</span> 張</b>
+          <button type="button" class="btn ghost sm" id="btnPendClear" style="margin-left:auto">清除</button>
+        </div>
+        <div class="pendgrid" id="pendGrid"></div>
+        <button type="button" class="btn wide" id="btnPendAdd" style="margin-top:10px">加入暫存區（0）</button>
+      </div>
+
+      <div class="progwrap" id="progWrap">
+        <div class="progbar"><i id="progBar"></i></div>
+        <div class="progtxt" id="progTxt">—</div>
+        <div class="progbatch" id="progBatch"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>設定歸檔資料</h2>
+        <span class="hintx" id="connTxt">尚未連線</span>
+        <span class="dot" id="connDot" style="margin-left:0"></span>
+      </div>
+      <div class="grid2">
+        <label class="fld">
+          <span>歸檔日期</span>
+          <input type="date" id="fDate">
+        </label>
+        <label class="fld">
+          <span>樁號</span>
+          <select id="fStation">
+            <option value="">— 請先選擇日期 —</option>
+          </select>
+        </label>
+      </div>
+      <div class="hint2" id="stationHint" style="margin-top:8px"></div>
+
+      <div class="datefilter">
+        <label class="dfchk">
+          <input type="checkbox" id="chkDateFilter" checked>
+          <span>只加入「所選日期」拍的照片</span>
+        </label>
+        <span class="dfhint" id="dfHint">依檔案的拍攝／修改日期比對；開啟後選照片時會自動略過其他日期的照片。</span>
+      </div>
+
+      <div class="sub2">
+        資料夾規則：<code>義力 / 施工照片 / 日期 /</code>　·　檔名規則：<code>日期_樁號_序號.png</code><br>
+        樁號不另建資料夾，直接寫在該張照片的說明（Drive 說明欄）裡。<br>
+        樁號選單依「查驗記錄表」中該日期的查驗紀錄產生，只列出當日有查驗的樁號。<br>
+        自動轉正：先用 OCR 找「工程名稱／檢查項目／檢查日期」的位置判斷方向；判不出來時會在縮圖上顯示「這樣對嗎？」並可按一下轉 180°。
+      </div>
+
+      <div class="rowline">
+        <label class="chk">
+          <input type="checkbox" id="chkWm2" checked>
+          壓上日期浮水印
+        </label>
+        <label class="chk">
+          <input type="checkbox" id="chkOrient2" checked>
+          自動轉正
+        </label>
+      </div>
+
+      <div class="connrow">
+        <span class="tag" id="connTag" style="display:none"></span>
+        <div style="min-width:0">
+          <div class="cmail" id="connMail"></div>
+        </div>
+        <button type="button" class="btn ghost sm" id="btnConnect">🔗 連線 Google Drive</button>
+        <button type="button" class="btn ghost sm" id="btnSwitch" style="display:none">切換帳號</button>
+        <button type="button" class="btn ghost sm" id="btnLogout" style="display:none">登出</button>
+      </div>
+      <div class="errbox" id="connErr"></div>
+      <div class="syncbox" id="syncBox">
+        <div class="sh"><span id="syncIcon">⏳</span><span id="syncTitle">正在自動連線…</span></div>
+        <div class="smsg" id="syncMsg"></div>
+        <div class="sbar" id="syncBarWrap"><i id="syncBar"></i></div>
+      </div>
+      <div class="warnbox" id="connWarn" style="display:none">
+        <b>尚未連線。</b>請按「🔗 連線 Google Drive」並用你的 Google 帳號授權一次，之後就能把照片直接歸檔到自己的雲端硬碟。
+        授權只要求 <code>drive.file</code> 權限，只能存取本程式建立的檔案。
+      </div>
+      <div class="warnbox" id="relinkWarn" style="display:none">
+        <b>需要重新授權。</b><span id="relinkWhy"></span><br>
+        Google 的存取權杖只有 1 小時有效期，且瀏覽器端無法取得 refresh token，所以久未使用或關閉過瀏覽器後，必須手動再按一次授權。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>暫存 <span class="cnt" id="stageCount">0 張</span></h2>
+        <button type="button" class="btn ghost sm" id="btnClearStage" style="margin-left:auto">清空暫存</button>
+      </div>
+      <div class="stage2">
+        <div class="sh">
+          <span class="t">尚未上傳的照片</span>
+          <span class="cnt" id="stageCount2">0 張</span>
+        </div>
+
+        <div class="uncertain" id="uncertainBar" style="display:none"></div>
+
+        <div class="ocrprep" id="ocrPrep" style="display:none">
+          <div class="op-h"><span class="op-t" id="ocrPrepTxt">正在準備 OCR 模型…</span><span class="op-p" id="ocrPrepPct">0%</span></div>
+          <div class="op-bar"><i id="ocrPrepBar"></i></div>
+          <div class="op-s" id="ocrPrepSub">首次使用需下載約 5.8 MB，之後完全離線也能用。</div>
+        </div>
+
+        <div class="grid2t" id="stageGrid"></div>
+
+        <div class="go2">
+          <button class="btn amber" id="btnGo" type="button" disabled>☁ 確認上傳</button>
+          <span class="hint2" id="goHint">請先加入照片</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhd">
+        <h2>已上傳</h2>
+        <span class="hintx" id="libSum"></span>
+      </div>
+      <div class="done2" style="margin-bottom:14px">
+        <div class="sh">
+          <span class="t">本次上傳結果</span>
+          <span class="tag ok" id="doneCount">0 張</span>
+          <button type="button" class="btn ghost sm" id="btnClearDone" style="margin-left:auto">清空本區</button>
+        </div>
+        <div id="doneList"></div>
+      </div>
+
+      <div class="grid2">
+        <label class="fld">
+          <span>日期</span>
+          <input type="date" id="libDate">
+        </label>
+        <label class="fld">
+          <span>樁號</span>
+          <select id="libItem"><option value="">全部</option></select>
+        </label>
+      </div>
+      <div class="btnrow" style="margin-top:10px">
+        <button type="button" class="btn wide" id="btnLibLoad">↻ 讀取這一天</button>
+      </div>
+
+      <div class="libbar" id="libBar" style="display:none">
+        <span class="libsel" id="libSel">已選 0 張</span>
+        <span style="margin-left:auto"></span>
+        <button type="button" class="btn ghost sm" id="btnLibAll">全選</button>
+        <button type="button" class="btn ghost sm" id="btnLibNone">取消</button>
+        <button type="button" class="btn sm ibtn line" id="btnLibLine" title="分享 PNG 到 LINE" aria-label="分享 PNG 到 LINE"><svg class="lineic" viewBox="0 0 34 20" aria-hidden="true"><rect x="0" y="0" width="34" height="20" rx="6" fill="#fff"/><text class="lineic2" x="17" y="14" text-anchor="middle">LINE</text></svg></button>
+        <button type="button" class="btn ghost sm" id="btnLibDl">⬇</button>
+        <button type="button" class="btn ghost sm" id="btnLibCopy">連結</button>
+      </div>
+
+      <div class="hintx" id="libShareMode" style="margin:0 0 8px;font-weight:700;color:#4A5056"></div>
+
+      <div class="libgrid" id="libGrid"></div>
+      <div class="empty" id="libEmpty">尚未讀取</div>
+
+      <div class="pendsec" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+        <div class="sh">
+          <span class="t">待補日期（樁號已定、日期未定）</span>
+          <span class="tag" id="pendTag">0 張</span>
+          <button type="button" class="btn ghost sm" id="btnPendLoad" style="margin-left:auto">↻ 讀取</button>
+        </div>
+        <div class="hint2" style="margin:6px 0 10px">先歸檔到「待補日期」資料夾的照片，可在這裡補上日期並壓上浮水印，之後會自動移到該日期的資料夾。</div>
+        <div id="pendList"></div>
+        <div class="empty" id="pendEmpty" style="display:none">尚無待補日期的照片</div>
+      </div>
+    </div>
+
+    <!-- ============ 樁位資料（暫存／臨時修改） ============ -->
+    <div class="card" id="pileCard">
+      <div class="cardhd">
+        <h2>樁位資料（暫存／臨時修改）</h2>
+        <span class="hintx">現場隨手記、隨時改；查詢請到「資料進度頁」</span>
+      </div>
+      <div id="pmMount"></div>
+      <div class="hint2" style="margin:10px 2px 0">這裡只做「暫存、輸入、臨時改資料」。要找舊資料、依日期或樁號查詢，請到 <a href="../progress/index.html">資料進度頁</a> 的「樁位資料查詢」。</div>
+    </div>
+
+    <!-- ============ 雲端存放／載入（本機暫存 → 雲端） ============ -->
+    <div class="card" id="cloudCard">
+      <div class="cardhd">
+        <h2>雲端存放</h2>
+        <span class="hintx">暫存資料先存上雲端，換裝置再載入</span>
+      </div>
+      <div id="cdbMount"></div>
+    </div>
+
+    <!-- 舊版上傳卡（保留 DOM 供 drive-page.js 綁定，不顯示） -->
+    <div class="card" id="legacyUploadCard" style="display:none">
+      <div class="card-b">
+        <div class="field">
+          <label for="fItem">工項／樁號</label>
+          <input type="text" id="fItem" placeholder="例如 PR4-1">
+        </div>
+        <div class="field">
+          <label for="fNote">說明</label>
+          <textarea id="fNote" placeholder="選填"></textarea>
+        </div>
+        <div class="wmbar">
+          <span class="lbl">歸檔日期浮水印</span>
+          <label class="switch">
+            <input type="checkbox" id="chkWm" checked>
+            <span class="track"></span>
+            <span class="sw" id="wmState">開啟</span>
+          </label>
+        </div>
+        <div class="drop" id="drop"></div>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+        <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none">
+        <div class="prevwrap" id="prevWrap">
+          <div class="prevhead"><span class="t">浮水印預覽</span><span class="tag" id="prevTag">—</span></div>
+          <div class="prevbox"><img id="prevImg" alt="浮水印預覽"></div>
+          <div class="prevnote" id="prevNote"></div>
+        </div>
+        <div class="batchbar">
+          <button class="btn btn-amber" id="btnUpload" type="button" disabled>☁ 開始上傳</button>
+          <button class="btn btn-ghost" id="btnCamera" type="button">📷 直接拍攝</button>
+          <button class="btn btn-ghost" id="btnClear" type="button">清除佇列</button>
+          <span class="spacer"></span>
+          <span class="wmhint" id="uploadHint">請先加入照片</span>
+          <span class="tag" id="queueTag" style="display:none">0 張</span>
+        </div>
+        <div class="list" id="queueList"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- 舊版紀錄清單的 DOM（新版「已上傳」由 drive-lib.js 接手；
+       drive-page.js 仍會操作這些節點，保留但不顯示，避免它報錯中斷 Drive 連線） -->
+  <div id="legacyDom" hidden aria-hidden="true">
+    <div id="histCard">
+      <span id="histTag"></span>
+      <button id="btnSyncNow" type="button"></button>
+      <button id="btnExport" type="button"></button>
+      <div id="segFilter">
+        <button type="button" data-mode="all"></button>
+        <button type="button" data-mode="day"></button>
+        <button type="button" data-mode="range"></button>
+      </div>
+      <input type="date" id="fFrom">
+      <span id="sepRange"></span>
+      <input type="date" id="fTo">
+      <button id="btnClearFilter" type="button"></button>
+      <span id="fCount"></span>
+      <input type="checkbox" id="chkAll">
+      <span id="selCount"></span>
+      <button id="btnCopy" type="button"></button>
+      <button id="btnTxt" type="button"></button>
+      <button id="btnCsv" type="button"></button>
+      <button id="btnZip" type="button"></button>
+      <div id="batchProg"><i id="batchBar"></i><span id="batchTxt"></span></div>
+      <div id="histList"></div>
+    </div>
+    <button id="btnPrevRefresh" type="button"></button>
+  </div>
+
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ===== 站內相機：全螢幕取景、可連拍多張 ===== -->
+<div class="camwrap" id="camModal" role="dialog" aria-modal="true" aria-label="拍照">
+  <div class="camview" id="camView">
+    <video id="camVideo" playsinline autoplay muted></video>
+    <div class="camgrid" id="camGrid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="camframe" id="camFrame" aria-hidden="true"></div>
+    <div class="camflash" id="camFlash"></div>
+    <div class="camtop">
+      <span class="camcnt" id="camModalCount">0 張</span>
+      <button type="button" class="camx" id="camClose" aria-label="關閉">✕</button>
+    </div>
+    <div class="camzoom" id="camZoom">
+      <span class="czmin" aria-hidden="true">1×</span>
+      <input type="range" id="camZoomRange" min="0" max="1000" step="1" value="0" aria-label="變焦倍率">
+      <span class="czmax" aria-hidden="true">5×</span>
+      <span class="czv" id="camZoomVal">1.0×</span>
+    </div>
+    <div class="camerr" id="camErr" hidden></div>
+  </div>
+  <div class="cambar">
+    <button type="button" class="camthumb" id="camThumb" hidden aria-label="檢視剛拍的照片">
+      <img id="camThumbImg" alt="">
+    </button>
+    <button type="button" class="shutter" id="camShutter" aria-label="拍一張"><span></span></button>
+    <button type="button" class="camuse" id="camUse2" disabled>使用照片（0）</button>
+  </div>
+<!-- 剛拍照片檢視器 -->
+
+
+<div class="camviewer" id="camViewer" role="dialog" aria-modal="true" aria-label="檢視照片">
+  <div class="cvhd">
+    <b>剛拍的照片</b>
+    <span class="cvcnt" id="cvCount">0 / 0</span>
+    <button type="button" class="cvx" id="cvClose" aria-label="關閉">✕</button>
+  </div>
+  <div class="cvbody"><img id="cvImg" alt=""></div>
+  <div class="cvft">
+    <button type="button" id="cvPrev">‹ 上一張</button>
+    <button type="button" class="del" id="cvDel">刪除這張</button>
+    <button type="button" id="cvNext">下一張 ›</button>
+  </div>
+</div>
+</div>
+
+<script src="../assets/jszip.min.js"></script>
+<script src="../assets/core.js?v=20261126a"></script>
+<script src="../assets/store.js"></script>
+<script src="../assets/gdrive.js"></script>
+<script src="../assets/watermark.js"></script>
+<script src="../assets/orient.js"></script>
+<script src="../assets/orient-struct3.js"></script>
+<script src="../assets/orient-skew.js"></script>
+<script src="../assets/orient-ocr.js"></script>
+<script src="../assets/orient-switch.js"></script>
+<script src="../assets/photo-edit.js"></script>
+<script src="../assets/gdrive-photo.js"></script>
+<script src="../assets/drive-page.js"></script>
+<script src="../assets/batch-del.js"></script>
+<script src="../assets/zoomlock.js"></script>
+<script src="../assets/cam.js?v=20261126c"></script>
+<script src="../assets/pile-measure.js"></script>
+<script src="../assets/daily-flow.js?v=20261126a"></script>
+<script src="../assets/drive-v2.js"></script>
+<script src="../assets/drive-lib.js"></script>
+<script src="../assets/cloud-db.js"></script>
+<script>
+(function(){
+  function boot(){
+    try{ if(window.DailyFlow&&document.getElementById('dailyMount')) window.DailyFlow.mountDaily(document.getElementById('dailyMount')); }catch(e){ console.error('[daily]',e); }
+    try{ if(window.PileMeasure&&document.getElementById('pmMount')) window.PileMeasure.mount(document.getElementById('pmMount')); }catch(e){ console.error('[pm]',e); }
+    try{ if(window.CloudDB&&document.getElementById('cdbMount')) window.CloudDB.mount(document.getElementById('cdbMount'),{note:'把本機全部資料（今日查驗、樁位資料緩存、已上傳紀錄、樁位進度、查驗紀錄、材料）整合成一份存到 Google Drive；換裝置按「載入」就全部回來。'}); }catch(e){ console.error('[cdb]',e); }
+    try{ if(window.PageZoomLock&&window.PageZoomLock.lockPage) window.PageZoomLock.lockPage(); }catch(e){ console.error('[zoomlock]',e); }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+})();
+</script>
+<script>
+/* 離線快取（OCR 模型）註冊。
+   iOS「加到主畫面」的 standalone 模式對 service worker 攔截導覽有已知問題，
+   會造成白屏／打不開，因此 standalone 模式一律不註冊，改用一般網路載入。 */
+(function(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    var standalone = (window.navigator.standalone===true) ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if(standalone){
+      /* app 模式：不註冊，並主動解除先前已註冊的 SW（讓已卡住的裝置自我修復） */
+      try{ navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ try{ r.unregister(); }catch(e){} }); }).catch(function(){}); }catch(e){}
+      return;
+    }
+    /* 一般瀏覽器：若目前被「舊版」SW 控制（舊版會強制重載分頁、並用快取回應導覽），
+       先解除它並重載一次；重載後就由新版 SW 接手（新版不攔導覽、不強制重載）。 */
+    try{
+      var ctrl = navigator.serviceWorker.controller;
+      var KEY='sw-selfheal-v5';
+      if(!sessionStorage.getItem(KEY) && ctrl && ctrl.scriptURL && ctrl.scriptURL.indexOf('sw-ocr.js') >= 0){
+        sessionStorage.setItem(KEY,'1');
+        navigator.serviceWorker.getRegistrations().then(function(rs){
+          return Promise.all(rs.map(function(r){ return r.unregister().catch(function(){}); }));
+        }).then(function(){ location.reload(); }).catch(function(){});
+        return;
+      }
+    }catch(e){}
+    navigator.serviceWorker.register('../sw-ocr.js',{scope:'../'}).catch(function(){});
+  }catch(e){}
+})();
+</script>
+</body>
+</html>

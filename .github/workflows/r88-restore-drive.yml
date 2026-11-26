@@ -1,6 +1,8 @@
 name: r88 restore drive
 on:
-  workflow_dispatch:
+  push:
+    paths:
+      - '.github/trigger-r88'
 
 permissions:
   contents: write
@@ -29,6 +31,6 @@ jobs:
 
       - name: 自我刪除
         run: |
-          git rm -q .github/workflows/r88-restore-drive.yml
+          git rm -q .github/workflows/r88-restore-drive.yml .github/trigger-r88 || true
           git commit -m "chore: 移除一次性 workflow r88" || echo "no change"
           git push

@@ -302,7 +302,7 @@
       if (btn) btn.addEventListener('click', function () {
         var s = getSnap();
         if (!s) { alert('沒有可還原的本機備份。'); return; }
-        if (!global.confirm('要把本機營造資料還原成 ' + fmt(s.at) + ' 的備份嗎？\n\n目前的機營造資料會被這份備份取代。')) return;
+        if (!global.confirm('要把本機營造資料還原成 ' + fmt(s.at) + ' 的備份嗎？\n\n目前的本機營造資料會被這份備份取代。')) return;
         var res = BC.restoreLocalSnapshot();
         if (!res.ok) { alert(res.msg); return; }
         alert('已還原 ' + fmt(res.at) + ' 的本機備份，頁面將重新整理。');

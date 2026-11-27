@@ -1,0 +1,73 @@
+name: r91-fix-buildsep
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/r91-fix-buildsep.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch build-sep.js
+        run: |
+          python3 - <<'PY'
+          import io
+          p = 'assets/build-sep.js'
+          s = io.open(p, encoding='utf-8').read()
+          orig = s
+          a_old = "      setInterval(function () { if (atEl) atEl.textContent = snapText(); }, 2500);\n"
+          if a_old in s:
+              s = s.replace(a_old, "")
+              print("A: setInterval removed")
+          else:
+              print("A: not found")
+          b_old = """        var mo = new MutationObserver(function () {
+          if (atEl) atEl.textContent = snapText();
+        });"""
+          b_new = """        var mo = new MutationObserver(function () {
+          if (!atEl) return;
+          var next = snapText();
+          if (atEl.textContent === next) return;
+          try { mo.disconnect(); } catch (e) {}
+          atEl.textContent = next;
+          try { mo.observe(node, { childList: true, subtree: true, characterData: true }); } catch (e) {}
+        });"""
+          if b_old in s:
+              s = s.replace(b_old, b_new)
+              print("B: observer guarded")
+          else:
+              print("B: not found")
+          if s == orig:
+              print("NO CHANGE")
+          else:
+              io.open(p, 'w', encoding='utf-8').write(s)
+              print("WROTE", len(s))
+          PY
+      - name: Bump asset version
+        run: |
+          python3 - <<'PY'
+          import io
+          p = 'build/index.html'
+          s = io.open(p, encoding='utf-8').read()
+          n = s.count('?v=20261125b')
+          s = s.replace('?v=20261125b', '?v=20261127a')
+          io.open(p, 'w', encoding='utf-8').write(s)
+          print('bumped', n)
+          PY
+      - name: Syntax check
+        run: node --check assets/build-sep.js && echo SYNTAX_OK
+      - name: Commit and push
+        run: |
+          git config user.name "dodafga"
+          git config user.email "dodafga@users.noreply.github.com"
+          git add assets/build-sep.js build/index.html
+          git diff --cached --quiet && echo "nothing to commit" || git commit -m "fix(build): remove setInterval infinite loop in build-sep.js (fixes /build/ hang)"
+          git push
+      - name: Self-delete
+        run: |
+          git rm -f .github/workflows/r91-fix-buildsep.yml
+          git commit -m "chore: remove one-off workflow" || true
+          git push || true

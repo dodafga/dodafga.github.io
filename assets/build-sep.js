@@ -7,7 +7,7 @@
  *      首次載入時若 build 端沒有權杖、而舊的 inspection-gdrive-token 還在，
  *      會「一次性」複製過來，讓你不必重新登入；之後兩邊各自獨立。
  *   2. 遮蔽所有 inspection-* 資料：營造頁讀到的一律是空值，也寫不進去。
- *      → 查驗的當日已做、已上傳紀錄、樁位資料、材料…等，在營造頁完全看不到。
+ *      → 查驗的當日已做、已上傳記錄、樁位資料、材料…等，在營造頁完全看不到。
  *      → 只「遮住」，不刪除、不修改；查驗助手本身完全不受影響。
  *   3. 查驗專用模組（daily-flow 等）若被載入，立刻移除。
  *   4. 查驗專屬元素若出現在營造頁，立刻移除；並在文字層移除任何「當日已做」字樣。
@@ -157,25 +157,35 @@
     scrub(document);
     if (!global.MutationObserver) return;
     try {
+      /* 修正（卡死）：這個 observer 會同步 scrub 整個 document。
+       * 若被觀察範圍內的節點又被其他模組（例如備份時間文字）反覆改寫，
+       * 就會形成「改寫 → scrub → 改寫」的無限迴圈把主執行緒鎖死。
+       * 這裡加兩道保險：① 重入保護；② 只處理「新增節點」，
+       * 忽略純文字變更（characterData），避免自己觸發自己。 */
+      var _busy = false;
       var mo = new MutationObserver(function (recs) {
-        for (var i = 0; i < recs.length; i++) {
-          var added = recs[i].addedNodes;
-          for (var j = 0; j < added.length; j++) {
-            var n = added[j];
-            if (!n || n.nodeType !== 1) continue;
-            if (n.tagName === 'SCRIPT') {
-              if (blockName(n.getAttribute('src'))) {
+        if (_busy) return;
+        _busy = true;
+        try {
+          for (var i = 0; i < recs.length; i++) {
+            var added = recs[i].addedNodes;
+            for (var j = 0; j < added.length; j++) {
+              var n = added[j];
+              if (!n || n.nodeType !== 1) continue;
+              if (n.tagName === 'SCRIPT') {
+                if (blockName(n.getAttribute('src'))) {
+                  try { n.parentNode.removeChild(n); } catch (e) {}
+                }
+                continue;
+              }
+              killScripts(n);
+              scrub(n);
+              if (n.matches && n.matches(SEL)) {
                 try { n.parentNode.removeChild(n); } catch (e) {}
               }
-              continue;
-            }
-            killScripts(n);
-            scrub(n);
-            if (n.matches && n.matches(SEL)) {
-              try { n.parentNode.removeChild(n); } catch (e) {}
             }
           }
-        }
+        } finally { _busy = false; }
       });
       mo.observe(document.documentElement || document, { childList: true, subtree: true });
     } catch (e) {}
@@ -269,19 +279,30 @@
       var atEl = box.querySelector('#bcSnapAt');
       var btn = box.querySelector('#bcRestore');
 
-      /* 每次點「從雲端載入」都會更新備份時間，用 MutationObserver 追 */
+      /* 每次點「從雲端載入」都會更新備份時間，用 MutationObserver 追。
+       *
+       * 修正（白屏／卡死）：原本這裡還有一個 setInterval 每 2.5 秒寫 atEl.textContent，
+       * 而 atEl 就在被觀察的 node 子樹裡 → 寫入觸發 observer → observer 又寫 → 無限迴圈，
+       * 加上本檔上方 boot() 的 MutationObserver 會同步 scrub 整個 document，
+       * 兩者互相觸發把主執行緒鎖死，/build/ 就整頁卡住（iPhone Safari 看起來像白屏）。
+       * 現在：① 移除 setInterval；② observer 只在文字真的變了才寫；
+       *       ③ 寫入時先 disconnect，寫完再 observe，避免自己觸發自己。 */
       try {
         var mo = new MutationObserver(function () {
-          if (atEl) atEl.textContent = snapText();
+          if (!atEl) return;
+          var next = snapText();
+          if (atEl.textContent === next) return;   /* 沒變就不寫，斷開迴圈 */
+          try { mo.disconnect(); } catch (e) {}
+          atEl.textContent = next;
+          try { mo.observe(node, { childList: true, subtree: true, characterData: true }); } catch (e) {}
         });
         mo.observe(node, { childList: true, subtree: true, characterData: true });
       } catch (e) {}
-      setInterval(function () { if (atEl) atEl.textContent = snapText(); }, 2500);
 
       if (btn) btn.addEventListener('click', function () {
         var s = getSnap();
         if (!s) { alert('沒有可還原的本機備份。'); return; }
-        if (!global.confirm('要把本機營造資料還原成 ' + fmt(s.at) + ' 的備份嗎？\n\n目前的本機營造資料會被這份備份取代。')) return;
+        if (!global.confirm('要把本機營造資料還原成 ' + fmt(s.at) + ' 的備份嗎？\n\n目前的機營造資料會被這份備份取代。')) return;
         var res = BC.restoreLocalSnapshot();
         if (!res.ok) { alert(res.msg); return; }
         alert('已還原 ' + fmt(res.at) + ' 的本機備份，頁面將重新整理。');

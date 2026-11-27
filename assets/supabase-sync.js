@@ -115,7 +115,9 @@
   }
 
   /* 既有頁面只監聽 window 的 storage 事件，而同頁寫入不會觸發它。
-     這裡替每個變更的鍵補送一個 StorageEvent，讓頁面自己重繪。 */
+     這裡替每個變更的鍵補送一個 StorageEvent，讓頁面自己重繪。
+     另外，部分頁面（daily-flow.js 的紀錄表）只監聽自己的 STAFF_KEY，
+     資料鍵變更時不會重繪，因此再主動呼叫頁面提供的重繪函式。 */
   function fireStorageEvent(key) {
     try {
       var ev;
@@ -131,6 +133,18 @@
       }
       global.dispatchEvent(ev);
     } catch (e) {}
+  }
+
+  /* 主動請頁面重繪（各頁提供的掛鉤，沒有就跳過） */
+  function repaint() {
+    var hooks = [
+      function () { if (global.DailyFlow && global.DailyFlow._recRefresh) global.DailyFlow._recRefresh(); },
+      function () { if (global.DailyFlow && global.DailyFlow._dailyRefresh) global.DailyFlow._dailyRefresh(); },
+      function () { if (global.PileMeasure && global.PileMeasure._refresh) global.PileMeasure._refresh(); },
+      function () { if (typeof global.renderAll === 'function') global.renderAll(); },
+      function () { if (typeof global.__driveStationsRefresh === 'function') global.__driveStationsRefresh(); }
+    ];
+    for (var i = 0; i < hooks.length; i++) { try { hooks[i](); } catch (e) {} }
   }
 
   function localKeys() {
@@ -165,6 +179,7 @@
         state.lastPull = new Date().toISOString();
         emit('pull', { changed: changed, count: rows.length });
         for (var ci = 0; ci < changed.length; ci++) fireStorageEvent(changed[ci]);
+        if (changed.length) repaint();
         if (toPush.length) pushKeys(toPush);
         return { changed: changed, cloudKeys: cloudKeys };
       })

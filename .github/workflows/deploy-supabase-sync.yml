@@ -1,0 +1,60 @@
+name: deploy-supabase-sync
+on:
+  push:
+    paths:
+      - '.github/workflows/deploy-supabase-sync.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Fetch supabase-sync.js from public store
+        env:
+          SB_URL: https://ohwrzcrmdmqnxbxjfuus.supabase.co
+          SB_KEY: sb_publishable_QRBZ59wj7F4iTJTCraJzHQ_SvL8AbMv
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/row.json \
+            "$SB_URL/rest/v1/app_state?select=value&key=eq.__deploy__supabase-sync" \
+            -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY"
+          jq -r '.[0].value.v' /tmp/row.json > assets/supabase-sync.js
+          wc -c assets/supabase-sync.js
+          if grep -q "__PLACEHOLDER__" assets/supabase-sync.js; then echo "ERROR placeholder"; exit 1; fi
+          if [ "$(wc -c < assets/supabase-sync.js)" -lt 5000 ]; then echo "ERROR too small"; exit 1; fi
+          node --check assets/supabase-sync.js
+          echo "SYNTAX OK"
+          grep -c "function repaint" assets/supabase-sync.js
+
+      - name: Bump asset version in pages
+        run: |
+          set -euo pipefail
+          for f in drive/index.html progress/index.html build/index.html form/index.html photo/index.html settings/index.html; do
+            sed -i 's|supabase-sync\.js?v=20261127b|supabase-sync.js?v=20261127c|g' "$f"
+            printf '%-24s ' "$f"; grep -o 'supabase-sync.js?v=[0-9a-z]*' "$f" | head -1
+          done
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name "Teamily Agent"
+          git config user.email "agent@teamily.ai"
+          git add -A
+          if git diff --cached --quiet; then echo "no change"; else
+            git commit -m "fix: 雲端拉取後主動重繪頁面（daily-flow 紀錄表不監聽資料鍵）"
+            git push origin main
+          fi
+
+      - name: Self-remove
+        run: |
+          set -euo pipefail
+          git rm -q .github/workflows/deploy-supabase-sync.yml
+          git commit -m "chore: 移除一次性部署 workflow"
+          git push origin main

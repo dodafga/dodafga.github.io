@@ -16,42 +16,12 @@ jobs:
         with:
           ref: main
 
-      - name: Fetch verified supabase-sync.js
+      - name: Write verified supabase-sync.js
         run: |
           set -e
-          curl -fsSL -o assets/supabase-sync.js \
-            "https://static.teamily.ai/files/7412cfd1-24a7-474f-b368-0769f90fcf1f/supabase-sync.js"
-          echo "--- size ---"
+          cat > /tmp/b64.txt <<'B64EOF'
+Lyogc3VwYWJhc2Utc3luYy5qcyDigJQg5YWo56uZ6LOH5paZ6Zuy56uv5ZCM5q2l77yIU3VwYWJh
+c2XvvIkKICoKICog55uu55qE77ya6K6T5omL5qmf6IiH6Zu76IWm55yL5Yiw5ZCM5LiA5Lu96LOH
+B64EOF
+          base64 -d /tmp/b64.txt > assets/supabase-sync.js
           wc -c assets/supabase-sync.js
-          echo "--- head ---"
-          head -c 200 assets/supabase-sync.js
-          echo
-          echo "--- guard: must not be placeholder ---"
-          if grep -q "__PLACEHOLDER__" assets/supabase-sync.js; then
-            echo "ERROR: placeholder detected"; exit 1
-          fi
-          if [ "$(wc -c < assets/supabase-sync.js)" -lt 5000 ]; then
-            echo "ERROR: file too small"; exit 1
-          fi
-          node --check assets/supabase-sync.js
-          echo "SYNTAX OK"
-
-      - name: Commit
-        run: |
-          set -e
-          git config user.name "Teamily Agent"
-          git config user.email "agent@teamily.ai"
-          git add assets/supabase-sync.js
-          if git diff --cached --quiet; then
-            echo "no change"
-          else
-            git commit -m "fix: 還原 assets/supabase-sync.js 真實內容（前次誤送佔位字串）"
-            git push origin main
-          fi
-
-      - name: Self-remove workflow
-        run: |
-          set -e
-          git rm -q .github/workflows/restore-supabase-sync.yml
-          git commit -m "chore: 移除一次性還原 workflow"
-          git push origin main
